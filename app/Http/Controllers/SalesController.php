@@ -73,7 +73,8 @@ class SalesController extends Controller
 
     public function salesDataWebHook(Request $request)
     {
-       
+        if ($request->has('key') && $request->key === env('WEBHOOK_SECRET_KEY')) {
+
         $existingSale = null;
 
         if ($request->has('email') || $request->has('user_id')) {
@@ -94,5 +95,8 @@ class SalesController extends Controller
             Sale::create($request->all());
             return response()->json(['message' => 'Webhook data saved successfully']);
         }
+    } else {
+        return response()->json(['error' => 'Unauthorized'], 401);
+    }
     }
 }

@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
-Route::post('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
+Route::get('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::get('sales', [SalesController::class, 'index'])->name('sales');
