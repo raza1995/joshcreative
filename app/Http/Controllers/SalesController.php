@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\SalesDataTable;
-use App\Models\Sales;
+use App\DataTables\SalesDataDataTable;
+use App\Models\Sale;
 use Illuminate\Http\Request;
 
 class SalesController extends Controller
@@ -11,7 +11,7 @@ class SalesController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(SalesDataTable $dataTable)
+    public function index(SalesDataDataTable $dataTable)
     {
         ini_set('memory_limit', '1024M');
 
@@ -37,7 +37,7 @@ class SalesController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Sales $sales)
+    public function show(Sale $sale)
     {
         //
     }
@@ -45,7 +45,7 @@ class SalesController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Sales $sales)
+    public function edit(Sale $sale)
     {
         //
     }
@@ -53,7 +53,7 @@ class SalesController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Sales $sales)
+    public function update(Request $request, Sale $sale)
     {
         //
     }
@@ -61,7 +61,7 @@ class SalesController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Sales $sales)
+    public function destroy(Sale $sale)
     {
         //
     }
