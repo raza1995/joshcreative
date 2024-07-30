@@ -61,12 +61,14 @@ class SalesDataDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('action')
-                  ->exportable(false)
-                  ->printable(false)
-                  ->width(60)
-                  ->addClass('text-center'),
+
             Column::make('id'),
+            Column::make('project_id'),
+            Column::make('salesname'),
+            Column::make('ip_address'),
+            Column::make('utm_source'),
+            Column::make('total_amount'),
+            Column::make('earned_commission'),
             Column::make('created_at'),
             Column::make('updated_at'),
         ];

@@ -13,13 +13,15 @@ return new class extends Migration
     {
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('project_id');
-            $table->string('salesname');
+            $table->unsignedBigInteger('project_id')->nullable();
+            $table->string('salesname')->nullable();
+            $table->string('email')->nullable();
+            $table->string('user_id')->nullable();
             $table->string('ip_address')->nullable();
             $table->string('utm_source')->nullable();
             $table->decimal('total_amount', 10, 2)->nullable(); 
             $table->decimal('earned_commission', 10, 2)->nullable(); 
-            $table->timestamps();
+            $table->timestampsTz();
         });
     }
 
