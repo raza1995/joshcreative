@@ -20,6 +20,5 @@ Route::get('/', function () {
 });
 Route::post('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
 Auth::routes();
-
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::get('sales', [SalesController::class, 'index'])->name('sales');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DataTables\SalesDataDataTable;
 use App\Models\Sale;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class SalesController extends Controller
 {
@@ -13,9 +14,13 @@ class SalesController extends Controller
      */
     public function index(SalesDataDataTable $dataTable)
     {
+    if(Auth::user()){
         ini_set('memory_limit', '1024M');
 
         return $dataTable->render('sales.index');
+        
+    }
+     
     }
 
     /**
@@ -68,16 +73,26 @@ class SalesController extends Controller
 
     public function salesDataWebHook(Request $request)
     {
-        dd('test');
-        if ($request->has('key') && $request->key === env('WEBHOOK_SECRET_KEY')) {
-            // Get the webhook data
-            $data = $request->all();
+       
+        $existingSale = null;
 
-            Sale::create($data);
+        if ($request->has('email') || $request->has('user_id')) {
+            $existingSale = Sale::where(function ($query) use ($request) {
+                if ($request->has('email')) {
+                    $query->where('email', $request->email);
+                }
+                if ($request->has('user_id')) {
+                    $query->orWhere('user_id', $request->user_id);
+                }
+            })->first();
+        }
 
-            return response()->json(['message' => 'Webhook data saved successfully']);
+        if ($existingSale) {
+            $existingSale->update($request->all());
+            return response()->json(['message' => 'Webhook data updated successfully']);
         } else {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            Sale::create($request->all());
+            return response()->json(['message' => 'Webhook data saved successfully']);
         }
     }
 }
