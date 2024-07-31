@@ -98,7 +98,7 @@ class SalesController extends Controller
     {
         Log::info('New sale created second: ' . json_encode($request->all()));
 
-        $existingSale = Sale::where('user_id', $request->user_id_dj ?? null)
+        $existingSale = Sale::where('user_id', $request->dj_user_id ?? null)
                             ->where('email', $request->email ?? null)
                             ->first();
 
@@ -107,9 +107,10 @@ class SalesController extends Controller
             return response()->json(['message' => 'Webhook data updated successfully']);
         } else {
             $mappedData = [
-                'user_id' => $request->user_id_dj ?? '',
+                'dj_user_id' => $request->dj_user_id ?? '',
                 'email' => $request->email ?? '',
                 'utm_source' => $request->utm_source ?? '',
+                'ip_address' => $request->ip_address ?? '',
             ];
 
             foreach ($mappedData as $key => $value) {
