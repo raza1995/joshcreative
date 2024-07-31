@@ -72,47 +72,42 @@ class SalesController extends Controller
         //
     }
 
-    public function handleWebhook(Request $request)
+    public function teachableHandleWebhook(Request $request)
     {
-        // Verify the request, parse the JSON payload
         $payload = $request->json()->all();
-        Log::info('New sale created: ' . json_encode($payload));
+        Log::info('New sale created first: ' . json_encode($payload ));
 
-        
-
+        $mappedData = [
+            'user_id' => $payload['object']['user']['id'],
+            'total_amount' => $payload['object']['final_price'],
+            'email' => $payload['object']['user']['email'],
+            'price' => $payload['object']['user']['price']
+        ];
+        Sale::create($mappedData);
         return response()->json(['message' => 'Webhook received successfully']);
     }
 
     public function salesDataWebHook(Request $request)
     {
-        Log::info('New sale created: ' . json_encode($request->all()));
+        Log::info('New sale created second: ' . json_encode($request->all()));
 
-        if ($request->has('key') && $request->key === env('WEBHOOK_SECRET_KEY')) {
+        $existingSale = Sale::where('user_id', $request->user_id_dj)
+                            ->where('email', $request->email)
+                            ->first();
 
-            $existingSale = null;
-            Log::info('New sale created: ' . json_encode($request->all()));
-            Sale::create($request->all());
-            return response()->json(['message' => 'Webhook data saved successfully']);
-            // if ($request->has('email') || $request->has('user_id')) {
-            //     $existingSale = Sale::where(function ($query) use ($request) {
-            //         if ($request->has('email')) {
-            //             $query->where('email', $request->email);
-            //         }
-            //         if ($request->has('user_id')) {
-            //             $query->orWhere('user_id', $request->user_id);
-            //         }
-            //     })->first();
-            // }
-
-            // if ($existingSale) {
-            //     $existingSale->update($request->all());
-            //     return response()->json(['message' => 'Webhook data updated successfully']);
-            // } else {
-            //     Sale::create($request->all());
-            //     return response()->json(['message' => 'Webhook data saved successfully']);
-            // }
+        if ($existingSale) {
+            $existingSale->update(['utm_source' => $request->utm_source]);
+            return response()->json(['message' => 'Webhook data updated successfully']);
         } else {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            $mappedData = [
+                'user_id' => $request->user_id_dj,
+                'email' => $request->email,
+                'utm_source' => $request->utm_source,
+            ];
+
+            Sale::create($mappedData);
+
+            return response()->json(['message' => 'Webhook data saved successfully']);
         }
     }
 }
