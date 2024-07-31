@@ -102,7 +102,7 @@ class SalesController extends Controller
  Log::info('New sale created second: ' . json_encode($payload));
 
         $existingSale = Sale::updateOrCreate(
-            ['email' => $payload['email']],
+            ['email' => $payload['email'] ?? '', 'ip_address' => $payload['ip_address'] ?? '' , 'dj_user_id' => $payload['dj_user_id'] ?? ''],
             [
                 'utm_source' => $payload['utm_source'] ?? '',
                 'email' => $payload['email']  ?? '',
