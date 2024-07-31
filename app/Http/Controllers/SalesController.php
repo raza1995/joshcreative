@@ -78,11 +78,18 @@ class SalesController extends Controller
         Log::info('New sale created first: ' . json_encode($payload ));
 
         $mappedData = [
-            'user_id' => $payload['object']['user']['id'],
-            'total_amount' => $payload['object']['final_price'],
-            'email' => $payload['object']['user']['email'],
-            'price' => $payload['object']['user']['price']
+            'user_id' => $payload['object']['user']['id'] ?? '',
+            'total_amount' => $payload['object']['final_price'] ?? 0,
+            'email' => $payload['object']['user']['email'] ?? '',
+            'price' => $payload['object']['price'] ?? 0
         ];
+
+        foreach ($mappedData as $key => $value) {
+            if ($value === null || $value === '') {
+                $mappedData[$key] = '';
+            }
+        }
+
         Sale::create($mappedData);
         return response()->json(['message' => 'Webhook received successfully']);
     }
@@ -91,19 +98,25 @@ class SalesController extends Controller
     {
         Log::info('New sale created second: ' . json_encode($request->all()));
 
-        $existingSale = Sale::where('user_id', $request->user_id_dj)
-                            ->where('email', $request->email)
+        $existingSale = Sale::where('user_id', $request->user_id_dj ?? null)
+                            ->where('email', $request->email ?? null)
                             ->first();
 
         if ($existingSale) {
-            $existingSale->update(['utm_source' => $request->utm_source]);
+            $existingSale->update(['utm_source' => $request->utm_source ?? null]);
             return response()->json(['message' => 'Webhook data updated successfully']);
         } else {
             $mappedData = [
-                'user_id' => $request->user_id_dj,
-                'email' => $request->email,
-                'utm_source' => $request->utm_source,
+                'user_id' => $request->user_id_dj ?? '',
+                'email' => $request->email ?? '',
+                'utm_source' => $request->utm_source ?? '',
             ];
+
+            foreach ($mappedData as $key => $value) {
+                if ($value === null || $value === '') {
+                    $mappedData[$key] = '';
+                }
+            }
 
             Sale::create($mappedData);
 
