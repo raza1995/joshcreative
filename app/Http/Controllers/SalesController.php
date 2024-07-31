@@ -95,17 +95,20 @@ class SalesController extends Controller
     }
 
     public function salesDataWebHook(Request $request)
-    {
-        Log::info('New sale created second: ' . json_encode($request->all()));
+    {   
+        $payload = $request->json()->all();
+       
+
+ Log::info('New sale created second: ' . json_encode($payload));
 
         $existingSale = Sale::updateOrCreate(
-            ['email' => $request->email ?? '', 'dj_user_id' => $request->dj_user_id ?? '', 'ip_address' => $request->ip_address ?? '' ],
+            ['email' => $payload['email']],
             [
-                'utm_source' => $request->utm_source ?? '',
-                'email' => $request->email ?? '',
-                'ip_address' => $request->ip_address ?? '',
-                'dj_user_id' => $request->dj_user_id ?? '',
-                'user_id' => $request->user_id ?? '',
+                'utm_source' => $payload['utm_source'] ?? '',
+                'email' => $payload['email']  ?? '',
+                'ip_address' => $payload['ip_address']  ?? '',
+                'dj_user_id' => $payload['dj_user_id']  ?? '',
+                'user_id' => $payload['user_id']  ?? '',
             ]
         );
 
