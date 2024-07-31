@@ -72,9 +72,20 @@ class SalesController extends Controller
         //
     }
 
+    public function handleWebhook(Request $request)
+    {
+        // Verify the request, parse the JSON payload
+        $payload = $request->json()->all();
+        Log::info('New sale created: ' . json_encode($payload));
+
+        
+
+        return response()->json(['message' => 'Webhook received successfully']);
+    }
+
     public function salesDataWebHook(Request $request)
     {
-      
+        Log::info('New sale created: ' . json_encode($request->all()));
 
         if ($request->has('key') && $request->key === env('WEBHOOK_SECRET_KEY')) {
 
