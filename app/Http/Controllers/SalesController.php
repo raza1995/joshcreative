@@ -98,7 +98,7 @@ class SalesController extends Controller
     {
         Log::info('New sale created second: ' . json_encode($request->all()));
 
-        $existingSale = Sale::where('user_id', $request->dj_user_id ?? null)
+        $existingSale = Sale::where('dj_user_id', $request->dj_user_id ?? null)
                             ->where('email', $request->email ?? null)
                             ->first();
 
