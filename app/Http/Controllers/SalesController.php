@@ -98,36 +98,21 @@ class SalesController extends Controller
     {
         Log::info('New sale created second: ' . json_encode($request->all()));
 
-        $existingSale = Sale::where('dj_user_id', $request->dj_user_id ?? '')
-                            ->orWhere('email', $request->email ?? '')
-                            ->orWhere('ip_address', $request->ip_address ?? '')
-                            ->first();
-
-        if ($existingSale) {
-            $existingSale->update([
+        $existingSale = Sale::updateOrCreate(
+            ['email' => $request->email ?? ''],
+            [
                 'utm_source' => $request->utm_source ?? '',
                 'email' => $request->email ?? '',
                 'ip_address' => $request->ip_address ?? '',
-                'dj_user_id' => $request->dj_user_id ?? ''
-            ]);
-            return response()->json(['message' => 'Webhook data updated successfully']);
-        } else {
-            $mappedData = [
                 'dj_user_id' => $request->dj_user_id ?? '',
-                'email' => $request->email ?? '',
-                'utm_source' => $request->utm_source ?? '',
-                'ip_address' => $request->ip_address ?? '',
-            ];
+                'user_id' => $request->user_id ?? '',
+            ]
+        );
 
-            foreach ($mappedData as $key => $value) {
-                if ($value === null || $value === '') {
-                    $mappedData[$key] = '';
-                }
-            }
-
-            Sale::create($mappedData);
-
+        if ($existingSale->wasRecentlyCreated) {
             return response()->json(['message' => 'Webhook data saved successfully']);
+        } else {
+            return response()->json(['message' => 'Webhook data updated successfully']);
         }
     }
 }
