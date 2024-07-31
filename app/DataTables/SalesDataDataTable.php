@@ -71,6 +71,7 @@ class SalesDataDataTable extends DataTable
             Column::make('utm_source'),
             Column::make('total_amount'),
             Column::make('dj_user_id'),
+            Column::make('user_id')->title('Teachable User Id'),
             Column::make('earned_commission'),
             Column::make('created_at'),
             Column::make('updated_at'),
