@@ -8,7 +8,7 @@ use App\Models\SalesMeta;
 class Sale extends Model
 {
     use HasFactory;
-    protected $fillable = ['project_id', 'user_id', 'salesname','email', 'ip_address', 'utm_source', 'total_amount', 'earned_commission', 'created_at', 'updated_at','dj_user_id', 'price`'];
+    protected $fillable = ['project_id', 'user_id', 'salesname','email', 'ip_address', 'utm_source', 'total_amount', 'earned_commission', 'created_at', 'updated_at','dj_user_id', 'price'];
     
     public function meta()
     {
