@@ -14,7 +14,11 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-Route::get('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
+
+Route::group(['middleware' => 'cors'], function () {
+    Route::get('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
+});
+
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
