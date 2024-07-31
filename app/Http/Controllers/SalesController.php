@@ -78,25 +78,26 @@ class SalesController extends Controller
         if ($request->has('key') && $request->key === env('WEBHOOK_SECRET_KEY')) {
 
             $existingSale = null;
+            Sale::create($request->all());
+            return response()->json(['message' => 'Webhook data saved successfully']);
+            // if ($request->has('email') || $request->has('user_id')) {
+            //     $existingSale = Sale::where(function ($query) use ($request) {
+            //         if ($request->has('email')) {
+            //             $query->where('email', $request->email);
+            //         }
+            //         if ($request->has('user_id')) {
+            //             $query->orWhere('user_id', $request->user_id);
+            //         }
+            //     })->first();
+            // }
 
-            if ($request->has('email') || $request->has('user_id')) {
-                $existingSale = Sale::where(function ($query) use ($request) {
-                    if ($request->has('email')) {
-                        $query->where('email', $request->email);
-                    }
-                    if ($request->has('user_id')) {
-                        $query->orWhere('user_id', $request->user_id);
-                    }
-                })->first();
-            }
-
-            if ($existingSale) {
-                $existingSale->update($request->all());
-                return response()->json(['message' => 'Webhook data updated successfully']);
-            } else {
-                Sale::create($request->all());
-                return response()->json(['message' => 'Webhook data saved successfully']);
-            }
+            // if ($existingSale) {
+            //     $existingSale->update($request->all());
+            //     return response()->json(['message' => 'Webhook data updated successfully']);
+            // } else {
+            //     Sale::create($request->all());
+            //     return response()->json(['message' => 'Webhook data saved successfully']);
+            // }
         } else {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
