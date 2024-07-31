@@ -15,10 +15,8 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::group(['middleware' => 'cors'], function () {
-    Route::get('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
-});
 
+Route::get('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
