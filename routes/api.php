@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 
-Route::get('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
+Route::any('/webhook', [SalesController::class, 'salesDataWebHook'])->name('webhook');
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

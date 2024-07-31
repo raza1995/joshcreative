@@ -6,6 +6,7 @@ use App\DataTables\SalesDataDataTable;
 use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class SalesController extends Controller
 {
@@ -78,6 +79,7 @@ class SalesController extends Controller
         if ($request->has('key') && $request->key === env('WEBHOOK_SECRET_KEY')) {
 
             $existingSale = null;
+            Log::info('New sale created: ' . json_encode($request->all()));
             Sale::create($request->all());
             return response()->json(['message' => 'Webhook data saved successfully']);
             // if ($request->has('email') || $request->has('user_id')) {
