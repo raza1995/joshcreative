@@ -73,30 +73,34 @@ class SalesController extends Controller
 
     public function salesDataWebHook(Request $request)
     {
+        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE");
+        header("Access-Control-Allow-Headers: Content-Type, X-Auth-Token, Origin, Authorization");
+
         if ($request->has('key') && $request->key === env('WEBHOOK_SECRET_KEY')) {
 
-        $existingSale = null;
+            $existingSale = null;
 
-        if ($request->has('email') || $request->has('user_id')) {
-            $existingSale = Sale::where(function ($query) use ($request) {
-                if ($request->has('email')) {
-                    $query->where('email', $request->email);
-                }
-                if ($request->has('user_id')) {
-                    $query->orWhere('user_id', $request->user_id);
-                }
-            })->first();
-        }
+            if ($request->has('email') || $request->has('user_id')) {
+                $existingSale = Sale::where(function ($query) use ($request) {
+                    if ($request->has('email')) {
+                        $query->where('email', $request->email);
+                    }
+                    if ($request->has('user_id')) {
+                        $query->orWhere('user_id', $request->user_id);
+                    }
+                })->first();
+            }
 
-        if ($existingSale) {
-            $existingSale->update($request->all());
-            return response()->json(['message' => 'Webhook data updated successfully']);
+            if ($existingSale) {
+                $existingSale->update($request->all());
+                return response()->json(['message' => 'Webhook data updated successfully']);
+            } else {
+                Sale::create($request->all());
+                return response()->json(['message' => 'Webhook data saved successfully']);
+            }
         } else {
-            Sale::create($request->all());
-            return response()->json(['message' => 'Webhook data saved successfully']);
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
-    } else {
-        return response()->json(['error' => 'Unauthorized'], 401);
-    }
     }
 }
