@@ -90,7 +90,7 @@ class SalesController extends Controller
             }
         }
 
-        Sale::create($mappedData);
+        // Sale::create($mappedData);
         return response()->json(['message' => 'Webhook received successfully']);
     }
 
