@@ -73,49 +73,60 @@ class SalesController extends Controller
     }
 
     public function teachableHandleWebhook(Request $request)
-    {
-        $payload = $request->json()->all();
-        Log::info('New sale created first: ' . json_encode($payload ));
+{
+    $payload = $request->json()->all();
 
-        $mappedData = [
-            'user_id' => $payload['object']['user']['id'] ?? '',
-            'total_amount' => $payload['object']['final_price'] ?? 0,
-            'email' => $payload['object']['user']['email'] ?? '',
-            'price' => $payload['object']['price'] ?? 0
-        ];
+    Log::info('New sale created first: ' . json_encode($payload));
 
-        foreach ($mappedData as $key => $value) {
-            if ($value === null || $value === '') {
-                $mappedData[$key] = '';
-            }
-        }
+    $mappedData = [
+        'user_id' => $payload['object']['user_id'],
+        'total_amount' => $payload['object']['final_price'] ?? 0,
+        'email' => $payload['object']['user']['email'] ?? '',
+        'price' => ($payload['object']['product']['price'] ?? 0) / 100
+    ];
+    Log::info('mappedData: ' . json_encode($mappedData));
+    
+    $existingSale = Sale::where('email', $mappedData['email'] ?? '')->first();
 
-        // Sale::create($mappedData);
-        return response()->json(['message' => 'Webhook received successfully']);
+    if ($existingSale) {
+
+        $existingSale->update([
+            'total_amount' => $mappedData['total_amount'],
+            'price' => $mappedData['price'],
+            'purchase_count' => $existingSale->purchase_count + 1 // Increment purchase count
+        ]);
+    } else {
+        Sale::create(array_merge($mappedData, ['purchase_count' => 1]));  
     }
+}
 
-    public function salesDataWebHook(Request $request)
+   public function salesDataWebHook(Request $request)
     {   
         $payload = $request->json()->all();
        
 
- Log::info('New sale created second: ' . json_encode($payload));
+        Log::info('New sale created second: ' . json_encode($payload));
+        $existingSale = Sale::where('dj_user_id', $payload['dj_user_id'] ?? '')
+        ->orWhere('ip_address', $payload['ip_address'] ?? '')
+        ->first();
 
-        $existingSale = Sale::updateOrCreate(
-            ['email' => $payload['email'] ?? '', 'ip_address' => $payload['ip_address'] ?? '' , 'dj_user_id' => $payload['dj_user_id'] ?? ''],
-            [
+        if ($existingSale) {
+            $existingSale->update([
                 'utm_source' => $payload['utm_source'] ?? '',
-                'email' => $payload['email']  ?? '',
-                'ip_address' => $payload['ip_address']  ?? '',
-                'dj_user_id' => $payload['dj_user_id']  ?? '',
-                'user_id' => $payload['user_id']  ?? '',
-            ]
-        );
-
-        if ($existingSale->wasRecentlyCreated) {
-            return response()->json(['message' => 'Webhook data saved successfully']);
+                'user_id' => $payload['user_id'] ?? '',
+                'ip_address' => $payload['ip_address'] ?? ''
+            ]);
         } else {
-            return response()->json(['message' => 'Webhook data updated successfully']);
+            $existingSale = Sale::create([
+                'dj_user_id' => $payload['dj_user_id'] ?? '',
+                'ip_address' => $payload['ip_address'] ?? '',
+                'utm_source' => $payload['utm_source'] ?? '',
+                'email' => $payload['email'] ?? '',
+                'user_id' => $payload['user_id'] ?? '',
+                'project_id' => $payload['project_id'] ?? ''
+            ]);
         }
+
+      
     }
 }
