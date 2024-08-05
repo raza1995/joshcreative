@@ -89,7 +89,7 @@ class SalesController extends Controller
     Log::info('mappedData: ' . json_encode($mappedData));
     
     $existingSale = Sale::where('email', $mappedData['email'] ?? '')->latest()->first();
-
+    Log::info('existingSale: ' . $existingSale);
     if ($existingSale) {
 
         $existingSale->update([
