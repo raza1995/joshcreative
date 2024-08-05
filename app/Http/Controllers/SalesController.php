@@ -97,6 +97,9 @@ class SalesController extends Controller
             $existingSale->update([
                 'total_amount' => $mappedData['total_amount'] ?? $existingSale->total_amount,
                 'price' => $mappedData['price'] ?? $existingSale->price,
+                'promo_code' => $mappedData['promo_code'] ?? $existingSale->promo_code,
+                'status' => $mappedData['status'] ?? $existingSale->status,
+                'price' => $mappedData['price'] ?? $existingSale->price,
                 'purchase_count' => $existingSale->purchase_count + 1 
             ]);
         } else {
