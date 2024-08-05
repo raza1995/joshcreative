@@ -88,11 +88,11 @@ class SalesController extends Controller
     ];
     Log::info('mappedData: ' . json_encode($mappedData));
     
-            $existingSale = Sale::where('email', $mappedData['email'] ?? '')->latest()->first();
-        Log::info('existingSale: ', ['existingSale' => $existingSale]);
+    $existingSale = Sale::where('email', $mappedData['email'] ?? '')->orderBy('created_at', 'desc')->first();
+    Log::info('existingSale: ', ['existingSale' => $existingSale]);
 
         if ($existingSale) {
-            Log::info('Updating existing sale', ['sale_id' => $existingSale->id]);
+            Log::info('Updating existing sale', ['sales_id' => $existingSale->id]);
 
             $existingSale->update([
                 'total_amount' => $mappedData['total_amount'] ?? $existingSale->total_amount,
