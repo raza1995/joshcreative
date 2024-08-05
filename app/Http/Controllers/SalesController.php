@@ -88,18 +88,23 @@ class SalesController extends Controller
     ];
     Log::info('mappedData: ' . json_encode($mappedData));
     
-    $existingSale = Sale::where('email', $mappedData['email'] ?? '')->latest()->first();
-    Log::info('existingSale: ' . $existingSale);
-    if ($existingSale) {
+            $existingSale = Sale::where('email', $mappedData['email'] ?? '')->latest()->first();
+        Log::info('existingSale: ', ['existingSale' => $existingSale]);
 
-        $existingSale->update([
-            'total_amount' => $mappedData['total_amount'],
-            'price' => $mappedData['price'],
-            'purchase_count' => $existingSale->purchase_count + 1 
-        ]);
-    } else {
-        Sale::create(array_merge($mappedData, ['purchase_count' => 1]));  
-    }
+        if ($existingSale) {
+            Log::info('Updating existing sale', ['sale_id' => $existingSale->id]);
+
+            $existingSale->update([
+                'total_amount' => $mappedData['total_amount'] ?? $existingSale->total_amount,
+                'price' => $mappedData['price'] ?? $existingSale->price,
+                'purchase_count' => $existingSale->purchase_count + 1 
+            ]);
+        } else {
+            Log::info('Creating new sale', ['email' => $mappedData['email'] ?? '']);
+
+            Sale::create(array_merge($mappedData, ['purchase_count' => 1]));
+        }
+
 }
 // public function salesDataWebHook(Request $request)
 // {   
