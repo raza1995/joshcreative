@@ -76,7 +76,7 @@ class SalesDataDataTable extends DataTable
                                 var val = $.fn.dataTable.util.escapeRegex(
                                     $(this).val()
                                 );
-                                api.column(9) // Adjust the column index for your status column
+                                api.column(6) // Adjust the column index for your status column
                                     .search(val ? \'^\'+val+\'$\' : \'\', true, false)
                                     .draw();
                             });
