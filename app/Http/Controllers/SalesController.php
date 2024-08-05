@@ -124,8 +124,7 @@ class SalesController extends Controller
        
 
         Log::info('New sale created second: ' . json_encode($payload));
-        $existingSale = Sale::where('dj_user_id', $payload['dj_user_id'] ?? '')
-        ->orWhere('ip_address', $payload['ip_address'] ?? '')
+        $existingSale = Sale::where('sales_id', $payload['sales_id'] ?? '')
         ->first();
 
         if ($existingSale) {
