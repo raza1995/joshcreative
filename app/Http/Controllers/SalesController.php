@@ -82,7 +82,9 @@ class SalesController extends Controller
         'user_id' => $payload['object']['user_id'],
         'total_amount' => $payload['object']['final_price'] ?? 0,
         'email' => $payload['object']['user']['email'] ?? '',
-        'price' => ($payload['object']['product']['price'] ?? 0) / 100
+        'promo_code' => $payload['object']['coupon']['code'] ?? '',
+        'status' => 'Purchased',
+        'price' => number_format(($payload['object']['product']['price'] ?? 0) / 100, 2, '.', '')
     ];
     Log::info('mappedData: ' . json_encode($mappedData));
     
@@ -93,12 +95,28 @@ class SalesController extends Controller
         $existingSale->update([
             'total_amount' => $mappedData['total_amount'],
             'price' => $mappedData['price'],
-            'purchase_count' => $existingSale->purchase_count + 1 // Increment purchase count
+            'purchase_count' => $existingSale->purchase_count + 1 
         ]);
     } else {
         Sale::create(array_merge($mappedData, ['purchase_count' => 1]));  
     }
 }
+// public function salesDataWebHook(Request $request)
+// {   
+//     $payload = $request->json()->all();
+   
+//     Log::info('New sale created second: ' . json_encode($payload));
+
+//     Sale::create([
+//         'dj_user_id' => $payload['dj_user_id'] ?? '',
+//         'ip_address' => $payload['ip_address'] ?? '',
+//         'utm_source' => $payload['utm_source'] ?? '',
+//         'email' => $payload['email'] ?? '',
+//         'user_id' => $payload['user_id'] ?? '',
+//         'status' => 'added_to_cart',
+//         'project_id' => $payload['project_id'] ?? ''
+//     ]);
+// }
 
    public function salesDataWebHook(Request $request)
     {   
@@ -123,7 +141,9 @@ class SalesController extends Controller
                 'utm_source' => $payload['utm_source'] ?? '',
                 'email' => $payload['email'] ?? '',
                 'user_id' => $payload['user_id'] ?? '',
-                'project_id' => $payload['project_id'] ?? ''
+                'project_id' => $payload['project_id'] ?? '',
+                'sales_id' => $payload['sales_id'] ?? '',
+                'status' => 'added_to_cart',
             ]);
         }
 
