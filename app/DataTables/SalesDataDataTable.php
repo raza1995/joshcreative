@@ -21,9 +21,23 @@ class SalesDataDataTable extends DataTable
      */
     public function dataTable(QueryBuilder $query): EloquentDataTable
     {
-    
         return (new EloquentDataTable($query))
             ->addColumn('action', 'sales.action')
+            ->editColumn('status', function ($data) {
+                if ($data->status == 'Purchased') {
+                    return '<span class="badge bg-success">Purchased</span>';
+                } elseif ($data->status == 'added_to_cart') {
+                    return '<span class="badge bg-warning">Added to Cart</span>';
+                }
+                return $data->status;
+            })
+            ->editColumn('created_at', function ($data) {
+                return $data->created_at->format('Y-m-d H:i:s');
+            })
+            ->editColumn('updated_at', function ($data) {
+                return $data->updated_at->format('Y-m-d H:i:s');
+            })
+            ->rawColumns(['status', 'action'])
             ->setRowId('id');
     }
 
@@ -32,7 +46,7 @@ class SalesDataDataTable extends DataTable
      */
     public function query(Sale $model): QueryBuilder
     {
-        return $model->newQuery();
+        return $model->newQuery()->orderBy('created_at', 'desc');
     }
 
     /**
@@ -45,13 +59,28 @@ class SalesDataDataTable extends DataTable
                     ->columns($this->getColumns())
                     ->minifiedAjax()
                     //->dom('Bfrtip')
-                    ->orderBy(1)
+                    ->orderBy(1, 'desc')
                     ->selectStyleSingle()
                     ->buttons([
                         Button::make('export'),
                         Button::make('print'),
                         Button::make('reset'),
                         Button::make('reload')
+                    ])
+                    ->parameters([
+                        'dom' => 'Bfrtip',
+                        'initComplete' => 'function() {
+                            var api = this.api();
+                            $(\'#salesdata-table_filter\').append(\'<select id="status-filter" class="ms-2 btn btn-secondary buttons-collection dropdown-toggle btn-primary" ><option value="" class="dt-button dropdown-item">Filter by Status</option><option value="Purchased" class="dt-button dropdown-item">Purchased</option><option value="added_to_cart" class="dt-button dropdown-item">Added to Cart</option></select>\');
+                            $(\'#status-filter\').on(\'change\', function() {
+                                var val = $.fn.dataTable.util.escapeRegex(
+                                    $(this).val()
+                                );
+                                api.column(9) // Adjust the column index for your status column
+                                    .search(val ? \'^\'+val+\'$\' : \'\', true, false)
+                                    .draw();
+                            });
+                        }'
                     ]);
     }
 
@@ -63,14 +92,12 @@ class SalesDataDataTable extends DataTable
         return [
 
             Column::make('id'),
-            Column::make('project_id'),
-            Column::make('salesname'),
             Column::make('email'),
-            Column::make('price'),
+            Column::make('price')->title('Product Price'),
             Column::make('ip_address'),
             Column::make('utm_source'),
-            Column::make('total_amount'),
-            Column::make('dj_user_id'),
+            Column::make('total_amount')->title('Paid Price'),
+            Column::make('status')->title('Status'), 
             Column::make('user_id')->title('Teachable User Id'),
             Column::make('earned_commission'),
             Column::make('created_at'),
