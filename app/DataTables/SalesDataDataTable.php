@@ -58,20 +58,24 @@ class SalesDataDataTable extends DataTable
                     ->setTableId('salesdata-table')
                     ->columns($this->getColumns())
                     ->minifiedAjax()
-                    //->dom('Bfrtip')
                     ->orderBy(1, 'desc')
                     ->selectStyleSingle()
                     ->buttons([
                         Button::make('export'),
                         Button::make('print'),
                         Button::make('reset'),
-                        Button::make('reload')
+                        Button::make('reload'),
+                        Button::make('collection')
+                            ->text('Upload Sales Data')
+                            ->action('function ( e, dt, node, config ) {
+                                $("#uploadSalesModal").modal("show");
+                            }')
                     ])
                     ->parameters([
                         'dom' => 'Bfrtip',
                         'initComplete' => 'function() {
                             var api = this.api();
-                            $(\'#salesdata-table_filter\').append(\'<select id="status-filter" class="ms-2 btn btn-secondary buttons-collection dropdown-toggle btn-primary" ><option value="" class="dt-button dropdown-item">Filter by Status</option><option value="Purchased" class="dt-button dropdown-item">Purchased</option><option value="added_to_cart" class="dt-button dropdown-item">Added to Cart</option></select>\');
+                            $(\'#salesdata-table_filter\').append(\'<select id="status-filter" class="ms-2 btn btn-secondary buttons-collection dropdown-toggle btn-primary"><option value="" class="dt-button dropdown-item">Filter by Status</option><option value="Purchased" class="dt-button dropdown-item">Purchased</option><option value="added_to_cart" class="dt-button dropdown-item">Added to Cart</option></select>\');
                             $(\'#status-filter\').on(\'change\', function() {
                                 var val = $.fn.dataTable.util.escapeRegex(
                                     $(this).val()

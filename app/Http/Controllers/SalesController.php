@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\DataTables\SalesDataDataTable;
+use App\Imports\SalesImport;
 use App\Models\Sale;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class SalesController extends Controller
 {
@@ -82,6 +85,7 @@ class SalesController extends Controller
         'user_id' => $payload['object']['user_id'],
         'total_amount' => $payload['object']['final_price'] ?? 0,
         'email' => $payload['object']['user']['email'] ?? '',
+        'name' => $payload['object']['user']['name'] ?? '',
         'promo_code' => $payload['object']['coupon']['code'] ?? '',
         'status' => 'Purchased',
         'price' => number_format(($payload['object']['product']['price'] ?? 0) / 100, 2, '.', '')
@@ -96,6 +100,7 @@ class SalesController extends Controller
 
             $existingSale->update([
                 'total_amount' => $mappedData['total_amount'] ?? $existingSale->total_amount,
+                'name' => $mappedData['name'] ?? $existingSale->name,
                 'price' => $mappedData['price'] ?? $existingSale->price,
                 'promo_code' => $mappedData['promo_code'] ?? $existingSale->promo_code,
                 'status' => $mappedData['status'] ?? $existingSale->status,
@@ -155,5 +160,49 @@ class SalesController extends Controller
         }
 
       
+    }
+
+    public function uploadSalesData(Request $request)
+    {
+        // Validate the uploaded file
+
+        // Load the uploaded file
+        $file = $request->file('sales_file');
+        
+        // Get the D folder path in $file
+   
+  
+        if (!$file) {
+            Log::error('No file was uploaded.');
+            return back()->with('error', 'No file was uploaded.');
+        }
+
+            Log::info('Original file name: ' . $file->getClientOriginalName());
+   
+  
+            $collection = Excel::toCollection(new SalesImport, $file);
+
+            foreach ($collection->first() as $row) {
+                Sale::create([
+                    'project_id' => 1,  // Placeholder value
+                    'name' => $row['purchaser'] ?? '',
+                    'user_id' => (string) $row['id'] ?? '',
+                    'salesname' => '',  // Leaving salesname empty
+                    'email' => $row['purchaser_email'] ?? '',
+                    'ip_address' => '',  // Placeholder value
+                    'utm_source' => '',  // Placeholder value
+                    'total_amount' => $row['net_charge_usd'] ?? 0,
+                    'earned_commission' => 0,  // Placeholder value
+                    'created_at' => $row['purchased_at'] ? Carbon::parse($row['purchased_at'])->format('Y-m-d H:i:s') : null,
+                    'updated_at' => $row['purchased_at'] ? Carbon::parse($row['purchased_at'])->format('Y-m-d H:i:s') : null,
+                    'dj_user_id' => '',  // Placeholder value
+                    'price' => $row['listed_price'] ?? 0,
+                    'promo_code' => $row['coupon_code'] ?? '',
+                    'status' => 'Purchased',  // Setting status to 'Purchased'
+                ]);
+            }
+
+            return back()->with('success', 'Sales data has been uploaded and processed successfully.');
+     
     }
 }

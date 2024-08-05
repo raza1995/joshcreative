@@ -24,6 +24,7 @@ return new class extends Migration
     {
         Schema::table('sales', function (Blueprint $table) {
             $table->dropColumn('dj_user_id');
+            $table->dropColumn('price');
         });
     }
 };
