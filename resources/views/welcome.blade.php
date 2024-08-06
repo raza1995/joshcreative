@@ -85,7 +85,7 @@
         },
         series: [{
             name: 'Revenue',
-            data: dailyData.map(item => item.total)
+            data: dailyData.map(item => parseFloat(item.total).toFixed(2))
         }],
         xaxis: {
             categories: dailyData.map(item => item.date)
@@ -132,7 +132,7 @@
         chart.updateOptions({
             series: [{
                 name: 'Revenue',
-                data: data.map(item => item.total)
+                data: data.map(item => parseFloat(item.total).toFixed(2))
             }],
             xaxis: {
                 categories: data.map(item => item.date)
@@ -154,7 +154,7 @@
         chart.updateOptions({
             series: [{
                 name: 'Revenue',
-                data: filteredData.map(item => item.total)
+                data: filteredData.map(item => parseFloat(item.total).toFixed(2))
             }],
             xaxis: {
                 categories: filteredData.map(item => item.date)
