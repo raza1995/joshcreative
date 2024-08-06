@@ -218,9 +218,7 @@ class SalesController extends Controller
         $yearlyRevenue = $this->getRevenueBy('year');
 
         // Calculate current month's revenue
-        $currentMonthRevenue = Sale::whereMonth('created_at', Carbon::now()->month)
-            ->whereYear('created_at', Carbon::now()->year)
-            ->sum('total_amount');
+        $currentMonthRevenue = $this->getCurrentMonthRevenue();
 
         return view('welcome', compact('dailyRevenue', 'monthlyRevenue', 'yearlyRevenue', 'currentMonthRevenue'));
     }
@@ -233,12 +231,32 @@ class SalesController extends Controller
             'year' => '%Y',
         ];
 
-        return Sale::select(
-            DB::raw('SUM(total_amount) as total'),
-            DB::raw("DATE_FORMAT(created_at, '{$dateFormat[$interval]}') as date")
-        )
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get();
+        // Step 1: Fetch unique sales_event_id values and related data
+        $uniqueSales = Sale::select('sales_event_id', 'total_amount', DB::raw("DATE_FORMAT(created_at, '{$dateFormat[$interval]}') as date"))
+            ->get()
+            ->unique('sales_event_id');
+
+        // Step 2: Group by date and sum the total_amount
+        $groupedSales = $uniqueSales->groupBy('date')->map(function ($row) {
+            return [
+                'date' => $row->first()->date,
+                'total' => $row->sum('total_amount'),
+            ];
+        })->values();
+
+        return $groupedSales;
+    }
+
+    private function getCurrentMonthRevenue()
+    {
+        // Step 1: Fetch unique sales_event_id values for the current month
+        $uniqueSales = Sale::select('sales_event_id', 'total_amount')
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->whereYear('created_at', Carbon::now()->year)
+            ->get()
+            ->unique('sales_event_id');
+
+        // Step 2: Sum the total_amount for these unique sales records
+        return $uniqueSales->sum('total_amount');
     }
 }

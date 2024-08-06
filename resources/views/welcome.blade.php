@@ -48,7 +48,7 @@
     var dailyData = @json($dailyRevenue );
     var monthlyData = @json($monthlyRevenue );
     var yearlyData = @json($yearlyRevenue );
-
+    console.log(yearlyData)
     var options = {
         chart: {
             type: 'line',
@@ -71,7 +71,7 @@
             align: 'center'
         }
     };
-
+    
     var chart = new ApexCharts(document.querySelector("#chart"), options);
     chart.render();
 
