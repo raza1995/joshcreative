@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('user_id')->nullable();
             $table->string('ip_address')->nullable();
             $table->string('utm_source')->nullable();
-            $table->decimal('total_amount', 10, 2)->nullable(); 
+            $table->decimal('total_amount', 10, 2)->default(0); 
             $table->decimal('earned_commission', 10, 2)->nullable(); 
             $table->timestampsTz();
         });
