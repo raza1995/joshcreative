@@ -45,9 +45,9 @@
     $("#startDate").datepicker({ dateFormat: 'yy-mm-dd' });
     $("#endDate").datepicker({ dateFormat: 'yy-mm-dd' });
 
-    var dailyData = @json($dailyRevenue ?? 0);
-    var monthlyData = @json($monthlyRevenue ?? 0);
-    var yearlyData = @json($yearlyRevenue ?? 0);
+    var dailyData = @json($dailyRevenue );
+    var monthlyData = @json($monthlyRevenue );
+    var yearlyData = @json($yearlyRevenue );
 
     var options = {
         chart: {
