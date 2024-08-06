@@ -64,14 +64,16 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('sales') }}">{{ __('Sales') }}</a>
                         </li>
-                        <li class="nav-item">
+                        {{-- <li class="nav-item">
                             <a class="nav-link" href="{{ route('logout') }}">{{ __('Logout') }}</a>
-                        </li>
+                        </li> --}}
                         @endguest
                     </ul>
-                    <div id="navbarDropdown" class="badge bg-success px-3 mx-4 fs-7" href="#" role="button" >
-                        {{ strtoupper(Auth::user()->name) }}
-                    </div>
+                    @auth
+                        <div id="navbarDropdown" class="badge bg-success px-3 mx-4 fs-7" href="#" role="button" >
+                            {{ strtoupper(Auth::user()->name ?? '') }}
+                        </div>
+                    @endauth
                 </div>
             </div>
         </nav>
