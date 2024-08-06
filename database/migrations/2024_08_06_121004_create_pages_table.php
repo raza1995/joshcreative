@@ -11,13 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_events', function (Blueprint $table) {
+        Schema::create('pages', function (Blueprint $table) {
             $table->id();
-            $table->string('user_id')->nullable();
-            $table->string('page_url')->nullable();
-            $table->timestamp('start_time')->nullable();
-            $table->timestamp('end_time')->nullable();
-            $table->integer('stay_duration')->nullable(); // Duration in seconds
+            $table->string('url')->unique();
+            $table->integer('views')->default(0);
+            $table->integer('total_stay_duration')->default(0); 
             $table->timestamps();
         });
     }
@@ -27,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_events');
+        Schema::dropIfExists('pages');
     }
 };

@@ -288,3 +288,33 @@
 
 
 
+// EventsWebhook
+
+
+// function sendPageViewEvent(userId, pageUrl, startTime, endTime) {
+//     fetch('https://your-laravel-app.com/webhook/event', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({
+//             user_id: userId,
+//             page_url: pageUrl,
+//             start_time: startTime,
+//             end_time: endTime,
+//         }),
+//     })
+//     .then(response => response.json())
+//     .then(data => console.log('Event recorded:', data))
+//     .catch((error) => console.error('Error:', error));
+// }
+
+// // Example usage
+// const userId = 'user123';
+// const pageUrl = window.location.href;
+// const startTime = new Date().toISOString();
+
+// window.addEventListener('beforeunload', () => {
+//     const endTime = new Date().toISOString();
+//     sendPageViewEvent(userId, pageUrl, startTime, endTime);
+// });
