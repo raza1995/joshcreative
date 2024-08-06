@@ -244,8 +244,8 @@
 //   document.addEventListener('DOMContentLoaded', function() {
 //     console.log('registered');
 //     // Your code that runs after DOMContentLoaded
-//     const submitButton = document.querySelector('.senddata');
-    
+// const submitButton = document.querySelector('.senddata');
+// if (submitButton) {
 //     submitButton.addEventListener('click', function(event) {
    
   
@@ -280,10 +280,10 @@
 //     console.error('Error:', error);
 // });
 
-//       // Redirect to the new URL
+
 //       window.location.href = redirectUrl;
-//     });
-//   });
+//      });
+//    });
 
 
 
