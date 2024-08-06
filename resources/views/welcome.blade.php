@@ -26,7 +26,7 @@
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-12">
-                            <h2>Current Month Revenue: $<span id="currentMonthRevenue">{{ number_format($currentMonthRevenue ?? '', 2) }}</span></h2>
+                            <h2>Current Month Revenue: $<span id="currentMonthRevenue">{{ number_format($currentMonthRevenue ?? 0, 2) }}</span></h2>
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -45,9 +45,9 @@
     $("#startDate").datepicker({ dateFormat: 'yy-mm-dd' });
     $("#endDate").datepicker({ dateFormat: 'yy-mm-dd' });
 
-    var dailyData = @json($dailyRevenue);
-    var monthlyData = @json($monthlyRevenue);
-    var yearlyData = @json($yearlyRevenue);
+    var dailyData = @json($dailyRevenue ?? 0);
+    var monthlyData = @json($monthlyRevenue ?? 0);
+    var yearlyData = @json($yearlyRevenue ?? 0);
 
     var options = {
         chart: {

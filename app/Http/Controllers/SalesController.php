@@ -205,6 +205,10 @@ class SalesController extends Controller
 
     public function rev()
     {
+        if (!Auth::check()) {
+            return redirect('login');
+        }
+
         // Fetch daily, monthly, and yearly revenue
         $dailyRevenue = $this->getRevenueBy('day');
         $monthlyRevenue = $this->getRevenueBy('month');
