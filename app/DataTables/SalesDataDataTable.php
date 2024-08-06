@@ -101,6 +101,7 @@ class SalesDataDataTable extends DataTable
             Column::make('ip_address'),
             Column::make('utm_source'),
             Column::make('total_amount')->title('Paid Price'),
+            Column::make('promo_code')->title('Coupon Code'),
             Column::make('status')->title('Status'), 
             Column::make('user_id')->title('Teachable User Id'),
             Column::make('earned_commission'),

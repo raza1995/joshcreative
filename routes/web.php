@@ -22,4 +22,5 @@ Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::get('sales', [SalesController::class, 'index'])->name('sales');
 Route::post('/upload-sales-data', [SalesController::class, 'uploadSalesData'])->name('upload-sales-data');
+Route::get('/dashboard', [SalesController::class, 'rev'])->name('dashboard');
 
