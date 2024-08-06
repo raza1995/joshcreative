@@ -87,6 +87,7 @@ class SalesController extends Controller
             'name' => $payload['object']['user']['name'] ?? '',
             'promo_code' => $payload['object']['coupon']['code'] ?? '',
             'status' => 'Purchased',
+            'sales_event_id' => $payload['object']['id'],
             'price' => number_format(($payload['object']['product']['price'] ?? 0) / 100, 2, '.', '')
         ];
         Log::info('mappedData: ' . json_encode($mappedData));
@@ -105,6 +106,7 @@ class SalesController extends Controller
                 'status' => $mappedData['status'] ?? $existingSale->status,
                 'price' => $mappedData['price'] ?? $existingSale->price,
                 'user_id' => $mappedData['user_id'] ?? $existingSale->user_id,
+                'sales_event_id' => $mappedData['sales_event_id'],
                 'purchase_count' => $existingSale->purchase_count + 1
             ]);
         } else {
@@ -195,6 +197,7 @@ class SalesController extends Controller
                 'dj_user_id' => '',  // Placeholder value
                 'price' => $row['listed_price'] ?? 0,
                 'promo_code' => $row['coupon_code'] ?? '',
+                'sales_event_id' => $row['sale_id'] ?? '',
                 'status' => 'Purchased',  // Setting status to 'Purchased'
             ]);
         }
