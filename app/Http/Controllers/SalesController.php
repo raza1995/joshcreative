@@ -219,8 +219,21 @@ class SalesController extends Controller
 
         // Calculate current month's revenue
         $currentMonthRevenue = $this->getCurrentMonthRevenue();
+        $pageVisits = DB::table('pages')
+        ->select('url', 'views', DB::raw('SUM(total_stay_duration) as total_stay_duration'))
+        ->groupBy('url', 'views')
+        ->orderBy('views', 'desc')
+        ->get()
+        ->map(function ($visit) {
+         
+            $visit->avg_stay_duration = ($visit->total_stay_duration / 60) / $visit->views;
+            return $visit;
+        });
 
-        return view('welcome', compact('dailyRevenue', 'monthlyRevenue', 'yearlyRevenue', 'currentMonthRevenue'));
+
+
+
+        return view('welcome', compact('dailyRevenue', 'monthlyRevenue', 'yearlyRevenue', 'currentMonthRevenue', 'pageVisits'));
     }
 
     private function getRevenueBy($interval)

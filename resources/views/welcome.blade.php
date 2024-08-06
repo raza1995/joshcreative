@@ -36,6 +36,35 @@
                     </div>
                     <div id="chart" style="height: 400px;"></div>
                 </div>
+                <div class="container">
+                    <h1 class="mb-4">Top Performing Pages</h1>
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>Counted in Minutes</span>
+                            <button class="btn btn-primary btn-sm">PDF Report</button>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="border-0">Landing Page</th>
+                                        <th class="border-0">Total Visits</th>
+                                        <th class="border-0">Average Stay Duration (minutes)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($pageVisits as $visit)
+                                    <tr>
+                                        <td>{{ $visit->url }}</td>
+                                        <td>{{ $visit->views }}</td>
+                                        <td>{{ round($visit->avg_stay_duration, 2) }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         @endsection
