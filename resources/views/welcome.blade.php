@@ -26,7 +26,7 @@
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-12">
-                            <h2>Current Month Revenue: $<span id="currentMonthRevenue">{{ number_format($currentMonthRevenue, 2) }}</span></h2>
+                            <h2>Current Month Revenue: $<span id="currentMonthRevenue">{{ number_format($currentMonthRevenue ?? '', 2) }}</span></h2>
                         </div>
                     </div>
                     <div class="row mb-3">
