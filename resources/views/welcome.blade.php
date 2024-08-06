@@ -76,7 +76,7 @@
     chart.render();
 
     function calculateTotalRevenue(data) {
-        console.log(data);
+       
         return data.reduce((sum, item) => sum + parseFloat(item.total), 0).toFixed(2);
     }
 

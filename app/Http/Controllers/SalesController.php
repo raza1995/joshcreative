@@ -104,6 +104,7 @@ class SalesController extends Controller
                 'promo_code' => $mappedData['promo_code'] ?? $existingSale->promo_code,
                 'status' => $mappedData['status'] ?? $existingSale->status,
                 'price' => $mappedData['price'] ?? $existingSale->price,
+                'user_id' => $mappedData['user_id'] ?? $existingSale->user_id,
                 'purchase_count' => $existingSale->purchase_count + 1
             ]);
         } else {
