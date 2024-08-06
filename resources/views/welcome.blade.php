@@ -81,6 +81,7 @@
     }
 
     function updateTotalRevenue(data) {
+        console.log(data);
         var totalRevenue = calculateTotalRevenue(data);
         document.getElementById('totalRevenue').innerText = totalRevenue;
     }
