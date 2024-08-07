@@ -16,11 +16,8 @@ class WebhookController extends Controller
     Log::info('Incoming request data: ' . json_encode($request->all()));
 
     $data = $request->validate([
-        'user_id' => 'nullable|string',
-        'page_url' => 'required|string',
-        'start_time' => 'required|date',
-        'end_time' => 'nullable|date',
-        'focus_time' => 'nullable|numeric',
+       
+        'page_url' => 'required|string'
     ]);
 
     Log::info('Validated data: ' . json_encode($data));
