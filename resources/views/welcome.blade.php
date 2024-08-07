@@ -39,29 +39,12 @@
                 <div class="container">
                     <h1 class="mb-4">Top Performing Pages</h1>
                     <div class="card shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span>Counted in Minutes</span>
-                            <button class="btn btn-primary btn-sm">PDF Report</button>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="table table-hover mb-0">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th class="border-0">Landing Page</th>
-                                        <th class="border-0">Total Visits</th>
-                                        <th class="border-0">Average Stay Duration (minutes)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($pageVisits as $visit)
-                                    <tr>
-                                        <td>{{ $visit->url }}</td>
-                                        <td>{{ $visit->views }}</td>
-                                        <td>{{ round($visit->avg_stay_duration, 2) }}</td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                       
+                        <div class="card-body" >
+                            
+                                <canvas style="height: 200px" id="pageChart"></canvas>
+                          
+                        
                         </div>
                     </div>
                 </div>
@@ -171,8 +154,86 @@
     // Initialize with daily data
     updateTotalRevenue(dailyData);
 
+    const ctx = document.getElementById('pageChart').getContext('2d');
 
+// Debugging: Log data passed to the chart
+console.log('Page Visits:', @json($pageVisits));
 
+const urls = @json($pageVisits->pluck('url'));
+const truncatedUrls = urls.map(url => url.length > 400 ? url.substring(0, 400) + '...' : url);
+
+// Debugging: Log processed URLs
+console.log('URLs:', urls);
+console.log('Truncated URLs:', truncatedUrls);
+
+const data = {
+    labels: truncatedUrls,
+    datasets: [{
+        label: 'Total Visits',
+        data: @json($pageVisits->pluck('views')),
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1,
+        yAxisID: 'y-visits',
+    }, {
+        label: 'Average Stay Duration (minutes)',
+        data: @json($pageVisits->pluck('avg_stay_duration')->map(fn($duration) => round($duration, 2))),
+        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+        borderColor: 'rgba(153, 102, 255, 1)',
+        borderWidth: 1,
+        yAxisID: 'y-duration',
+    }]
+};
+
+// Debugging: Log data object
+console.log('Chart Data:', data);
+
+const config = {
+    type: 'bar',
+    data: data,
+    options: {
+        scales: {
+            'y-visits': {
+                type: 'linear',
+                position: 'left',
+            },
+            'y-duration': {
+                type: 'linear',
+                position: 'right',
+                grid: {
+                    drawOnChartArea: false,
+                },
+                ticks: {
+                    callback: function(value) {
+                        const hours = Math.floor(value / 60);
+                        const minutes = value % 60;
+                        return `${hours}h ${minutes}m`;
+                    }
+                }
+            }
+        },
+        tooltips: {
+            callbacks: {
+                title: function(tooltipItems, data) {
+                    const index = tooltipItems[0].index;
+                    return urls[index];
+                },
+                label: function(tooltipItem, data) {
+                    const datasetLabel = data.datasets[tooltipItem.datasetIndex].label || '';
+                    if (datasetLabel === 'Average Stay Duration (minutes)') {
+                        const value = tooltipItem.yLabel;
+                        const hours = Math.floor(value / 60);
+                        const minutes = value % 60;
+                        return `${datasetLabel}: ${hours}h ${minutes}m`;
+                    }
+                    return `${datasetLabel}: ${tooltipItem.yLabel}`;
+                }
+            }
+        }
+    }
+};
+
+new Chart(ctx, config);
 });
     </script>
 @endpush
