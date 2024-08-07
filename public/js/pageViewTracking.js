@@ -1,6 +1,12 @@
 (function() {
     console.log('Tracking script loaded'); // Log when the script is loaded
 
+    function getCookie(name) {
+        let value = "; " + document.cookie;
+        let parts = value.split("; " + name + "=");
+        if (parts.length === 2) return parts.pop().split(";").shift();
+    }
+
     const userId = getCookie('user_id') || '';
     const pageUrl = window.location.href;
     let startTime = new Date();
@@ -9,11 +15,7 @@
     let visibilityChangeTime = new Date();
     const trackingData = [];
 
-    function getCookie(name) {
-        let value = "; " + document.cookie;
-        let parts = value.split("; " + name + "=");
-        if (parts.length === 2) return parts.pop().split(";").shift();
-    }
+    console.log('Initial data:', { userId, pageUrl, startTime }); // Log initial data
 
     function sendPageViewEvent(data) {
         console.log('Sending event data:', data); // Log the data being sent
@@ -106,5 +108,5 @@
         sendPageViewEvent(trackingData);
         trackingData.length = 0; // Clear tracking data after sending
         console.log('Periodic data sent:', trackingData); // Log periodic data sending
-    }, 10000); // Send data every minute
+    }, 9000); // Send data every minute
 })();
