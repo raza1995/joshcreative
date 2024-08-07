@@ -119,7 +119,7 @@
                             <label for="pageFilter">Filter by Page</label>
                             <select id="pageFilter" class="form-control">
                                 <option value="all">All Pages</option>
-                                @foreach(array_unique($landingPages) as $page)
+                                @foreach($landingPages as $page)
                                     <option value="{{ $page }}">{{ $page }}</option>
                                 @endforeach
                             </select>
