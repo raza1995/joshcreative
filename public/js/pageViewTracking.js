@@ -20,14 +20,14 @@
     function sendPageViewEvent(data) {
         console.log('Sending event data:', data); // Log the data being sent
         if (navigator.sendBeacon) {
-            navigator.sendBeacon('https://joshcreative.co/api/webhook/event', JSON.stringify(data));
+            navigator.sendBeacon('https://joshcreative.co/api/webhook/event', data);
         } else {
             fetch('https://joshcreative.co/api/webhook/event', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(data),
+                body: data,
             })
             .then(response => response.json())
             .then(data => console.log('Event recorded:', data))
