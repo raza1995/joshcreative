@@ -106,5 +106,5 @@
         sendPageViewEvent(trackingData);
         trackingData.length = 0; // Clear tracking data after sending
         console.log('Periodic data sent:', trackingData); // Log periodic data sending
-    }, 1000); // Send data every minute
+    }, 5000); // Send data every minute
 })();
