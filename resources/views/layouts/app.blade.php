@@ -64,9 +64,21 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('sales') }}">{{ __('Sales') }}</a>
                         </li>
-                        {{-- <li class="nav-item">
-                            <a class="nav-link" href="{{ route('logout') }}">{{ __('Logout') }}</a>
-                        </li> --}}
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('journey') }}">{{ __('Analytics') }}</a>
+                        </li>
+
+
+                        
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                Logout
+                            </a>
+                        </li> 
+                        <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                            @csrf
+                        </form>
                         @endguest
                     </ul>
                     @auth

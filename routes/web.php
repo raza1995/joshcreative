@@ -18,11 +18,17 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-Route::get('sales', [SalesController::class, 'index'])->name('sales');
-Route::post('/upload-sales-data', [SalesController::class, 'uploadSalesData'])->name('upload-sales-data');
-Route::get('/dashboard', [SalesController::class, 'rev'])->name('dashboard');
-Route::get('/journey', [SalesController::class, 'showJourney'])->name('journey');
+
 
 Route::get('/', function () {
     return view('home');
+});
+
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('sales', [SalesController::class, 'index'])->name('sales');
+    Route::post('/upload-sales-data', [SalesController::class, 'uploadSalesData'])->name('upload-sales-data');
+    Route::get('/dashboard', [SalesController::class, 'rev'])->name('dashboard');
+    Route::get('/journey', [SalesController::class, 'showJourney'])->name('journey');
+
 });
