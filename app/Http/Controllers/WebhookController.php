@@ -6,18 +6,20 @@ use App\Models\Pages;
 use App\Models\UserEvent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
     public function handle(Request $request)
     {
-        $data = $request->validate([
-            'user_id' => 'nullable|string',
-            'page_url' => 'required|string',
-            'start_time' => 'required|date',
-            'end_time' => 'nullable|date',
-        ]);
 
+        
+        $data = $request->validate([
+            'user_id' => 'nullable|string'// Assuming focus_time is a numeric value
+        ]);
+        
+        Log::info('Webhook event recorded: ' . json_encode($data));
+  
         $startTime = Carbon::parse($data['start_time']);
         $endTime = isset($data['end_time']) ? Carbon::parse($data['end_time']) : null;
         $stayDuration = $endTime ? $endTime->diffInSeconds($startTime) : null;
@@ -36,6 +38,8 @@ class WebhookController extends Controller
             $page->increment('views');
             $page->increment('total_stay_duration', $stayDuration);
         }
+
+    
 
         return response()->json(['message' => 'Event recorded'], 201);
     }
