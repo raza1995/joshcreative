@@ -272,4 +272,145 @@ class SalesController extends Controller
         // Step 2: Sum the total_amount for these unique sales records
         return $uniqueSales->sum('total_amount');
     }
+    public function showJourney()
+    {
+        $baseUrl2 = 'https://academyofdjs.com';
+        
+        // Fetch the user journey data
+        $userJourneys = $this->fetchUserJourneys($baseUrl2);
+
+        // Process data to create a journey map and additional metrics
+        $journeyMap = $this->createJourneyMap($userJourneys);
+        $metrics = $this->calculateMetrics($userJourneys, $journeyMap);
+
+        return view('sales.journey', array_merge($metrics, [
+            'journeyMap' => $journeyMap,
+            'landingPages' => array_unique($metrics['landingPages'])
+        ]));
+    }
+
+    private function fetchUserJourneys($baseUrl)
+    {
+        return DB::table('user_events')
+            ->select('user_id', 'page_url', 'start_time', 'end_time')
+            ->orderBy('user_id')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function($event) use ($baseUrl) {
+                $event->page_url = str_replace($baseUrl, '', $event->page_url);
+                $parsedUrl = parse_url($event->page_url);
+                $event->page_url = $parsedUrl['path'] ?? $event->page_url;
+                return $event;
+            });
+    }
+
+    private function createJourneyMap($userJourneys)
+    {
+        $journeyMap = [];
+        $userPaths = [];
+
+        foreach ($userJourneys as $visit) {
+            $userId = $visit->user_id;
+            $pageUrl = $visit->page_url;
+
+            if (!isset($userPaths[$userId])) {
+                $userPaths[$userId] = [];
+            }
+
+            $userPaths[$userId][] = $pageUrl;
+
+            if (!isset($journeyMap[$pageUrl])) {
+                $journeyMap[$pageUrl] = [
+                    'page' => $pageUrl,
+                    'visits' => 0,
+                    'nextPages' => [],
+                    'date' => $visit->start_time
+                ];
+            }
+
+            $journeyMap[$pageUrl]['visits']++;
+        }
+
+        // Calculate nextPages
+        foreach ($userPaths as $userId => $paths) {
+            for ($i = 0; $i < count($paths) - 1; $i++) {
+                $currentPage = $paths[$i];
+                $nextPage = $paths[$i + 1];
+                if (!isset($journeyMap[$currentPage]['nextPages'][$nextPage])) {
+                    $journeyMap[$currentPage]['nextPages'][$nextPage] = 0;
+                }
+                $journeyMap[$currentPage]['nextPages'][$nextPage]++;
+            }
+        }
+
+        return $journeyMap;
+    }
+
+    private function calculateMetrics($userJourneys, $journeyMap)
+    {
+        $sessionDurations = [];
+        $landingPages = [];
+        $exitPages = [];
+        $singlePageSessions = 0;
+        $totalSessions = 0;
+        $uniqueVisitors = [];
+        $userPaths = [];
+
+        foreach ($userJourneys as $visit) {
+            $userId = $visit->user_id;
+            $pageUrl = $visit->page_url;
+            $startTime = strtotime($visit->start_time);
+            $endTime = strtotime($visit->end_time);
+
+            if (!isset($userPaths[$userId])) {
+                $userPaths[$userId] = [];
+                $landingPages[] = $pageUrl;
+                $totalSessions++;
+            }
+
+            $userPaths[$userId][] = $pageUrl;
+
+            if (count($userPaths[$userId]) == 1) {
+                $sessionDurations[$userId] = 0;
+            }
+            $sessionDurations[$userId] += ($endTime - $startTime);
+
+            if (!in_array($userId, $uniqueVisitors)) {
+                $uniqueVisitors[] = $userId;
+            }
+        }
+
+        // Calculate exitPages and single page sessions
+        foreach ($userPaths as $paths) {
+            $exitPages[] = end($paths);
+            if (count($paths) == 1) {
+                $singlePageSessions++;
+            }
+        }
+
+        // Additional metrics
+        $bounceRate = ($singlePageSessions / $totalSessions) * 100;
+        $averageSessionDuration = array_sum($sessionDurations) / $totalSessions;
+        $topLandingPages = array_count_values($landingPages);
+        arsort($topLandingPages);
+        $topExitPages = array_count_values($exitPages);
+        arsort($topExitPages);
+        $totalPageViews = array_sum(array_column($journeyMap, 'visits'));
+        $uniquePagesVisited = count(array_unique($landingPages));
+        $averagePageViewsPerSession = $totalPageViews / $totalSessions;
+        $totalUniqueVisitors = count($uniqueVisitors);
+
+        return [
+            'bounceRate' => $bounceRate,
+            'averageSessionDuration' => $averageSessionDuration,
+            'topLandingPages' => $topLandingPages,
+            'topExitPages' => $topExitPages,
+            'totalPageViews' => $totalPageViews,
+            'uniquePagesVisited' => $uniquePagesVisited,
+            'averagePageViewsPerSession' => $averagePageViewsPerSession,
+            'totalUniqueVisitors' => $totalUniqueVisitors,
+            'landingPages' => $landingPages
+        ];
+    }
+
 }
