@@ -55,6 +55,50 @@
         </div>
     </div>
 
+    <!-- User Segmentation Section -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">New Users</h5>
+                    <p class="card-text">{{ $segments['newUsers'] }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Returning Users</h5>
+                    <p class="card-text">{{ $segments['returningUsers'] }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Engaged Users</h5>
+                    <p class="card-text">{{ $segments['engagedUsers'] }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Bounced Users</h5>
+                    <p class="card-text">{{ $segments['bouncedUsers'] }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Converted Users</h5>
+                    <p class="card-text">{{ $segments['convertedUsers'] }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
