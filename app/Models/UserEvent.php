@@ -15,5 +15,6 @@ class UserEvent extends Model
         'start_time',
         'end_time',
         'stay_duration',
+        'focus_time'
     ];
 }

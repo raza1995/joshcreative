@@ -159,7 +159,7 @@
 // Debugging: Log data passed to the chart
 console.log('Page Visits:', @json($pageVisits));
 
-const urls = @json($pageVisits->pluck('url'));
+const urls = @json($pageVisits->pluck('path'));
 const truncatedUrls = urls.map(url => url.length > 400 ? url.substring(0, 400) + '...' : url);
 
 // Debugging: Log processed URLs

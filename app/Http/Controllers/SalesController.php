@@ -220,15 +220,25 @@ class SalesController extends Controller
         // Calculate current month's revenue
         $currentMonthRevenue = $this->getCurrentMonthRevenue();
         $pageVisits = DB::table('pages')
-        ->select('url', 'views', DB::raw('SUM(total_stay_duration) as total_stay_duration'))
-        ->groupBy('url', 'views')
+        ->select(
+            DB::raw('
+                CASE 
+                    WHEN url LIKE "%fbclid%" THEN 
+                        SUBSTRING_INDEX(SUBSTRING_INDEX(url, "fbclid", 1), "?", 1) 
+                    ELSE 
+                        SUBSTRING_INDEX(url, "??", 1) 
+                END as path'), 
+            DB::raw('SUM(views) as views'), 
+            DB::raw('SUM(total_stay_duration) as total_stay_duration')
+        )
+        ->groupBy('path')
         ->orderBy('views', 'desc')
         ->get()
         ->map(function ($visit) {
-         
             $visit->avg_stay_duration = ($visit->total_stay_duration / 60) / $visit->views;
             return $visit;
         });
+
 
 
 
@@ -290,131 +300,149 @@ class SalesController extends Controller
     }
 
     private function fetchUserJourneys($baseUrl)
-    {
-        $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x'];
-    
-        return DB::table('user_events')
-            ->select('user_id', 'page_url', 'start_time', 'end_time')
-            ->whereNotIn('user_id', $excludedUsers)
-            ->orderBy('user_id')
-            ->orderBy('start_time')
-            ->get()
-            ->map(function($event) use ($baseUrl) {
-                $event->page_url = str_replace($baseUrl, '', $event->page_url);
-                $parsedUrl = parse_url($event->page_url);
-                $event->page_url = $parsedUrl['path'] ?? $event->page_url;
-                return $event;
-            });
-    }
-    
+{
+    $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x'];
 
-    private function createJourneyMap($userJourneys)
-    {
-        $journeyMap = [];
-        $userPaths = [];
+    return DB::table('user_events')
+        ->select(
+            'user_id',
+            DB::raw('
+                CASE 
+                    WHEN page_url LIKE "%fbclid%" THEN 
+                        SUBSTRING_INDEX(SUBSTRING_INDEX(page_url, "fbclid", 1), "?", 1) 
+                    ELSE 
+                        SUBSTRING_INDEX(page_url, "?", 1) 
+                END as cleaned_url'),
+            'start_time', 
+            'end_time',
+            'focus_time'
+        )
+        ->whereNotIn('user_id', $excludedUsers)
+        ->orderBy('user_id')
+        ->orderBy('start_time')
+        ->get()
+        ->map(function($event) use ($baseUrl) {
+            $event->page_url = $event->cleaned_url;
+            unset($event->cleaned_url);
+            return $event;
+        });
+}
 
-        foreach ($userJourneys as $visit) {
-            $userId = $visit->user_id;
-            $pageUrl = $visit->page_url;
+private function createJourneyMap($userJourneys)
+{
+    $journeyMap = [];
+    $userPaths = [];
 
-            if (!isset($userPaths[$userId])) {
-                $userPaths[$userId] = [];
-            }
+    foreach ($userJourneys as $visit) {
+        $userId = $visit->user_id;
+        $pageUrl = $visit->page_url;
 
-            $userPaths[$userId][] = $pageUrl;
-
-            if (!isset($journeyMap[$pageUrl])) {
-                $journeyMap[$pageUrl] = [
-                    'page' => $pageUrl,
-                    'visits' => 0,
-                    'nextPages' => [],
-                    'date' => $visit->start_time
-                ];
-            }
-
-            $journeyMap[$pageUrl]['visits']++;
+        if (!isset($userPaths[$userId])) {
+            $userPaths[$userId] = [];
         }
 
-        // Calculate nextPages
-        foreach ($userPaths as $userId => $paths) {
-            for ($i = 0; $i < count($paths) - 1; $i++) {
-                $currentPage = $paths[$i];
-                $nextPage = $paths[$i + 1];
-                if (!isset($journeyMap[$currentPage]['nextPages'][$nextPage])) {
-                    $journeyMap[$currentPage]['nextPages'][$nextPage] = 0;
-                }
-                $journeyMap[$currentPage]['nextPages'][$nextPage]++;
-            }
+        $userPaths[$userId][] = $pageUrl;
+
+        if (!isset($journeyMap[$pageUrl])) {
+            $journeyMap[$pageUrl] = [
+                'page' => $pageUrl,
+                'visits' => 0,
+                'nextPages' => [],
+                'total_focus_time' => 0,
+                'date' => $visit->start_time
+            ];
         }
 
-        return $journeyMap;
+        $journeyMap[$pageUrl]['visits']++;
+        $journeyMap[$pageUrl]['total_focus_time'] += $visit->focus_time;
     }
 
-    private function calculateMetrics($userJourneys, $journeyMap)
-    {
-        $sessionDurations = [];
-        $landingPages = [];
-        $exitPages = [];
-        $singlePageSessions = 0;
-        $totalSessions = 0;
-        $uniqueVisitors = [];
-        $userPaths = [];
-
-        foreach ($userJourneys as $visit) {
-            $userId = $visit->user_id;
-            $pageUrl = $visit->page_url;
-            $startTime = strtotime($visit->start_time);
-            $endTime = strtotime($visit->end_time);
-
-            if (!isset($userPaths[$userId])) {
-                $userPaths[$userId] = [];
-                $landingPages[] = $pageUrl;
-                $totalSessions++;
+    // Calculate nextPages
+    foreach ($userPaths as $userId => $paths) {
+        for ($i = 0; $i < count($paths) - 1; $i++) {
+            $currentPage = $paths[$i];
+            $nextPage = $paths[$i + 1];
+            if (!isset($journeyMap[$currentPage]['nextPages'][$nextPage])) {
+                $journeyMap[$currentPage]['nextPages'][$nextPage] = 0;
             }
-
-            $userPaths[$userId][] = $pageUrl;
-
-            if (count($userPaths[$userId]) == 1) {
-                $sessionDurations[$userId] = 0;
-            }
-            $sessionDurations[$userId] += ($endTime - $startTime);
-
-            if (!in_array($userId, $uniqueVisitors)) {
-                $uniqueVisitors[] = $userId;
-            }
+            $journeyMap[$currentPage]['nextPages'][$nextPage]++;
         }
-
-        // Calculate exitPages and single page sessions
-        foreach ($userPaths as $paths) {
-            $exitPages[] = end($paths);
-            if (count($paths) == 1) {
-                $singlePageSessions++;
-            }
-        }
-
-        // Additional metrics
-        $bounceRate = ($singlePageSessions / $totalSessions) * 100;
-        $averageSessionDuration = array_sum($sessionDurations) / $totalSessions;
-        $topLandingPages = array_count_values($landingPages);
-        arsort($topLandingPages);
-        $topExitPages = array_count_values($exitPages);
-        arsort($topExitPages);
-        $totalPageViews = array_sum(array_column($journeyMap, 'visits'));
-        $uniquePagesVisited = count(array_unique($landingPages));
-        $averagePageViewsPerSession = $totalPageViews / $totalSessions;
-        $totalUniqueVisitors = count($uniqueVisitors);
-
-        return [
-            'bounceRate' => $bounceRate,
-            'averageSessionDuration' => $averageSessionDuration,
-            'topLandingPages' => $topLandingPages,
-            'topExitPages' => $topExitPages,
-            'totalPageViews' => $totalPageViews,
-            'uniquePagesVisited' => $uniquePagesVisited,
-            'averagePageViewsPerSession' => $averagePageViewsPerSession,
-            'totalUniqueVisitors' => $totalUniqueVisitors,
-            'landingPages' => $landingPages
-        ];
     }
+
+    return $journeyMap;
+}
+
+private function calculateMetrics($userJourneys, $journeyMap)
+{
+    $sessionDurations = [];
+    $focusDurations = [];
+    $landingPages = [];
+    $exitPages = [];
+    $singlePageSessions = 0;
+    $totalSessions = 0;
+    $uniqueVisitors = [];
+    $userPaths = [];
+
+    foreach ($userJourneys as $visit) {
+        $userId = $visit->user_id;
+        $pageUrl = $visit->page_url;
+        $startTime = strtotime($visit->start_time);
+        $endTime = strtotime($visit->end_time);
+        $focusTime = $visit->focus_time;
+
+        if (!isset($userPaths[$userId])) {
+            $userPaths[$userId] = [];
+            $landingPages[] = $pageUrl;
+            $totalSessions++;
+        }
+
+        $userPaths[$userId][] = $pageUrl;
+
+        if (count($userPaths[$userId]) == 1) {
+            $sessionDurations[$userId] = 0;
+            $focusDurations[$userId] = 0;
+        }
+        $sessionDurations[$userId] += ($endTime - $startTime);
+        $focusDurations[$userId] += $focusTime;
+
+        if (!in_array($userId, $uniqueVisitors)) {
+            $uniqueVisitors[] = $userId;
+        }
+    }
+
+    // Calculate exitPages and single page sessions
+    foreach ($userPaths as $paths) {
+        $exitPages[] = end($paths);
+        if (count($paths) == 1) {
+            $singlePageSessions++;
+        }
+    }
+
+    // Additional metrics
+    $bounceRate = ($singlePageSessions / $totalSessions) * 100;
+    $averageSessionDuration = array_sum($sessionDurations) / $totalSessions;
+    $averageFocusDuration = array_sum($focusDurations) / $totalSessions;
+    $topLandingPages = array_count_values($landingPages);
+    arsort($topLandingPages);
+    $topExitPages = array_count_values($exitPages);
+    arsort($topExitPages);
+    $totalPageViews = array_sum(array_column($journeyMap, 'visits'));
+    $uniquePagesVisited = count(array_unique($landingPages));
+    $averagePageViewsPerSession = $totalPageViews / $totalSessions;
+    $totalUniqueVisitors = count($uniqueVisitors);
+
+    return [
+        'bounceRate' => $bounceRate,
+        'averageSessionDuration' => $averageSessionDuration,
+        'averageFocusDuration' => $averageFocusDuration, // New metric
+        'topLandingPages' => $topLandingPages,
+        'topExitPages' => $topExitPages,
+        'totalPageViews' => $totalPageViews,
+        'uniquePagesVisited' => $uniquePagesVisited,
+        'averagePageViewsPerSession' => $averagePageViewsPerSession,
+        'totalUniqueVisitors' => $totalUniqueVisitors,
+        'landingPages' => $landingPages
+    ];
+}
 
 }

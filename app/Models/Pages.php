@@ -13,5 +13,6 @@ class Pages extends Model
         'url',
         'views',
         'total_stay_duration',
+        'focus_time'
     ];
 }
