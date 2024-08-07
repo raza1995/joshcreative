@@ -301,7 +301,7 @@ class SalesController extends Controller
 
     private function fetchUserJourneys($baseUrl)
 {
-    $excludedUsers = ['user_5edhgpi3xxx', 'user_4vt4pqv8xxx'];
+    $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x'];
 
     return DB::table('user_events')
         ->select(
