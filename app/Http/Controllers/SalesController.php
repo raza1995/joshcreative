@@ -291,8 +291,11 @@ class SalesController extends Controller
 
     private function fetchUserJourneys($baseUrl)
     {
+        $excludedUsers = ['user_5edhgpi3x', 'user_d'];
+    
         return DB::table('user_events')
             ->select('user_id', 'page_url', 'start_time', 'end_time')
+            ->whereNotIn('user_id', $excludedUsers)
             ->orderBy('user_id')
             ->orderBy('start_time')
             ->get()
@@ -303,6 +306,7 @@ class SalesController extends Controller
                 return $event;
             });
     }
+    
 
     private function createJourneyMap($userJourneys)
     {
