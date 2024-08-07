@@ -84,7 +84,7 @@
         // Retrieve any stored data from localStorage and send it
         const storedData = localStorage.getItem('pageViewTrackingData');
         if (storedData) {
-            sendPageViewEvent(JSON.parse(storedData));
+            sendPageViewEvent(storedData);
             localStorage.removeItem('pageViewTrackingData');
             console.log('Stored data sent:', storedData); // Log when stored data is sent
         }
