@@ -1,4 +1,6 @@
 (function() {
+    console.log('Tracking script loaded'); // Log when the script is loaded
+
     const userId = getCookie('user_id') || '';
     const pageUrl = window.location.href;
     let startTime = new Date();
@@ -14,6 +16,7 @@
     }
 
     function sendPageViewEvent(data) {
+        console.log('Sending event data:', data); // Log the data being sent
         if (navigator.sendBeacon) {
             navigator.sendBeacon('https://joshcreative.co/api/webhook/event', JSON.stringify(data));
         } else {
@@ -42,8 +45,10 @@
                 focus_time: totalFocusTime
             });
             localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+            console.log('Page hidden, focus time recorded:', totalFocusTime); // Log when page visibility changes
         } else if (document.visibilityState === 'visible') {
             focusStartTime = new Date();
+            console.log('Page visible'); // Log when page becomes visible
         }
         visibilityChangeTime = currentTime;
     }
@@ -63,6 +68,7 @@
 
         localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
         sendPageViewEvent(trackingData);
+        console.log('Before unload, data sent:', trackingData); // Log when data is sent before unload
     }
 
     window.addEventListener('beforeunload', sendDataBeforeUnload);
@@ -71,12 +77,14 @@
     window.addEventListener('load', () => {
         startTime = new Date();
         focusStartTime = new Date();
+        console.log('Page loaded'); // Log when the page is loaded
 
         // Retrieve any stored data from localStorage and send it
         const storedData = localStorage.getItem('pageViewTrackingData');
         if (storedData) {
             sendPageViewEvent(JSON.parse(storedData));
             localStorage.removeItem('pageViewTrackingData');
+            console.log('Stored data sent:', storedData); // Log when stored data is sent
         }
     });
 
@@ -97,5 +105,6 @@
         localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
         sendPageViewEvent(trackingData);
         trackingData.length = 0; // Clear tracking data after sending
+        console.log('Periodic data sent:', trackingData); // Log periodic data sending
     }, 60000); // Send data every minute
 })();
