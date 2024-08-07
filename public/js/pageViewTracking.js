@@ -18,16 +18,18 @@
     console.log('Initial data:', { userId, pageUrl, startTime }); // Log initial data
 
     function sendPageViewEvent(data) {
-        console.log('Sending event data:', data); // Log the data being sent
+        const jsonData = JSON.stringify(data);
+        console.log('Sending event data:', jsonData); // Log the data being sent
+
         if (navigator.sendBeacon) {
-            navigator.sendBeacon('https://joshcreative.co/api/webhook/event', data);
+            navigator.sendBeacon('https://joshcreative.co/api/webhook/event', jsonData);
         } else {
             fetch('https://joshcreative.co/api/webhook/event', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: data,
+                body: jsonData,
             })
             .then(response => response.json())
             .then(data => console.log('Event recorded:', data))
@@ -39,13 +41,14 @@
         const currentTime = new Date();
         if (document.visibilityState === 'hidden') {
             totalFocusTime += (currentTime - focusStartTime) / 1000; // Calculate focus time in seconds
-            trackingData.push({
+            const event = {
                 user_id: userId,
                 page_url: pageUrl,
                 start_time: startTime.toISOString(),
                 end_time: currentTime.toISOString(),
                 focus_time: totalFocusTime
-            });
+            };
+            trackingData.push(event);
             localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
             console.log('Page hidden, focus time recorded:', totalFocusTime); // Log when page visibility changes
         } else if (document.visibilityState === 'visible') {
@@ -60,17 +63,18 @@
         const focusEndTime = new Date();
         totalFocusTime += (focusEndTime - focusStartTime) / 1000; // Calculate focus time in seconds
 
-        trackingData.push({
+        const event = {
             user_id: userId,
             page_url: pageUrl,
             start_time: startTime.toISOString(),
             end_time: endTime.toISOString(),
             focus_time: totalFocusTime
-        });
+        };
+        trackingData.push(event);
 
         localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-        sendPageViewEvent(trackingData);
-        console.log('Before unload, data sent:', trackingData); // Log when data is sent before unload
+        sendPageViewEvent(event);
+        console.log('Before unload, data sent:', event); // Log when data is sent before unload
     }
 
     window.addEventListener('beforeunload', sendDataBeforeUnload);
@@ -84,9 +88,10 @@
         // Retrieve any stored data from localStorage and send it
         const storedData = localStorage.getItem('pageViewTrackingData');
         if (storedData) {
-            sendPageViewEvent(storedData);
+            const events = JSON.parse(storedData);
+            events.forEach(event => sendPageViewEvent(event));
             localStorage.removeItem('pageViewTrackingData');
-            console.log('Stored data sent:', storedData); // Log when stored data is sent
+            console.log('Stored data sent:', events); // Log when stored data is sent
         }
     });
 
@@ -96,17 +101,18 @@
         totalFocusTime += (currentTime - visibilityChangeTime) / 1000; // Update focus time
         visibilityChangeTime = currentTime;
 
-        trackingData.push({
+        const event = {
             user_id: userId,
             page_url: pageUrl,
             start_time: startTime.toISOString(),
             end_time: currentTime.toISOString(),
             focus_time: totalFocusTime
-        });
+        };
+        trackingData.push(event);
 
         localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-        sendPageViewEvent(trackingData);
+        sendPageViewEvent(event);
         trackingData.length = 0; // Clear tracking data after sending
-        console.log('Periodic data sent:', trackingData); // Log periodic data sending
+        console.log('Periodic data sent:', event); // Log periodic data sending
     }, 9000); // Send data every minute
 })();

@@ -15,10 +15,7 @@ class WebhookController extends Controller
     // Log the entire request payload for debugging
     Log::info('Incoming request data: ' . json_encode($request->all()));
 
-    $data = $request->validate([
-       
-        'page_url' => 'required|string'
-    ]);
+    $data = $request->json()->all();
 
     Log::info('Validated data: ' . json_encode($data));
 
