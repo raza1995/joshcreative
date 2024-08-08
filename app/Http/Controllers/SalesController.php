@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DataTables\SalesDataDataTable;
 use App\Imports\SalesImport;
 use App\Models\Sale;
+use App\Models\UserEvent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -424,8 +425,13 @@ class SalesController extends Controller
         $uniquePagesVisited = count(array_unique($landingPages));
         $averagePageViewsPerSession = $totalPageViews / $totalSessions;
         $totalUniqueVisitors = count($uniqueVisitors);
-    
+        $events = UserEvent::select('event_type', DB::raw('count(*) as count'))
+        ->whereNotNull('event_type')
+        ->where('event_type', '!=', 'unknown')
+        ->groupBy('event_type')
+        ->get();
         return [
+            'events' => $events,
             'bounceRate' => $bounceRate,
             'averageFocusDuration' => $averageFocusDuration, // Updated metric
             'topLandingPages' => $topLandingPages,
@@ -489,4 +495,6 @@ class SalesController extends Controller
         $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x', 'user_udztby6hd', 'user_z3agshteg'];
         return $excludedUsers;
     }
+
+  
 }

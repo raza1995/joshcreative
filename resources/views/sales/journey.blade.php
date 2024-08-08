@@ -136,6 +136,16 @@
 
                     <canvas id="analyticsChart" width="400" height="200"></canvas>
                 </div>
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">User Events Analytics</h5>
+                                <div id="eventDataChart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -262,6 +272,20 @@ document.addEventListener('DOMContentLoaded', function() {
     startDate.addEventListener('change', updateChart);
     endDate.addEventListener('change', updateChart);
     updateChart(); // Initial chart
+
+    var events = @json($events);
+    var eventTypes = events.map(event => event.event_type);
+    var eventCounts = events.map(event => event.count);
+
+    var eventChartOptions = {
+        chart: { type: 'pie', height: 350 },
+        series: eventCounts,
+        labels: eventTypes,
+        title: { text: 'User Events Distribution', align: 'center' }
+    };
+
+    var eventChart = new ApexCharts(document.querySelector("#eventDataChart"), eventChartOptions);
+    eventChart.render();
 });
 </script>
 @endsection

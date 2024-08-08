@@ -33,4 +33,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/journey', [SalesController::class, 'showJourney'])->name('journey');
     Route::resource('excludedips', ExcludedIpController::class);
     Route::get('excludedips/check', [ExcludedIpController::class, 'isExcluded']);
+    Route::get('/user-events', [SalesController::class, 'getUserEventsData']);
+
 });
