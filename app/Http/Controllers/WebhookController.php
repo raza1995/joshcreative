@@ -26,27 +26,21 @@ class WebhookController extends Controller
         //     return response()->json(['message' => 'IP address is excluded'], 403);
         // }
     
-        try {
-            $startTime = Carbon::parse($data['start_time']);
-            $endTime = isset($data['end_time']) ? Carbon::parse($data['end_time']) : null;
-            $stayDuration = $endTime ? $endTime->diffInSeconds($startTime) : null;
-        } catch (\Exception $e) {
-            Log::error('Error parsing start or end time: ' . $e->getMessage());
-            $startTime = null;
-            $endTime = null;
-            $stayDuration = null;
-        }
-    
-        $userEvent = UserEvent::create([
-            'user_id' => $data['user_id'],
-            'page_url' => $data['page_url'],
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-            'stay_duration' => $stayDuration,
-            'focus_time' => $data['focus_time'],
-            'event_type' => $data['event_type'] ?? '',
-            'element' => $data['element'] ?? ''
-        ]);
+        $startTime = isset($data['start_time']) ? Carbon::parse($data['start_time']) : null;
+    $endTime = isset($data['end_time']) ? Carbon::parse($data['end_time']) : null;
+    $stayDuration = $endTime && $startTime ? $endTime->diffInSeconds($startTime) : null;
+
+    // Create or update user event
+    UserEvent::create([
+        'user_id' => $data['user_id'],
+        'page_url' => $data['page_url'],
+        'start_time' => $startTime,
+        'end_time' => $endTime,
+        'stay_duration' => $stayDuration,
+        'focus_time' => $data['focus_time'] ?? 0,
+        'event_type' => $data['event_type'] ?? 'unknown',
+        'element' => $data['element'] ?? null,
+    ]);
     
         if ($stayDuration && class_exists(Pages::class)) {
             $page = Pages::firstOrCreate(['url' => $data['page_url']]);
