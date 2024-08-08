@@ -46,7 +46,9 @@
                 page_url: pageUrl,
                 start_time: startTime.toISOString(),
                 end_time: currentTime.toISOString(),
-                focus_time: totalFocusTime
+                focus_time: totalFocusTime,
+                event_type: 'page_view',
+                element: pageUrl
             };
             trackingData.push(event);
             localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
@@ -68,7 +70,9 @@
             page_url: pageUrl,
             start_time: startTime.toISOString(),
             end_time: endTime.toISOString(),
-            focus_time: totalFocusTime
+            focus_time: totalFocusTime,
+            event_type: 'page_view',
+            element: pageUrl
         };
         trackingData.push(event);
 
@@ -77,15 +81,20 @@
         console.log('Before unload, data sent:', event); // Log when data is sent before unload
     }
 
-    window.addEventListener('beforeunload', sendDataBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    function trackUserInteraction(eventType, element) {
+        const event = {
+            user_id: userId,
+            page_url: pageUrl,
+            event_type: eventType,
+            element: element,
+            timestamp: new Date().toISOString()
+        };
+        trackingData.push(event);
+        localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+        console.log('User interaction tracked:', event); // Log user interactions
+    }
 
-    window.addEventListener('load', () => {
-        startTime = new Date();
-        focusStartTime = new Date();
-        console.log('Page loaded'); // Log when the page is loaded
-
-        // Retrieve any stored data from localStorage and send it
+    function sendStoredData() {
         const storedData = localStorage.getItem('pageViewTrackingData');
         if (storedData) {
             const events = JSON.parse(storedData);
@@ -93,6 +102,23 @@
             localStorage.removeItem('pageViewTrackingData');
             console.log('Stored data sent:', events); // Log when stored data is sent
         }
+    }
+
+    window.addEventListener('beforeunload', sendDataBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('click', function(event) {
+        trackUserInteraction('click', event.target.tagName);
+    });
+    document.addEventListener('submit', function(event) {
+        trackUserInteraction('form_submit', event.target.action);
+    });
+
+    window.addEventListener('load', () => {
+        startTime = new Date();
+        focusStartTime = new Date();
+        console.log('Page loaded'); // Log when the page is loaded
+        sendStoredData();
+        // Retrieve any stored data from localStorage and send it
     });
 
     // Optionally, send data periodically if the user stays on the page for a long time
@@ -106,7 +132,9 @@
             page_url: pageUrl,
             start_time: startTime.toISOString(),
             end_time: currentTime.toISOString(),
-            focus_time: totalFocusTime
+            focus_time: totalFocusTime,
+            event_type: 'page_view',
+            element: pageUrl
         };
         trackingData.push(event);
 

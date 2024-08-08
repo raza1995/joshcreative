@@ -19,12 +19,12 @@ class WebhookController extends Controller
         $data = $request->json()->all();
     
         Log::info('Validated data: ' . json_encode($data));
-        $isExcluded = ExcludedIp::where('user_id', $data['user_id'])->exists();
+        // $isExcluded = ExcludedIp::where('user_id', $data['user_id'])->exists();
         
-        if ($isExcluded) {
-            Log::info('Excluded user_id address: ' . $data['user_id']);
-            return response()->json(['message' => 'IP address is excluded'], 403);
-        }
+        // if ($isExcluded) {
+        //     Log::info('Excluded user_id address: ' . $data['user_id']);
+        //     return response()->json(['message' => 'IP address is excluded'], 403);
+        // }
     
         $startTime = Carbon::parse($data['start_time']);
         $endTime = isset($data['end_time']) ? Carbon::parse($data['end_time']) : null;
@@ -37,6 +37,8 @@ class WebhookController extends Controller
             'end_time' => $endTime,
             'stay_duration' => $stayDuration,
             'focus_time' => $data['focus_time'],
+            'event_type' => $data['event_type'] ?? null,
+            'element' => $data['element'] ?? null
         ]);
     
         if ($stayDuration && class_exists(Pages::class)) {
