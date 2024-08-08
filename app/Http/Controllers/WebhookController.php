@@ -23,6 +23,7 @@ class WebhookController extends Controller
         
         if ($isExcluded) {
             Log::info('Excluded user_id address: ' . $data['user_id']);
+            return response()->json(['message' => 'IP address is excluded'], 403);
         }
     
         $startTime = Carbon::parse($data['start_time']);
