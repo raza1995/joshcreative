@@ -32,19 +32,8 @@
                 longitude: data.longitude
             };
             console.log('User IP and location data:', { userIP, locationData }); // Log IP and location data
-            return userIP;
         } catch (error) {
             console.error('Error fetching IP and location data:', error);
-        }
-    }
-
-    async function isExcludedIP(ip) {
-        try {
-            const response = await fetch(`/excludedips/check?ip=${ip}`);
-            const data = await response.json();
-            return data.isExcluded;
-        } catch (error) {
-            console.error('Error checking excluded IP:', error);
         }
     }
 
@@ -68,25 +57,22 @@
         }
     }
 
-    async function handleVisibilityChange() {
+    function handleVisibilityChange() {
         const currentTime = new Date();
         if (document.visibilityState === 'hidden') {
             totalFocusTime += (currentTime - focusStartTime) / 1000; // Calculate focus time in seconds
-            const isExcluded = await isExcludedIP(userIP);
-            if (!isExcluded) {
-                const event = {
-                    user_id: userId,
-                    page_url: pageUrl,
-                    start_time: startTime.toISOString(),
-                    end_time: currentTime.toISOString(),
-                    focus_time: totalFocusTime,
-                    ip_address: userIP,
-                    location: locationData
-                };
-                trackingData.push(event);
-                localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-                console.log('Page hidden, focus time recorded:', totalFocusTime); // Log when page visibility changes
-            }
+            const event = {
+                user_id: userId,
+                page_url: pageUrl,
+                start_time: startTime.toISOString(),
+                end_time: currentTime.toISOString(),
+                focus_time: totalFocusTime,
+                ip_address: userIP,
+                location: locationData
+            };
+            trackingData.push(event);
+            localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+            console.log('Page hidden, focus time recorded:', totalFocusTime); // Log when page visibility changes
         } else if (document.visibilityState === 'visible') {
             focusStartTime = new Date();
             console.log('Page visible'); // Log when page becomes visible
@@ -94,28 +80,25 @@
         visibilityChangeTime = currentTime;
     }
 
-    async function sendDataBeforeUnload() {
+    function sendDataBeforeUnload() {
         const endTime = new Date();
         const focusEndTime = new Date();
         totalFocusTime += (focusEndTime - focusStartTime) / 1000; // Calculate focus time in seconds
 
-        const isExcluded = await isExcludedIP(userIP);
-        if (!isExcluded) {
-            const event = {
-                user_id: userId,
-                page_url: pageUrl,
-                start_time: startTime.toISOString(),
-                end_time: endTime.toISOString(),
-                focus_time: totalFocusTime,
-                ip_address: userIP,
-                location: locationData
-            };
-            trackingData.push(event);
+        const event = {
+            user_id: userId,
+            page_url: pageUrl,
+            start_time: startTime.toISOString(),
+            end_time: endTime.toISOString(),
+            focus_time: totalFocusTime,
+            ip_address: userIP,
+            location: locationData
+        };
+        trackingData.push(event);
 
-            localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-            sendPageViewEvent(event);
-            console.log('Before unload, data sent:', event); // Log when data is sent before unload
-        }
+        localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+        sendPageViewEvent(event);
+        console.log('Before unload, data sent:', event); // Log when data is sent before unload
     }
 
     window.addEventListener('beforeunload', sendDataBeforeUnload);
@@ -130,12 +113,7 @@
         const storedData = localStorage.getItem('pageViewTrackingData');
         if (storedData) {
             const events = JSON.parse(storedData);
-            for (const event of events) {
-                const isExcluded = await isExcludedIP(event.ip_address);
-                if (!isExcluded) {
-                    sendPageViewEvent(event);
-                }
-            }
+            events.forEach(event => sendPageViewEvent(event));
             localStorage.removeItem('pageViewTrackingData');
             console.log('Stored data sent:', events); // Log when stored data is sent
         }
@@ -144,29 +122,25 @@
     });
 
     // Optionally, send data periodically if the user stays on the page for a long time
-    setInterval(async () => {
+    setInterval(() => {
         const currentTime = new Date();
         totalFocusTime += (currentTime - visibilityChangeTime) / 1000; // Update focus time
         visibilityChangeTime = currentTime;
 
-        const isExcluded = await isExcludedIP(userIP);
-        if (!isExcluded) {
-            const event = {
-                user_id: userId,
-                page_url: pageUrl,
-                start_time: startTime.toISOString(),
-                end_time: currentTime.toISOString(),
-                focus_time: totalFocusTime,
-                ip_address: userIP,
-                location: locationData
-            };
-            trackingData.push(event);
+        const event = {
+            user_id: userId,
+            page_url: pageUrl,
+            start_time: startTime.toISOString(),
+            end_time: currentTime.toISOString(),
+            focus_time: totalFocusTime,
+            ip_address: userIP,
+            location: locationData
+        };
+        trackingData.push(event);
 
-            localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-            sendPageViewEvent(event);
-            trackingData.length = 0; // Clear tracking data after sending
-            console.log('Periodic data sent:', event); // Log periodic data sending
-        }
+        localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+        sendPageViewEvent(event);
+        trackingData.length = 0; // Clear tracking data after sending
+        console.log('Periodic data sent:', event); // Log periodic data sending
     }, 60000); // Send data every minute
 })();
-
