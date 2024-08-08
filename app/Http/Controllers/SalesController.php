@@ -303,7 +303,7 @@ class SalesController extends Controller
     
     private function fetchUserJourneys($baseUrl)
     {
-        $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x', 'user_udztby6hd', 'user_z3agshteg'];
+        
     
         return DB::table('user_events')
             ->select(
@@ -319,7 +319,7 @@ class SalesController extends Controller
                 'end_time',
                 'focus_time'
             )
-            ->whereNotIn('user_id', $excludedUsers)
+            ->whereNotIn('user_id', $this->excludeUsers())
             ->orderBy('user_id')
             ->orderBy('start_time')
             ->get()
@@ -491,5 +491,10 @@ class SalesController extends Controller
             'bouncedUsers' => count(array_unique($bouncedUsers)),
             'convertedUsers' => count(array_unique($convertedUsers)),
         ];
+    }
+
+    private function excludeUsers(){
+        $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x', 'user_udztby6hd', 'user_z3agshteg'];
+        return $excludedUsers;
     }
 }

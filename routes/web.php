@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ExcludedIpController;
 use App\Http\Controllers\SalesController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -30,5 +31,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/upload-sales-data', [SalesController::class, 'uploadSalesData'])->name('upload-sales-data');
     Route::get('/dashboard', [SalesController::class, 'rev'])->name('dashboard');
     Route::get('/journey', [SalesController::class, 'showJourney'])->name('journey');
-
+    Route::resource('excludedips', ExcludedIpController::class);
+    Route::get('excludedips/check', [ExcludedIpController::class, 'isExcluded']);
 });

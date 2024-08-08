@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExcludedIp;
 use App\Models\Pages;
 use App\Models\UserEvent;
 use Carbon\Carbon;
@@ -18,6 +19,16 @@ class WebhookController extends Controller
         $data = $request->json()->all();
     
         Log::info('Validated data: ' . json_encode($data));
+    
+        $ipAddress = $request->ip();
+        
+        // Check if the IP address is in the excluded list
+        $isExcluded = ExcludedIp::where('ip_address', $ipAddress)->exists();
+        
+        if ($isExcluded) {
+            Log::info('Excluded IP address: ' . $ipAddress);
+            return response()->json(['message' => 'IP address is excluded'], 403);
+        }
     
         $startTime = Carbon::parse($data['start_time']);
         $endTime = isset($data['end_time']) ? Carbon::parse($data['end_time']) : null;
