@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('UserEvents', function (Blueprint $table) {
+        Schema::table('UserEvent', function (Blueprint $table) {
             $table->string('event_type')->nullable();
             $table->string('element')->nullable();
         });
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('UserEvents', function (Blueprint $table) {
+        Schema::table('UserEvent', function (Blueprint $table) {
             Schema::dropIfExists('event_type');
             Schema::dropIfExists('element');
         });
