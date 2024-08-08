@@ -106,11 +106,21 @@
 
     window.addEventListener('beforeunload', sendDataBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Track clicks on buttons and links
     document.addEventListener('click', function(event) {
-        trackUserInteraction('click', event.target.tagName);
+        const target = event.target;
+        if (target.tagName === 'BUTTON' || target.tagName === 'A' || target.getAttribute('data-track')) {
+            trackUserInteraction('click', target.outerHTML);
+        }
     });
+
+    // Track form submissions
     document.addEventListener('submit', function(event) {
-        trackUserInteraction('form_submit', event.target.action);
+        const target = event.target;
+        if (target.tagName === 'FORM' || target.getAttribute('data-track')) {
+            trackUserInteraction('form_submit', target.action);
+        }
     });
 
     window.addEventListener('load', () => {
