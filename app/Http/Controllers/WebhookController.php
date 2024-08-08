@@ -19,12 +19,12 @@ class WebhookController extends Controller
         $data = $request->json()->all();
     
         Log::info('Validated data: ' . json_encode($data));
-        // $isExcluded = ExcludedIp::where('user_id', $data['user_id'])->exists();
+        $isExcluded = ExcludedIp::where('user_id', $data['user_id'])->exists();
         
-        // if ($isExcluded) {
-        //     Log::info('Excluded user_id address: ' . $data['user_id']);
-        //     return response()->json(['message' => 'IP address is excluded'], 403);
-        // }
+        if ($isExcluded) {
+            Log::info('Excluded user_id address: ' . $data['user_id']);
+            return response()->json(['message' => 'IP address is excluded'], 403);
+        }
     
         $startTime = isset($data['start_time']) ? Carbon::parse($data['start_time']) : null;
     $endTime = isset($data['end_time']) ? Carbon::parse($data['end_time']) : null;
@@ -46,7 +46,7 @@ class WebhookController extends Controller
             $page = Pages::firstOrCreate(['url' => $data['page_url']]);
             $page->increment('views');
             $page->increment('total_stay_duration', $stayDuration);
-            $page->increment('focus_time', $data['focus_time']); // Increment focus_time if Pages has this column
+            $page->increment('focus_time', $data['focus_time']); 
         }
     
         return response()->json(['message' => 'Event recorded'], 201);
