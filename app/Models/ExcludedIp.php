@@ -10,5 +10,5 @@ class ExcludedIp extends Model
     use HasFactory;
     protected $table = 'excludedips';
 
-    protected $fillable = ['ip_address'];
+    protected $fillable = ['ip_address', 'user_id'];
 }

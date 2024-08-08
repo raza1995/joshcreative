@@ -20,9 +20,13 @@
         @csrf
         <div class="form-group">
             <label for="ip_address">IP Address:</label>
-            <input type="text" name="ip_address" id="ip_address" class="form-control" required>
+            <input type="text" name="ip_address" id="ip_address" class="form-control" >
         </div>
-        <button type="submit" class="btn btn-primary">Add IP</button>
+        <div class="form-group">
+            <label for="user_id">User ID:</label>
+            <input type="text" name="user_id" id="user_id" class="form-control" >
+        </div>
+        <button type="submit" class="btn btn-primary">Add Excluded Data</button>
     </form>
 </div>
 @endsection

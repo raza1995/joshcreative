@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="container">
-    <h2>Excluded IP Addresses</h2>
+    <h2>Excluded User ID</h2>
     
     @if (session('success'))
         <div class="alert alert-success">
@@ -19,6 +19,7 @@
             <tr>
                 <th>ID</th>
                 <th>IP Address</th>
+                <th>User ID</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -27,6 +28,7 @@
             <tr>
                 <td>{{ $ip->id }}</td>
                 <td>{{ $ip->ip_address }}</td>
+                <td>{{ $ip->user_id }}</td>
                 <td>
                     <a href="{{ route('excludedips.edit', $ip->id) }}" class="btn btn-warning">Edit</a>
                     <form action="{{ route('excludedips.destroy', $ip->id) }}" method="POST" style="display:inline;">

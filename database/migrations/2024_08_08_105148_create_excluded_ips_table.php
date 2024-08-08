@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('excludedips', function (Blueprint $table) {
             $table->id();
             $table->string('ip_address')->nullable();
+            $table->string('user_id')->nullable();
             $table->timestamps();
         });
     }

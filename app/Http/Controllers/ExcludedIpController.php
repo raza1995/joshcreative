@@ -29,10 +29,7 @@ class ExcludedIpController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'ip_address' => 'required|ip|unique:excludedips,ip_address',
-        ]);
-
+      
         ExcludedIp::create($request->all());
 
         return redirect()->route('excludedips.index')
@@ -62,9 +59,7 @@ class ExcludedIpController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'ip_address' => 'required|ip|unique:excludedips,ip_address,' . $id,
-        ]);
+    
 
         $ip = ExcludedIp::find($id);
         $ip->update($request->all());

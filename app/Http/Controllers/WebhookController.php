@@ -19,15 +19,10 @@ class WebhookController extends Controller
         $data = $request->json()->all();
     
         Log::info('Validated data: ' . json_encode($data));
-    
-        $ipAddress = $request->ip();
-        
-        // Check if the IP address is in the excluded list
-        $isExcluded = ExcludedIp::where('ip_address', $ipAddress)->exists();
+        $isExcluded = ExcludedIp::where('user_id', $data['user_id'])->exists();
         
         if ($isExcluded) {
-            Log::info('Excluded IP address: ' . $ipAddress);
-            return response()->json(['message' => 'IP address is excluded'], 403);
+            Log::info('Excluded user_id address: ' . $data['user_id']);
         }
     
         $startTime = Carbon::parse($data['start_time']);

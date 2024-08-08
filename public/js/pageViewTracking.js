@@ -14,28 +14,8 @@
     let totalFocusTime = 0;
     let visibilityChangeTime = new Date();
     const trackingData = [];
-    let userIP = '';
-    let locationData = {};
 
     console.log('Initial data:', { userId, pageUrl, startTime }); // Log initial data
-
-    async function getUserIPAndLocation() {
-        try {
-            const response = await fetch('https://ipapi.co/json/'); // Using ipapi.co to get IP and location data
-            const data = await response.json();
-            userIP = data.ip;
-            locationData = {
-                country: data.country_name,
-                region: data.region,
-                city: data.city,
-                latitude: data.latitude,
-                longitude: data.longitude
-            };
-            console.log('User IP and location data:', { userIP, locationData }); // Log IP and location data
-        } catch (error) {
-            console.error('Error fetching IP and location data:', error);
-        }
-    }
 
     function sendPageViewEvent(data) {
         const jsonData = JSON.stringify(data);
@@ -66,9 +46,7 @@
                 page_url: pageUrl,
                 start_time: startTime.toISOString(),
                 end_time: currentTime.toISOString(),
-                focus_time: totalFocusTime,
-                ip_address: userIP,
-                location: locationData
+                focus_time: totalFocusTime
             };
             trackingData.push(event);
             localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
@@ -90,9 +68,7 @@
             page_url: pageUrl,
             start_time: startTime.toISOString(),
             end_time: endTime.toISOString(),
-            focus_time: totalFocusTime,
-            ip_address: userIP,
-            location: locationData
+            focus_time: totalFocusTime
         };
         trackingData.push(event);
 
@@ -104,7 +80,7 @@
     window.addEventListener('beforeunload', sendDataBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    window.addEventListener('load', async () => {
+    window.addEventListener('load', () => {
         startTime = new Date();
         focusStartTime = new Date();
         console.log('Page loaded'); // Log when the page is loaded
@@ -117,8 +93,6 @@
             localStorage.removeItem('pageViewTrackingData');
             console.log('Stored data sent:', events); // Log when stored data is sent
         }
-
-        await getUserIPAndLocation(); // Fetch user IP and location data
     });
 
     // Optionally, send data periodically if the user stays on the page for a long time
@@ -132,9 +106,7 @@
             page_url: pageUrl,
             start_time: startTime.toISOString(),
             end_time: currentTime.toISOString(),
-            focus_time: totalFocusTime,
-            ip_address: userIP,
-            location: locationData
+            focus_time: totalFocusTime
         };
         trackingData.push(event);
 
