@@ -17,7 +17,7 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h5 class="card-title">Average Session Duration</h5>
-                    <p class="card-text">{{ round($averageSessionDuration / 60, 2) }} minutes</p>
+                    <p class="card-text">{{ round($averagePageViewsPerSession / 60, 2) }} minutes</p>
                 </div>
             </div>
         </div>
