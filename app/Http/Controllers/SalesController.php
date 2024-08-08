@@ -303,8 +303,6 @@ class SalesController extends Controller
     
     private function fetchUserJourneys($baseUrl)
     {
-        
-    
         return DB::table('user_events')
             ->select(
                 'user_id',
@@ -376,7 +374,6 @@ class SalesController extends Controller
     
     private function calculateMetrics($userJourneys, $journeyMap)
     {
-        $sessionDurations = [];
         $focusDurations = [];
         $landingPages = [];
         $exitPages = [];
@@ -388,8 +385,6 @@ class SalesController extends Controller
         foreach ($userJourneys as $visit) {
             $userId = $visit->user_id;
             $pageUrl = $visit->page_url;
-            $startTime = strtotime($visit->start_time);
-            $endTime = strtotime($visit->end_time);
             $focusTime = $visit->focus_time;
     
             if (!isset($userPaths[$userId])) {
@@ -401,10 +396,8 @@ class SalesController extends Controller
             $userPaths[$userId][] = $pageUrl;
     
             if (count($userPaths[$userId]) == 1) {
-                $sessionDurations[$userId] = 0;
                 $focusDurations[$userId] = 0;
             }
-            $sessionDurations[$userId] += ($endTime - $startTime);
             $focusDurations[$userId] += $focusTime;
     
             if (!in_array($userId, $uniqueVisitors)) {
@@ -422,7 +415,6 @@ class SalesController extends Controller
     
         // Additional metrics
         $bounceRate = ($singlePageSessions / $totalSessions) * 100;
-        $averageSessionDuration = array_sum($sessionDurations) / $totalSessions;
         $averageFocusDuration = array_sum($focusDurations) / $totalSessions;
         $topLandingPages = array_count_values($landingPages);
         arsort($topLandingPages);
@@ -435,8 +427,7 @@ class SalesController extends Controller
     
         return [
             'bounceRate' => $bounceRate,
-            'averageSessionDuration' => $averageSessionDuration,
-            'averageFocusDuration' => $averageFocusDuration, // New metric
+            'averageFocusDuration' => $averageFocusDuration, // Updated metric
             'topLandingPages' => $topLandingPages,
             'topExitPages' => $topExitPages,
             'totalPageViews' => $totalPageViews,
@@ -446,7 +437,7 @@ class SalesController extends Controller
             'landingPages' => $landingPages
         ];
     }
-
+    
     private function segmentUsers($userJourneys)
     {
         $newUsers = [];
@@ -492,6 +483,7 @@ class SalesController extends Controller
             'convertedUsers' => count(array_unique($convertedUsers)),
         ];
     }
+    
 
     private function excludeUsers(){
         $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x', 'user_udztby6hd', 'user_z3agshteg'];
