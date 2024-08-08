@@ -134,7 +134,7 @@
                         </div>
                     </div>
 
-                    <canvas id="analyticsChart" width="400" height="200"></canvas>
+                    <div id="analyticsChart" width="400" height="200"></div>
                 </div>
                 <div class="row mb-4">
                     <div class="col-md-12">
@@ -152,11 +152,19 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var journeyMap = @json($journeyMap);
     var topLandingPages = @json($topLandingPages);
     var topExitPages = @json($topExitPages);
+    var events = @json($events);
+
+    console.log('Journey Map:', journeyMap);
+    console.log('Top Landing Pages:', topLandingPages);
+    console.log('Top Exit Pages:', topExitPages);
+    console.log('Events:', events);
+
     var pages = Object.keys(journeyMap);
     var visits = pages.map(page => journeyMap[page].visits);
 
@@ -166,50 +174,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     pages.forEach(page => {
         Object.keys(journeyMap[page].nextPages).forEach(nextPage => {
-            transitions.push(`${page} -> ${nextPage}`);
-            transitionData.push(journeyMap[page].nextPages[nextPage]);
+            if (page !== nextPage) { // Filter out same URL transitions
+                transitions.push(`${page} -> ${nextPage}`);
+                transitionData.push(journeyMap[page].nextPages[nextPage]);
+            }
         });
     });
+
+    console.log('Transitions:', transitions);
+    console.log('Transition Data:', transitionData);
 
     var chartFilter = document.getElementById('chartFilter');
     var pageFilter = document.getElementById('pageFilter');
     var startDate = document.getElementById('startDate');
     var endDate = document.getElementById('endDate');
-    var ctx = document.getElementById('analyticsChart').getContext('2d');
     var currentChart;
 
-    function createChart(type, labels, data, label) {
+    const materialColors = [
+        '#E53935', '#AD1457', '#9C27B0', '#673AB7', '#3F51B5',
+        '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50',
+        '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'
+    ];
+
+    function getColor(index) {
+        return materialColors[index % materialColors.length];
+    }
+
+    function createChart(options) {
         if (currentChart) {
             currentChart.destroy();
         }
 
-        currentChart = new Chart(ctx, {
-            type: type,
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: label,
-                    data: data,
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    x: {
-                        ticks: {
-                            autoSkip: false,
-                            maxRotation: 90,
-                            minRotation: 45
-                        }
-                    },
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
+        currentChart = new ApexCharts(document.querySelector("#analyticsChart"), options);
+        currentChart.render();
     }
 
     function filterData(data, page, startDate, endDate) {
@@ -226,7 +223,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateChart() {
         var selectedFilter = chartFilter.value;
         var selectedPage = pageFilter.value;
-        var filteredData, labels, data;
+        var filteredData, labels, data, chartOptions;
+
+        console.log('Selected Filter:', selectedFilter);
+        console.log('Selected Page:', selectedPage);
 
         if (selectedFilter === 'visits') {
             filteredData = filterData(pages.map(page => ({
@@ -236,7 +236,30 @@ document.addEventListener('DOMContentLoaded', function() {
             })), selectedPage, startDate.value, endDate.value);
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
-            createChart('bar', labels, data, 'Number of Visits');
+            chartOptions = {
+                chart: { type: 'bar', height: 350, toolbar: { show: true } },
+                series: [{ name: 'Number of Visits', data: data }],
+                colors: labels.map((_, index) => getColor(index)),
+                xaxis: {
+                    categories: labels,
+                    labels: {
+                        rotate: -45, // Rotate labels for better readability
+                        formatter: function(value) {
+                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
+                        }
+                    },
+                    tooltip: {
+                        enabled: true
+                    }
+                },
+                tooltip: {
+                    y: {
+                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                            return labels[dataPointIndex]; // Show full URL in tooltip
+                        }
+                    }
+                }
+            };
         } else if (selectedFilter === 'transitions') {
             filteredData = filterData(transitions.map((transition, index) => ({
                 page: transition,
@@ -245,7 +268,30 @@ document.addEventListener('DOMContentLoaded', function() {
             })), selectedPage, startDate.value, endDate.value);
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
-            createChart('bar', labels, data, 'Number of Transitions');
+            chartOptions = {
+                chart: { type: 'bar', height: 350, toolbar: { show: true } },
+                series: [{ name: 'Number of Transitions', data: data }],
+                colors: labels.map((_, index) => getColor(index)),
+                xaxis: {
+                    categories: labels,
+                    labels: {
+                        rotate: -45, // Rotate labels for better readability
+                        formatter: function(value) {
+                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
+                        }
+                    },
+                    tooltip: {
+                        enabled: true
+                    }
+                },
+                tooltip: {
+                    y: {
+                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                            return labels[dataPointIndex]; // Show full URL in tooltip
+                        }
+                    }
+                }
+            };
         } else if (selectedFilter === 'landing') {
             filteredData = filterData(Object.keys(topLandingPages).map(page => ({
                 page: page,
@@ -254,7 +300,30 @@ document.addEventListener('DOMContentLoaded', function() {
             })), selectedPage, startDate.value, endDate.value);
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
-            createChart('bar', labels, data, 'Top Landing Pages');
+            chartOptions = {
+                chart: { type: 'bar', height: 350, toolbar: { show: true } },
+                series: [{ name: 'Top Landing Pages', data: data }],
+                colors: labels.map((_, index) => getColor(index)),
+                xaxis: {
+                    categories: labels,
+                    labels: {
+                        rotate: -45, // Rotate labels for better readability
+                        formatter: function(value) {
+                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
+                        }
+                    },
+                    tooltip: {
+                        enabled: true
+                    }
+                },
+                tooltip: {
+                    y: {
+                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                            return labels[dataPointIndex]; // Show full URL in tooltip
+                        }
+                    }
+                }
+            };
         } else if (selectedFilter === 'exit') {
             filteredData = filterData(Object.keys(topExitPages).map(page => ({
                 page: page,
@@ -263,8 +332,34 @@ document.addEventListener('DOMContentLoaded', function() {
             })), selectedPage, startDate.value, endDate.value);
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
-            createChart('bar', labels, data, 'Top Exit Pages');
+            chartOptions = {
+                chart: { type: 'bar', height: 350, toolbar: { show: true } },
+                series: [{ name: 'Top Exit Pages', data: data }],
+                colors: labels.map((_, index) => getColor(index)),
+                xaxis: {
+                    categories: labels,
+                    labels: {
+                        rotate: -45, // Rotate labels for better readability
+                        formatter: function(value) {
+                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
+                        }
+                    },
+                    tooltip: {
+                        enabled: true
+                    }
+                },
+                tooltip: {
+                    y: {
+                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                            return labels[dataPointIndex]; // Show full URL in tooltip
+                        }
+                    }
+                }
+            };
         }
+
+        console.log('Chart Options:', chartOptions);
+        createChart(chartOptions);
     }
 
     chartFilter.addEventListener('change', updateChart);
@@ -273,20 +368,24 @@ document.addEventListener('DOMContentLoaded', function() {
     endDate.addEventListener('change', updateChart);
     updateChart(); // Initial chart
 
-    var events = @json($events);
+    // User Events Chart
     var eventTypes = events.map(event => event.event_type);
     var eventCounts = events.map(event => event.count);
 
     var eventChartOptions = {
-        chart: { type: 'pie', height: 350 },
+        chart: { type: 'pie', height: 350, toolbar: { show: true } },
         series: eventCounts,
         labels: eventTypes,
+        colors: eventTypes.map((_, index) => getColor(index)),
         title: { text: 'User Events Distribution', align: 'center' }
     };
 
     var eventChart = new ApexCharts(document.querySelector("#eventDataChart"), eventChartOptions);
     eventChart.render();
 });
+
+
+
 </script>
 @endsection
 
