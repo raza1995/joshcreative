@@ -19,11 +19,20 @@
         return;
     }
 
+    // Behavioral analysis (simple example with mouse movement)
+    let humanDetected = false;
+    document.addEventListener('mousemove', () => {
+        humanDetected = true;
+    });
+
+
+
     function getCookie(name) {
         let value = "; " + document.cookie;
         let parts = value.split("; " + name + "=");
         if (parts.length === 2) return parts.pop().split(";").shift();
     }
+
 
     const userId = getCookie('user_id') || '';
     const pageUrl = window.location.href;
@@ -33,8 +42,8 @@
     let visibilityChangeTime = new Date();
     const trackingData = [];
 
-    let requestCount = 0; // Initialize request counter for rate limiting
-    const maxRequestsPerMinute = 5; // Set the rate limit
+    let requestCount = 0;
+    const maxRequestsPerMinute = 5;
 
     // Honeypot validation function
     function validateHoneypot() {
@@ -59,6 +68,11 @@
 
     // Function to send page view events
     function sendPageViewEvent(data) {
+        if (!humanDetected) {
+            console.log('No human interaction detected, skipping tracking.');
+            return;
+        }
+
         if (!validateHoneypot()) {
             console.log('Honeypot filled, bot detected.');
             return;
