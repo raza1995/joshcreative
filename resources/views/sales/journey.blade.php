@@ -362,19 +362,28 @@ document.addEventListener('DOMContentLoaded', function() {
     updateChart(); // Initial chart
 
     // User Events Chart
-    var eventTypes = events.map(event => event.event_type);
-    var eventCounts = events.map(event => event.count);
+ // Assuming the `events` variable contains the enhanced event data from the backend
+ var eventLabels = Object.keys(events);
+var eventCounts = Object.values(events);
+console.log(events);
+var eventChartOptions = {
+    chart: { 
+        type: 'pie', 
+        height: 350, 
+        toolbar: { show: true } 
+    },
+    series: eventCounts,
+    labels: eventLabels,
+    colors: eventLabels.map((_, index) => getColor(index)),
+    title: { 
+        text: 'User Events Distribution (Click Events)', 
+        align: 'center' 
+    }
+};
 
-    var eventChartOptions = {
-        chart: { type: 'pie', height: 350, toolbar: { show: true } },
-        series: eventCounts,
-        labels: eventTypes,
-        colors: eventTypes.map((_, index) => getColor(index)),
-        title: { text: 'User Events Distribution', align: 'center' }
-    };
+var eventChart = new ApexCharts(document.querySelector("#eventDataChart"), eventChartOptions);
+eventChart.render();
 
-    var eventChart = new ApexCharts(document.querySelector("#eventDataChart"), eventChartOptions);
-    eventChart.render();
 });
 
 

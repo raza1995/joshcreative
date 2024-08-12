@@ -382,6 +382,7 @@ class SalesController extends Controller
         $totalSessions = 0;
         $uniqueVisitors = [];
         $userPaths = [];
+        $extractedEvents = [];
     
         foreach ($userJourneys as $visit) {
             $userId = $visit->user_id;
@@ -414,7 +415,7 @@ class SalesController extends Controller
             }
         }
     
-        // Additional metrics
+        // Calculate additional metrics
         $bounceRate = ($singlePageSessions / $totalSessions) * 100;
         $averageFocusDuration = array_sum($focusDurations) / $totalSessions;
         $topLandingPages = array_count_values($landingPages);
@@ -425,15 +426,52 @@ class SalesController extends Controller
         $uniquePagesVisited = count(array_unique($landingPages));
         $averagePageViewsPerSession = $totalPageViews / $totalSessions;
         $totalUniqueVisitors = count($uniqueVisitors);
-        $events = UserEvent::select('event_type', DB::raw('count(*) as count'))
-        ->whereNotNull('event_type')
-        ->where('event_type', '!=', 'unknown')
-        ->groupBy('event_type')
+    
+        // Extract event data
+        $extractedEvents = [];
+
+        // Fetch and process events where event_type is "click"
+        $events = UserEvent::select('element', 'event_type')
+        ->where('event_type', '=', 'click')
         ->get();
+    
+    $extractedEvents = [];
+    
+    foreach ($events as $event) {
+        // Extract href links and their innerHTML from the element column
+        preg_match_all('/<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/', $event->element, $matches);
+        foreach ($matches[1] as $index => $href) {
+            $linkText = $matches[2][$index]; // Get the innerHTML content
+            $key = 'link:' . $linkText . ' (' . $href . ')'; // Use both innerHTML and href in the label
+            if (isset($extractedEvents[$key])) {
+                $extractedEvents[$key]++;
+            } else {
+                $extractedEvents[$key] = 1;
+            }
+        }
+    
+        // Extract button names from the element column
+        preg_match_all('/<button[^>]*>([^<]+)<\/button>/', $event->element, $buttonMatches);
+        foreach ($buttonMatches[1] as $buttonName) {
+            $key = 'button:' . $buttonName;
+            if (isset($extractedEvents[$key])) {
+                $extractedEvents[$key]++;
+            } else {
+                $extractedEvents[$key] = 1;
+            }
+        }
+    }
+    
+    arsort($extractedEvents); // Sort by count in descending order
+    
+    // The $extractedEvents array now contains the grouped and counted event data
+
+    
+    
         return [
-            'events' => $events,
+            'events' => $extractedEvents,
             'bounceRate' => $bounceRate,
-            'averageFocusDuration' => $averageFocusDuration, // Updated metric
+            'averageFocusDuration' => $averageFocusDuration,
             'topLandingPages' => $topLandingPages,
             'topExitPages' => $topExitPages,
             'totalPageViews' => $totalPageViews,
@@ -443,6 +481,7 @@ class SalesController extends Controller
             'landingPages' => $landingPages
         ];
     }
+    
     
     private function segmentUsers($userJourneys)
     {
