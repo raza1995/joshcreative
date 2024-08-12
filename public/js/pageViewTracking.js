@@ -1,5 +1,23 @@
 (function() {
-    console.log('Tracking script loaded'); // Log when the script is loaded
+    console.log('Tracking script loaded');
+
+    const botUserAgents = [
+        /Googlebot/i,
+        /Bingbot/i,
+        /Slurp/i,
+        /DuckDuckBot/i,
+        /Baiduspider/i,
+        /YandexBot/i,
+        /Sogou/i,
+        /Exabot/i,
+        /facebot/i,
+        /ia_archiver/i
+    ];
+
+    const isBot = botUserAgents.some(botAgent => botAgent.test(navigator.userAgent));
+    if (isBot) {
+        return;
+    }
 
     function getCookie(name) {
         let value = "; " + document.cookie;
@@ -15,11 +33,39 @@
     let visibilityChangeTime = new Date();
     const trackingData = [];
 
-    console.log('Initial data:', { userId, pageUrl, startTime }); // Log initial data
+    let requestCount = 0; // Initialize request counter for rate limiting
+    const maxRequestsPerMinute = 5; // Set the rate limit
 
+    // Honeypot validation function
+    function validateHoneypot() {
+        const honeypot = document.getElementById('honeypot');
+        return honeypot && honeypot.value === '';
+    }
+
+    // Rate limiting function
+    function rateLimitedSend(data) {
+        if (requestCount < maxRequestsPerMinute) {
+            requestCount++;
+            sendPageViewEvent(data);
+        } else {
+            console.log('Rate limit exceeded, skipping request.');
+        }
+    }
+
+    // Reset request counter every minute
+    setInterval(() => {
+        requestCount = 0;
+    }, 60000);
+
+    // Function to send page view events
     function sendPageViewEvent(data) {
+        if (!validateHoneypot()) {
+            console.log('Honeypot filled, bot detected.');
+            return;
+        }
+
         const jsonData = JSON.stringify(data);
-        console.log('Sending event data:', jsonData); // Log the data being sent
+        console.log('Sending event data:', jsonData);
 
         if (navigator.sendBeacon) {
             navigator.sendBeacon('https://joshcreative.co/api/webhook/event', jsonData);
@@ -40,7 +86,7 @@
     function handleVisibilityChange() {
         const currentTime = new Date();
         if (document.visibilityState === 'hidden') {
-            totalFocusTime += (currentTime - focusStartTime) / 1000; // Calculate focus time in seconds
+            totalFocusTime += (currentTime - focusStartTime) / 1000; 
             const event = {
                 user_id: userId,
                 page_url: pageUrl,
@@ -52,10 +98,10 @@
             };
             trackingData.push(event);
             localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-            console.log('Page hidden, focus time recorded:', totalFocusTime); // Log when page visibility changes
+            console.log('Page hidden, focus time recorded:', totalFocusTime); 
         } else if (document.visibilityState === 'visible') {
             focusStartTime = new Date();
-            console.log('Page visible'); // Log when page becomes visible
+            console.log('Page visible');
         }
         visibilityChangeTime = currentTime;
     }
@@ -63,7 +109,7 @@
     function sendDataBeforeUnload() {
         const endTime = new Date();
         const focusEndTime = new Date();
-        totalFocusTime += (focusEndTime - focusStartTime) / 1000; // Calculate focus time in seconds
+        totalFocusTime += (focusEndTime - focusStartTime) / 1000; 
 
         const event = {
             user_id: userId,
@@ -77,8 +123,8 @@
         trackingData.push(event);
 
         localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-        sendPageViewEvent(event);
-        console.log('Before unload, data sent:', event); // Log when data is sent before unload
+        rateLimitedSend(event);
+        console.log('Before unload, data sent:', event); 
     }
 
     function trackUserInteraction(eventType, element) {
@@ -91,23 +137,22 @@
         };
         trackingData.push(event);
         localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-        console.log('User interaction tracked:', event); // Log user interactions
+        console.log('User interaction tracked:', event); 
     }
 
     function sendStoredData() {
         const storedData = localStorage.getItem('pageViewTrackingData');
         if (storedData) {
             const events = JSON.parse(storedData);
-            events.forEach(event => sendPageViewEvent(event));
+            events.forEach(event => rateLimitedSend(event));
             localStorage.removeItem('pageViewTrackingData');
-            console.log('Stored data sent:', events); // Log when stored data is sent
+            console.log('Stored data sent:', events); 
         }
     }
 
     window.addEventListener('beforeunload', sendDataBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Track clicks on buttons and links
     document.addEventListener('click', function(event) {
         const target = event.target;
         if (target.tagName === 'BUTTON' || target.tagName === 'A' || target.getAttribute('data-track')) {
@@ -115,7 +160,6 @@
         }
     });
 
-    // Track form submissions
     document.addEventListener('submit', function(event) {
         const target = event.target;
         if (target.tagName === 'FORM' || target.getAttribute('data-track')) {
@@ -126,15 +170,13 @@
     window.addEventListener('load', () => {
         startTime = new Date();
         focusStartTime = new Date();
-        console.log('Page loaded'); // Log when the page is loaded
+        console.log('Page loaded');
         sendStoredData();
-        // Retrieve any stored data from localStorage and send it
     });
 
-    // Optionally, send data periodically if the user stays on the page for a long time
     setInterval(() => {
         const currentTime = new Date();
-        totalFocusTime += (currentTime - visibilityChangeTime) / 1000; // Update focus time
+        totalFocusTime += (currentTime - visibilityChangeTime) / 1000; 
         visibilityChangeTime = currentTime;
 
         const event = {
@@ -149,8 +191,8 @@
         trackingData.push(event);
 
         localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
-        sendPageViewEvent(event);
-        trackingData.length = 0; // Clear tracking data after sending
-        console.log('Periodic data sent:', event); // Log periodic data sending
-    }, 60000); // Send data every minute
+        rateLimitedSend(event);
+        trackingData.length = 0; 
+        console.log('Periodic data sent:', event); 
+    }, 60000);
 })();

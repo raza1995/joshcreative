@@ -220,14 +220,38 @@ class SalesController extends Controller
 
         // Calculate current month's revenue
         $currentMonthRevenue = $this->getCurrentMonthRevenue();
-        $pageVisits = DB::table('pages')
+        return DB::table('user_events')
         ->select(
+            'user_id',
             DB::raw('
                 CASE 
-                    WHEN url LIKE "%fbclid%" THEN 
-                        SUBSTRING_INDEX(SUBSTRING_INDEX(url, "fbclid", 1), "?", 1) 
+                    WHEN page_url LIKE "%fbclid%" THEN 
+                        SUBSTRING_INDEX(SUBSTRING_INDEX(page_url, "fbclid", 1), "?", 1) 
                     ELSE 
-                        SUBSTRING_INDEX(url, "??", 1) 
+                        SUBSTRING_INDEX(page_url, "?", 1) 
+                END as cleaned_url'),
+            'start_time', 
+            'end_time',
+            'focus_time'
+        )
+        ->whereNotIn('user_id', $this->excludeUsers())
+        ->orderBy('user_id')
+        ->orderBy('start_time')
+        ->get()
+        ->map(function($event) use ($baseUrl) {
+            $event->page_url = $event->cleaned_url;
+            unset($event->cleaned_url);
+            return $event;
+        });
+        $pageVisits = DB::table('user_events')
+        ->select(
+            'user_id',
+            DB::raw('
+                CASE 
+                  WHEN page_url LIKE "%fbclid%" THEN 
+                   SUBSTRING_INDEX(SUBSTRING_INDEX(page_url, "fbclid", 1), "?", 1) 
+                    ELSE 
+                        SUBSTRING_INDEX(page_url, "?", 1) 
                 END as path'), 
             DB::raw('SUM(views) as views'), 
             DB::raw('SUM(total_stay_duration) as total_stay_duration')
@@ -495,6 +519,7 @@ class SalesController extends Controller
         $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x', 'user_udztby6hd', 'user_z3agshteg'];
         return $excludedUsers;
     }
+
 
   
 }
