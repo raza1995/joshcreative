@@ -19,13 +19,6 @@
         return;
     }
 
-    // Behavioral analysis (simple example with mouse movement)
-    let humanDetected = false;
-    document.addEventListener('mousemove', () => {
-        humanDetected = true;
-    });
-
-
 
     function getCookie(name) {
         let value = "; " + document.cookie;
@@ -45,12 +38,7 @@
     let requestCount = 0;
     const maxRequestsPerMinute = 5;
 
-    // Honeypot validation function
-    function validateHoneypot() {
-        const honeypot = document.getElementById('honeypot');
-        return honeypot && honeypot.value === '';
-    }
-
+ 
     // Rate limiting function
     function rateLimitedSend(data) {
         if (requestCount < maxRequestsPerMinute) {
@@ -68,15 +56,7 @@
 
     // Function to send page view events
     function sendPageViewEvent(data) {
-        if (!humanDetected) {
-            console.log('No human interaction detected, skipping tracking.');
-            return;
-        }
-
-        if (!validateHoneypot()) {
-            console.log('Honeypot filled, bot detected.');
-            return;
-        }
+     
 
         const jsonData = JSON.stringify(data);
         console.log('Sending event data:', jsonData);
