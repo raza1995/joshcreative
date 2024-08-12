@@ -35,11 +35,11 @@ class WebhookController extends Controller
         'user_id' => $data['user_id'],
         'page_url' => $data['page_url'],
         'start_time' => $startTime,
-        'end_time' => $endTime,
-        'stay_duration' => $stayDuration,
+        'end_time' => $endTime ,
+        'stay_duration' => $stayDuration ?? 0,
         'focus_time' => $data['focus_time'] ?? 0,
         'event_type' => $data['event_type'] ?? 'unknown',
-        'element' => $data['element'] ?? null,
+        'element' => $data['element'] ?? '',
     ]);
     
         if ($stayDuration && class_exists(Pages::class)) {
