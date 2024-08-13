@@ -21,8 +21,15 @@ class SalesDataDataTable extends DataTable
      */
     public function dataTable(QueryBuilder $query): EloquentDataTable
     {
+       
         return (new EloquentDataTable($query))
-            ->addColumn('action', 'sales.action')
+            ->addColumn('action', function($row) {
+
+                if ($row->dj_user_id) {
+                    return '<a href="'.route('sales.journey', ['user_id' => $row->dj_user_id]).'" class="btn btn-sm btn-primary">See Journey</a>';
+                } else {
+                    return '<button class="btn btn-sm btn-secondary" disabled>No Journey Available</button>';
+                }            })
             ->editColumn('status', function ($data) {
                 if ($data->status == 'Purchased') {
                     return '<span class="badge bg-success">Purchased</span>';
@@ -40,6 +47,7 @@ class SalesDataDataTable extends DataTable
             ->rawColumns(['status', 'action'])
             ->setRowId('id');
     }
+    
 
     /**
      * Get the query source of dataTable.
@@ -107,6 +115,7 @@ class SalesDataDataTable extends DataTable
             Column::make('earned_commission'),
             Column::make('created_at'),
             Column::make('updated_at'),
+            Column::make('action'),
         ];
     }
 

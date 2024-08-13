@@ -384,39 +384,50 @@ class SalesController extends Controller
         $userPaths = [];
         $extractedEvents = [];
     
-        foreach ($userJourneys as $visit) {
-            $userId = $visit->user_id;
-            $pageUrl = $visit->page_url;
-            $focusTime = $visit->focus_time;
+        // Group user events by user_id to handle each user's journey separately
+        $groupedUserJourneys = $userJourneys->groupBy('user_id');
+
+        foreach ($groupedUserJourneys as $userId => $userEvents) {
+         
+            // Filter out duplicate entries for each user based on page_url and start_time
+            $filteredUserJourneys = $userEvents->unique(function ($item) {
+                $pageUrl = $item->page_url ?? 'unknown_page';
+                $startTime = $item->start_time ?? 'unknown_time';
+        
+                return $pageUrl . $startTime;
+            });
     
-            if (!isset($userPaths[$userId])) {
-                $userPaths[$userId] = [];
-                $landingPages[] = $pageUrl;
-                $totalSessions++;
+            foreach ($filteredUserJourneys as $visit) {
+                $pageUrl = $visit->page_url;
+                $focusTime = $visit->focus_time;
+    
+                if (!isset($userPaths[$userId])) {
+                    $userPaths[$userId] = [];
+                    $landingPages[] = $pageUrl;
+                    $totalSessions++;
+                }
+    
+                $userPaths[$userId][] = $pageUrl;
+    
+                if (count($userPaths[$userId]) == 1) {
+                    $focusDurations[$userId] = 0;
+                }
+                $focusDurations[$userId] += $focusTime;
+    
+                if (!in_array($userId, $uniqueVisitors)) {
+                    $uniqueVisitors[] = $userId;
+                }
             }
     
-            $userPaths[$userId][] = $pageUrl;
-    
+            // Calculate exitPages and single page sessions
+            $exitPages[] = end($userPaths[$userId]);
             if (count($userPaths[$userId]) == 1) {
-                $focusDurations[$userId] = 0;
-            }
-            $focusDurations[$userId] += $focusTime;
-    
-            if (!in_array($userId, $uniqueVisitors)) {
-                $uniqueVisitors[] = $userId;
-            }
-        }
-    
-        // Calculate exitPages and single page sessions
-        foreach ($userPaths as $paths) {
-            $exitPages[] = end($paths);
-            if (count($paths) == 1) {
                 $singlePageSessions++;
             }
         }
     
         // Calculate additional metrics
-        $bounceRate = ($singlePageSessions / $totalSessions) * 100;
+        $bounceRate  = ($singlePageSessions / $totalSessions) * 100;
         $averageFocusDuration = array_sum($focusDurations) / $totalSessions;
         $topLandingPages = array_count_values($landingPages);
         arsort($topLandingPages);
@@ -429,44 +440,39 @@ class SalesController extends Controller
     
         // Extract event data
         $extractedEvents = [];
-
+    
         // Fetch and process events where event_type is "click"
         $events = UserEvent::select('element', 'event_type')
-        ->where('event_type', '=', 'click')
-        ->get();
+            ->where('event_type', '=', 'click')
+            ->get();
     
-    $extractedEvents = [];
+        foreach ($events as $event) {
+            // Extract href links and their visible text from the element column
+            preg_match_all('/<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/', $event->element, $matches);
+            foreach ($matches[1] as $index => $href) {
+                $linkText = strip_tags($matches[2][$index]); // Get the visible text (strip out any HTML tags inside)
+                $key = 'link:' . $linkText . ' (' . $href . ')'; // Combine visible text and href in the label
+                if (isset($extractedEvents[$key])) {
+                    $extractedEvents[$key]++;
+                } else {
+                    $extractedEvents[$key] = 1;
+                }
+            }
     
-    foreach ($events as $event) {
-        // Extract href links and their innerHTML from the element column
-        preg_match_all('/<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/', $event->element, $matches);
-        foreach ($matches[1] as $index => $href) {
-            $linkText = $matches[2][$index]; // Get the innerHTML content
-            $key = 'link:' . $linkText . ' (' . $href . ')'; // Use both innerHTML and href in the label
-            if (isset($extractedEvents[$key])) {
-                $extractedEvents[$key]++;
-            } else {
-                $extractedEvents[$key] = 1;
+            // Extract button names from the element column
+            preg_match_all('/<button[^>]*>(.*?)<\/button>/', $event->element, $buttonMatches);
+            foreach ($buttonMatches[1] as $buttonName) {
+                $buttonText = strip_tags($buttonName); // Get the visible text (strip out any HTML tags inside)
+                $key = 'button:' . $buttonText;
+                if (isset($extractedEvents[$key])) {
+                    $extractedEvents[$key]++;
+                } else {
+                    $extractedEvents[$key] = 1;
+                }
             }
         }
     
-        // Extract button names from the element column
-        preg_match_all('/<button[^>]*>([^<]+)<\/button>/', $event->element, $buttonMatches);
-        foreach ($buttonMatches[1] as $buttonName) {
-            $key = 'button:' . $buttonName;
-            if (isset($extractedEvents[$key])) {
-                $extractedEvents[$key]++;
-            } else {
-                $extractedEvents[$key] = 1;
-            }
-        }
-    }
-    
-    arsort($extractedEvents); // Sort by count in descending order
-    
-    // The $extractedEvents array now contains the grouped and counted event data
-
-    
+        arsort($extractedEvents);
     
         return [
             'events' => $extractedEvents,
@@ -481,6 +487,7 @@ class SalesController extends Controller
             'landingPages' => $landingPages
         ];
     }
+    
     
     
     private function segmentUsers($userJourneys)
@@ -534,6 +541,70 @@ class SalesController extends Controller
         $excludedUsers = ['user_5edhgpi3x', 'user_4vt4pqv8x', 'user_udztby6hd', 'user_z3agshteg'];
         return $excludedUsers;
     }
+    
 
+    public function getUserJourney($userId)
+{
+    // Fetch user events along with email and name from the Sale table
+    $userJourneys = UserEvent::where('user_events.user_id', $userId)
+        ->join('sales', 'sales.dj_user_id', '=', 'user_events.user_id')
+        ->orderBy('start_time', 'asc')
+        ->select('user_events.*', 'sales.email', 'sales.name')
+        ->get();
+
+    // Filter out duplicate events with the same URL and start time
+    $filteredUserJourneys = $userJourneys->unique(function ($item) {
+        return $item['page_url'] . $item['start_time'];
+    });
+
+    // Create a journey map to track transitions between pages
+    $journeyMap = [];
+    $previousPage = null;
+
+    foreach ($filteredUserJourneys as $event) {
+        $pageUrl = $event->page_url;
+
+        if (!isset($journeyMap[$pageUrl])) {
+            $journeyMap[$pageUrl] = [
+                'visits' => 0,
+                'total_focus_time' => 0,
+                'nextPages' => [],
+            ];
+        }
+
+        // Increment visit count and focus time
+        $journeyMap[$pageUrl]['visits']++;
+        $journeyMap[$pageUrl]['total_focus_time'] += $event->focus_time;
+
+        // Track the transition from the previous page to the current one
+        if ($previousPage) {
+            if (!isset($journeyMap[$previousPage]['nextPages'][$pageUrl])) {
+                $journeyMap[$previousPage]['nextPages'][$pageUrl] = 0;
+            }
+            $journeyMap[$previousPage]['nextPages'][$pageUrl]++;
+        }
+
+        // Update the previous page
+        $previousPage = $pageUrl;
+    }
+
+    // Metrics calculation (if needed)
+    $metrics = [
+        'totalPagesVisited' => count($journeyMap),
+        'totalVisits' => array_sum(array_column($journeyMap, 'visits')),
+        'totalFocusTime' => array_sum(array_column($journeyMap, 'total_focus_time')),
+    ];
+
+    // Return a view with the journey data, including email and name
+    return view('user_journey', [
+        'userJourneys' => $filteredUserJourneys,
+        'journeyMap' => $journeyMap,
+        'metrics' => $metrics,
+    ]);
+}
+
+    
+
+    
   
 }

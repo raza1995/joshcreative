@@ -1,0 +1,425 @@
+.timeline-container {
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 15px; /* Space for scrollbar */
+}
+
+.timeline {
+    list-style: none;
+    padding: 0;
+    position: relative;
+    margin-left: 20px;
+}
+
+.timeline:before {
+    content: '';
+    background: #ff6902;
+    display: inline-block;
+    position: absolute;
+    left: 20px;
+    width: 4px;
+    height: 100%;
+    z-index: 400;
+    border-radius: 2px;
+}
+
+.timeline > li {
+    margin: 20px 0;
+    padding-left: 50px;
+    position: relative;
+}
+
+.timeline > li:before {
+    content: '';
+    background: #ff6902;
+    display: inline-block;
+    position: absolute;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    left: 12px;
+    top: 5px;
+    width: 20px;
+    height: 20px;
+    z-index: 400;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.timeline .timeline-date {
+    color: #999;
+    font-weight: 600;
+    margin-bottom: 5px;
+    display: inline-block;
+}
+
+.timeline .timeline-content {
+    background: #f7f7f7;
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: relative;
+    border: 1px solid #ff6902;
+}
+
+.timeline .timeline-content h3 {
+    margin: 0 0 5px;
+    font-size: 18px;
+    color: #810000;
+}
+
+.timeline .timeline-content p {
+    margin: 0;
+    color: #666;
+}
+
+/* Material Design Style */
+.material-card {
+    background-color: #FFFFFF; /* White background */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), /* Soft shadow */
+                0 4px 8px rgba(0, 0, 0, 0.1); /* Slightly deeper shadow */
+    padding: 16px; /* Padding inside the card */
+    margin: 16px 0; /* Margin to separate cards */
+    transition: box-shadow 0.3s ease; /* Smooth transition for hover effect */
+}
+
+.material-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), /* Stronger shadow on hover */
+                0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.material-button {
+    background-color: #3E97FF; /* Primary blue color */
+    color: #FFFFFF; /* White text */
+    border: none; /* No border */
+    border-radius: 4px; /* Rounded corners */
+    padding: 10px 20px; /* Padding inside the button */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Soft shadow */
+    text-transform: uppercase; /* Uppercase text */
+    font-weight: 500; /* Medium font weight */
+    transition: background-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transition */
+    cursor: pointer; /* Pointer cursor on hover */
+}
+
+.material-button:hover {
+    background-color: #1565C0; /* Darker blue on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Stronger shadow on hover */
+}
+
+.material-input {
+    background-color: #FAFAFA; /* Light gray background */
+    border: 1px solid #E0E0E0; /* Light gray border */
+    border-radius: 4px; /* Rounded corners */
+    padding: 10px; /* Padding inside the input */
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1); /* Inset shadow for depth */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transition */
+}
+
+.material-input:focus {
+    border-color: #3E97FF; /* Blue border on focus */
+    box-shadow: 0 0 4px rgba(62, 151, 255, 0.5); /* Blue glow on focus */
+    outline: none; /* Remove default outline */
+}
+/* Material Design Color Palette */
+
+/* Primary Colors */
+.bg-primary {
+    background-color: #2196F3; /* Blue */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-primary-light {
+    background-color: #BBDEFB; /* Light Blue */
+    color: #000000; /* Black text */
+}
+
+.bg-primary-dark {
+    background-color: #1976D2; /* Dark Blue */
+    color: #FFFFFF; /* White text */
+}
+
+/* Secondary Colors */
+.bg-secondary {
+    background-color: #FF9800!important; /* Orange */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-secondary-light {
+    background-color: #FFE0B2; /* Light Orange */
+    color: #000000; /* Black text */
+}
+
+.bg-secondary-dark {
+    background-color: #F57C00; /* Dark Orange */
+    color: #FFFFFF; /* White text */
+}
+
+/* Success Colors */
+.bg-success {
+    background-color: #4CAF50; /* Green */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-success-light {
+    background-color: #C8E6C9; /* Light Green */
+    color: #000000; /* Black text */
+}
+
+.bg-success-dark {
+    background-color: #388E3C; /* Dark Green */
+    color: #FFFFFF; /* White text */
+}
+
+/* Warning Colors */
+.bg-warning {
+    background-color: #FFC107; /* Amber */
+    color: #000000; /* Black text */
+}
+
+.bg-warning-light {
+    background-color: #FFECB3; /* Light Amber */
+    color: #000000; /* Black text */
+}
+
+.bg-warning-dark {
+    background-color: #FFA000; /* Dark Amber */
+    color: #FFFFFF; /* White text */
+}
+
+/* Danger Colors */
+.bg-danger {
+    background-color: #F44336; /* Red */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-danger-light {
+    background-color: #FFCDD2; /* Light Red */
+    color: #000000; /* Black text */
+}
+
+.bg-danger-dark {
+    background-color: #D32F2F; /* Dark Red */
+    color: #FFFFFF; /* White text */
+}
+
+/* Info Colors */
+.bg-info-material {
+    background-color: #00BCD4; /* Cyan */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-info-light {
+    background-color: #B2EBF2; /* Light Cyan */
+    color: #000000; /* Black text */
+}
+
+.bg-info-dark {
+    background-color: #0097A7; /* Dark Cyan */
+    color: #FFFFFF; /* White text */
+}
+
+/* Text Colors */
+.text-primary {
+    color: #2196F3; /* Blue */
+}
+
+.text-secondary {
+    color: #FF9800; /* Orange */
+}
+
+.text-success {
+    color: #4CAF50; /* Green */
+}
+
+.text-warning {
+    color: #FFC107; /* Amber */
+}
+
+.text-danger {
+    color: #F44336; /* Red */
+}
+
+.text-info {
+    color: #00BCD4; /* Cyan */
+}
+/* Material Design Color Palette with 'material' suffix */
+
+/* Primary Colors */
+.bg-primary-material {
+    background-color: #2196F3; /* Blue */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-primary-light-material {
+    background-color: #BBDEFB; /* Light Blue */
+    color: #000000; /* Black text */
+}
+
+.bg-primary-dark-material {
+    background-color: #1976D2; /* Dark Blue */
+    color: #FFFFFF; /* White text */
+}
+
+/* Secondary Colors */
+.bg-secondary-material {
+    background-color: #FF9800; /* Orange */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-secondary-light-material {
+    background-color: #FFE0B2; /* Light Orange */
+    color: #000000; /* Black text */
+}
+
+.bg-secondary-dark-material {
+    background-color: #F57C00; /* Dark Orange */
+    color: #FFFFFF; /* White text */
+}
+
+/* Success Colors */
+.bg-success-material {
+    background-color: #4CAF50; /* Green */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-success-light-material {
+    background-color: #C8E6C9; /* Light Green */
+    color: #000000; /* Black text */
+}
+
+.bg-success-dark-material {
+    background-color: #388E3C; /* Dark Green */
+    color: #FFFFFF; /* White text */
+}
+
+/* Warning Colors */
+.bg-warning-material {
+    background-color: #FFC107; /* Amber */
+    color: #000000; /* Black text */
+}
+
+.bg-warning-light-material {
+    background-color: #FFECB3; /* Light Amber */
+    color: #000000; /* Black text */
+}
+
+.bg-warning-dark-material {
+    background-color: #FFA000; /* Dark Amber */
+    color: #FFFFFF; /* White text */
+}
+
+/* Danger Colors */
+.bg-danger-material {
+    background-color: #F44336; /* Red */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-danger-light-material {
+    background-color: #FFCDD2; /* Light Red */
+    color: #000000; /* Black text */
+}
+
+.bg-danger-dark-material {
+    background-color: #D32F2F; /* Dark Red */
+    color: #FFFFFF; /* White text */
+}
+
+/* Info Colors */
+.bg-info-material {
+    background-color: #00BCD4; /* Cyan */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-info-light-material {
+    background-color: #B2EBF2; /* Light Cyan */
+    color: #000000; /* Black text */
+}
+
+.bg-info-dark-material {
+    background-color: #0097A7; /* Dark Cyan */
+    color: #FFFFFF; /* White text */
+}
+
+/* Gray Colors */
+.bg-gray-material {
+    background-color: #9E9E9E; /* Gray */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-gray-light-material {
+    background-color: #F5F5F5; /* Light Gray */
+    color: #000000; /* Black text */
+}
+
+.bg-gray-dark-material {
+    background-color: #616161; /* Dark Gray */
+    color: #FFFFFF; /* White text */
+}
+
+/* Purple Colors */
+.bg-purple-material {
+    background-color: #9C27B0; /* Purple */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-purple-light-material {
+    background-color: #E1BEE7; /* Light Purple */
+    color: #000000; /* Black text */
+}
+
+.bg-purple-dark-material {
+    background-color: #7B1FA2; /* Dark Purple */
+    color: #FFFFFF; /* White text */
+}
+
+/* Pink Colors */
+.bg-pink-material {
+    background-color: #E91E63; /* Pink */
+    color: #FFFFFF; /* White text */
+}
+
+.bg-pink-light-material {
+    background-color: #F8BBD0; /* Light Pink */
+    color: #000000; /* Black text */
+}
+
+.bg-pink-dark-material {
+    background-color: #C2185B; /* Dark Pink */
+    color: #FFFFFF; /* White text */
+}
+
+/* Text Colors */
+.text-primary-material {
+    color: #2196F3; /* Blue */
+}
+
+.text-secondary-material {
+    color: #FF9800; /* Orange */
+}
+
+.text-success-material {
+    color: #4CAF50; /* Green */
+}
+
+.text-warning-material {
+    color: #FFC107; /* Amber */
+}
+
+.text-danger-material {
+    color: #F44336; /* Red */
+}
+
+.text-info-material {
+    color: #00BCD4; /* Cyan */
+}
+
+.text-gray-material {
+    color: #9E9E9E; /* Gray */
+}
+
+.text-purple-material {
+    color: #9C27B0; /* Purple */
+}
+
+.text-pink-material {
+    color: #E91E63; /* Pink */
+}

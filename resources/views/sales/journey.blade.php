@@ -183,16 +183,56 @@ document.addEventListener('DOMContentLoaded', function() {
     var endDate = document.getElementById('endDate');
     var currentChart;
 
-    const materialColors = [
+    const mainmaterialColors = [
         '#E53935', '#AD1457', '#9C27B0', '#673AB7', '#3F51B5',
         '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50',
         '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'
     ];
+    const materialColors = [
+    '#E57373', // Darker Red
+    '#F06292', // Darker Pink
+    '#BA68C8', // Darker Purple
+    '#9575CD', // Darker Deep Purple
+    '#7986CB', // Darker Indigo
+    '#64B5F6', // Darker Blue
+    '#4FC3F7', // Darker Light Blue
+    '#4DD0E1', // Darker Cyan
+    '#4DB6AC', // Darker Teal
+    '#81C784', // Darker Green
+    '#AED581', // Darker Light Green
+    '#DCE775', // Darker Lime
+    '#FFF176', // Darker Yellow
+    '#FFD54F', // Darker Amber
+    '#FFB74D', // Darker Orange
+    '#FF8A65', // Darker Deep Orange
+];
+const materialDarkerColorsWithBorders = [
+    '#E57373', // Darker Red
+    '#F06292', // Darker Pink
+    '#BA68C8', // Darker Purple
+    '#9575CD', // Darker Deep Purple
+    '#7986CB', // Darker Indigo
+    '#64B5F6', // Darker Blue
+    '#4FC3F7', // Darker Light Blue
+    '#4DD0E1', // Darker Cyan
+    '#4DB6AC', // Darker Teal
+    '#81C784', // Darker Green
+    '#AED581', // Darker Light Green
+    '#DCE775', // Darker Lime
+    '#FFF176', // Darker Yellow
+    '#FFD54F', // Darker Amber
+    '#FFB74D', // Darker Orange
+    '#FF8A65', // Darker Deep Orange
+];
+
+
 
     function getColor(index) {
         return materialColors[index % materialColors.length];
     }
-
+    function getColorMain(index) {
+        return mainmaterialColors[index % mainmaterialColors.length];
+    }
     function createChart(options) {
         if (currentChart) {
             currentChart.destroy();
@@ -229,30 +269,73 @@ document.addEventListener('DOMContentLoaded', function() {
             })), selectedPage, startDate.value, endDate.value);
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
-            chartOptions = {
-                chart: { type: 'bar', height: 350, toolbar: { show: true } },
-                series: [{ name: 'Number of Visits', data: data }],
-                colors: labels.map((_, index) => getColor(index)),
-                xaxis: {
-                    categories: labels,
-                    labels: {
-                        rotate: -45, // Rotate labels for better readability
-                        formatter: function(value) {
-                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
-                        }
-                    },
-                    tooltip: {
-                        enabled: true
-                    }
-                },
-                tooltip: {
-                    y: {
-                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
-                            return labels[dataPointIndex]; // Show full URL in tooltip
-                        }
-                    }
-                }
-            };
+            console.log(data, 'dsadsa');
+         chartOptions = {
+    chart: { 
+        type: 'bar', 
+        height: 350, 
+        toolbar: { show: true } 
+    },
+    series: [{ 
+        name: 'Number of Visits', 
+        data: data 
+    }],
+    plotOptions: {
+        bar: {
+
+            distributed: true, // Enable distributed colors
+            columnWidth: '60%', // Adjust width to create separation
+        },
+        border: {
+                width: 11,
+                colors: ['#000000'] // Black border around each bar
+            }
+    },
+    
+    colors: labels.map((_, index) => getColor(index)),
+
+    xaxis: {
+        categories: labels,
+        labels: {
+            rotate: -45, // Rotate labels for better readability
+            style: {
+                fontSize: '12px',
+            },
+            formatter: function(value) {
+                let path = value.replace(/^https?:\/\/[^\/]+/, '');
+
+                // Truncate the remaining part if it's longer than 30 characters
+                return path.length > 30 ? path.substring(0, 30) + '...' : path;
+            }
+        }
+    },
+    tooltip: {
+        y: {
+            formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                return `Visits: ${value}<br>Page: ${labels[dataPointIndex]}`; // Show number of visits and corresponding data
+            }
+        },
+        style: {
+            fontSize: '12px',
+        }
+    },
+    dataLabels: {
+        enabled: true, // Enable data labels
+        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+            return `${value}`; // Show the number of visits on each bar
+        },
+        style: {
+            fontSize: '12px',
+            colors: ['#000']
+        },
+        offsetY: -20, // Position the labels above the bars
+    },
+    legend: {
+        show: false
+    },
+
+    
+};
         } else if (selectedFilter === 'transitions') {
             filteredData = filterData(transitions.map((transition, index) => ({
                 page: transition,
@@ -262,29 +345,62 @@ document.addEventListener('DOMContentLoaded', function() {
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
             chartOptions = {
-                chart: { type: 'bar', height: 350, toolbar: { show: true } },
-                series: [{ name: 'Number of Transitions', data: data }],
-                colors: labels.map((_, index) => getColor(index)),
-                xaxis: {
-                    categories: labels,
-                    labels: {
-                        rotate: -45, // Rotate labels for better readability
-                        formatter: function(value) {
-                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
-                        }
-                    },
-                    tooltip: {
-                        enabled: true
-                    }
-                },
-                tooltip: {
-                    y: {
-                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
-                            return labels[dataPointIndex]; // Show full URL in tooltip
-                        }
-                    }
-                }
-            };
+    chart: { 
+        type: 'bar', 
+        height: 350, 
+        toolbar: { show: true } 
+    },
+    series: [{ 
+        name: 'Number of Visits', 
+        data: data 
+    }],
+    plotOptions: {
+        bar: {
+            borderRadius: 4,
+            distributed: true, // Enable distributed colors
+        }
+    },
+    colors: labels.map((_, index) => getColor(index)),
+    xaxis: {
+        categories: labels,
+        labels: {
+            rotate: -45, // Rotate labels for better readability
+            style: {
+                fontSize: '12px',
+            },
+            formatter: function(value) {
+                let path = value.replace(/^https?:\/\/[^\/]+/, '');
+
+                // Truncate the remaining part if it's longer than 30 characters
+                return path.length > 30 ? path.substring(0, 30) + '...' : path;
+            }
+        }
+    },
+    tooltip: {
+        y: {
+            formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                return `Visits: ${value}<br>Page: ${labels[dataPointIndex]}`; // Show number of visits and corresponding data
+            }
+        },
+        style: {
+            fontSize: '12px',
+        }
+    },
+    dataLabels: {
+        enabled: true, // Enable data labels
+        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+            return `${value}`; // Show the number of visits on each bar
+        },
+        style: {
+            fontSize: '12px',
+            colors: ['#000']
+        },
+        offsetY: -20, // Position the labels above the bars
+    },
+    legend: {
+        show: false
+    }
+};
         } else if (selectedFilter === 'landing') {
             filteredData = filterData(Object.keys(topLandingPages).map(page => ({
                 page: page,
@@ -294,29 +410,62 @@ document.addEventListener('DOMContentLoaded', function() {
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
             chartOptions = {
-                chart: { type: 'bar', height: 350, toolbar: { show: true } },
-                series: [{ name: 'Top Landing Pages', data: data }],
-                colors: labels.map((_, index) => getColor(index)),
-                xaxis: {
-                    categories: labels,
-                    labels: {
-                        rotate: -45, // Rotate labels for better readability
-                        formatter: function(value) {
-                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
-                        }
-                    },
-                    tooltip: {
-                        enabled: true
-                    }
-                },
-                tooltip: {
-                    y: {
-                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
-                            return labels[dataPointIndex]; // Show full URL in tooltip
-                        }
-                    }
-                }
-            };
+    chart: { 
+        type: 'bar', 
+        height: 350, 
+        toolbar: { show: true } 
+    },
+    series: [{ 
+        name: 'Number of Visits', 
+        data: data 
+    }],
+    plotOptions: {
+        bar: {
+            borderRadius: 4,
+            distributed: true, // Enable distributed colors
+        }
+    },
+    colors: labels.map((_, index) => getColor(index)),
+    xaxis: {
+        categories: labels,
+        labels: {
+            rotate: -45, // Rotate labels for better readability
+            style: {
+                fontSize: '12px',
+            },
+            formatter: function(value) {
+                let path = value.replace(/^https?:\/\/[^\/]+/, '');
+
+                // Truncate the remaining part if it's longer than 30 characters
+                return path.length > 30 ? path.substring(0, 30) + '...' : path;
+            }
+        }
+    },
+    tooltip: {
+        y: {
+            formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                return `Visits: ${value}<br>Page: ${labels[dataPointIndex]}`; // Show number of visits and corresponding data
+            }
+        },
+        style: {
+            fontSize: '12px',
+        }
+    },
+    dataLabels: {
+        enabled: true, // Enable data labels
+        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+            return `${value}`; // Show the number of visits on each bar
+        },
+        style: {
+            fontSize: '12px',
+            colors: ['#000']
+        },
+        offsetY: -20, // Position the labels above the bars
+    },
+    legend: {
+        show: false
+    }
+};
         } else if (selectedFilter === 'exit') {
             filteredData = filterData(Object.keys(topExitPages).map(page => ({
                 page: page,
@@ -326,29 +475,62 @@ document.addEventListener('DOMContentLoaded', function() {
             labels = filteredData.map(item => item.page);
             data = filteredData.map(item => item.value);
             chartOptions = {
-                chart: { type: 'bar', height: 350, toolbar: { show: true } },
-                series: [{ name: 'Top Exit Pages', data: data }],
-                colors: labels.map((_, index) => getColor(index)),
-                xaxis: {
-                    categories: labels,
-                    labels: {
-                        rotate: -45, // Rotate labels for better readability
-                        formatter: function(value) {
-                            return value.length > 30 ? value.substring(0, 30) + '...' : value;
-                        }
-                    },
-                    tooltip: {
-                        enabled: true
-                    }
-                },
-                tooltip: {
-                    y: {
-                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
-                            return labels[dataPointIndex]; // Show full URL in tooltip
-                        }
-                    }
-                }
-            };
+    chart: { 
+        type: 'bar', 
+        height: 350, 
+        toolbar: { show: true } 
+    },
+    series: [{ 
+        name: 'Number of Visits', 
+        data: data 
+    }],
+    plotOptions: {
+        bar: {
+            borderRadius: 4,
+            distributed: true, // Enable distributed colors
+        }
+    },
+    colors: labels.map((_, index) => getColor(index)),
+    xaxis: {
+        categories: labels,
+        labels: {
+            rotate: -45, // Rotate labels for better readability
+            style: {
+                fontSize: '12px',
+            },
+            formatter: function(value) {
+                let path = value.replace(/^https?:\/\/[^\/]+/, '');
+
+                // Truncate the remaining part if it's longer than 30 characters
+                return path.length > 30 ? path.substring(0, 30) + '...' : path;
+            }
+        }
+    },
+    tooltip: {
+        y: {
+            formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                return `Visits: ${value}<br>Page: ${labels[dataPointIndex]}`; // Show number of visits and corresponding data
+            }
+        },
+        style: {
+            fontSize: '12px',
+        }
+    },
+    dataLabels: {
+        enabled: true, // Enable data labels
+        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+            return `${value}`; // Show the number of visits on each bar
+        },
+        style: {
+            fontSize: '12px',
+            colors: ['#000']
+        },
+        offsetY: -20, // Position the labels above the bars
+    },
+    legend: {
+        show: false
+    }
+};
         }
 
         console.log('Chart Options:', chartOptions);
@@ -365,7 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
  // Assuming the `events` variable contains the enhanced event data from the backend
  var eventLabels = Object.keys(events);
 var eventCounts = Object.values(events);
-console.log(events);
+
 var eventChartOptions = {
     chart: { 
         type: 'pie', 
@@ -374,7 +556,7 @@ var eventChartOptions = {
     },
     series: eventCounts,
     labels: eventLabels,
-    colors: eventLabels.map((_, index) => getColor(index)),
+    colors: eventLabels.map((_, index) => getColorMain(index)),
     title: { 
         text: 'User Events Distribution (Click Events)', 
         align: 'center' 

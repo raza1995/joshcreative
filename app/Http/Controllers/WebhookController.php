@@ -51,4 +51,7 @@ class WebhookController extends Controller
     
         return response()->json(['message' => 'Event recorded'], 201);
     }
+
+
+
 }
