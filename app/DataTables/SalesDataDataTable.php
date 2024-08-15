@@ -86,7 +86,7 @@ class SalesDataDataTable extends DataTable
                         'dom' => 'Bfrtip',
                         'initComplete' => 'function() {
                             var api = this.api();
-                            $(\'#salesdata-table_filter\').append(\'<select id="status-filter" class="ms-2 btn btn-secondary buttons-collection dropdown-toggle btn-primary"><option value="" class="dt-button dropdown-item">Filter by Status</option><option value="Purchased" class="dt-button dropdown-item">Purchased</option><option value="added_to_cart" class="dt-button dropdown-item">Added to Cart</option></select>\');
+                            $(\'#salesdata-table_filter\').append(\'<select id="status-filter" class="ms-2 btn btn-secondary buttons-collection dropdown-toggle btn-primary"><option value="" class="dt-button dropdown-item">Filter by Status</option><option value="Purchased" class="dt-button dropdown-item">Purchased</option><option value="added_to_cart" class="dt-button dropdown-item">Added to Cart</option><option value="seasonal_application" class="dt-button dropdown-item">Seasonal Application</option></select>\');
                             $(\'#status-filter\').on(\'change\', function() {
                                 var val = $.fn.dataTable.util.escapeRegex(
                                     $(this).val()
