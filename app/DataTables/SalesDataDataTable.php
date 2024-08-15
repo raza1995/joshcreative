@@ -37,7 +37,7 @@ class SalesDataDataTable extends DataTable
                     return '<span class="badge bg-warning">Added to Cart</span>';
                 }
                 elseif ($data->status == 'seasonal_application') {
-                    return '<span class="badge bg-info">Seasonal Application</span>';
+                    return '<span class="badge bg-info " style="color:white;">Seasonal Application</span>';
                 }
                 return $data->status;
             })
