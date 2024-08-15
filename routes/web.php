@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ExcludedIpController;
+use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\SalesController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('excludedips/check', [ExcludedIpController::class, 'isExcluded']);
     Route::get('/user-events', [SalesController::class, 'getUserEventsData']);
     Route::get('/sales/journey/{user_id}', [SalesController::class, 'getUserJourney'])->name('sales.journey');
+    // Route::get('/klaviyo/profile', [KlaviyoController::class, 'getProfile']);
+
+    Route::get('/test-klaviyo', [KlaviyoController::class, 'getProfile']);
 
 
 });

@@ -157,7 +157,7 @@ class SalesController extends Controller
                 'user_id' => $payload['user_id'] ?? '',
                 'project_id' => $payload['project_id'] ?? '',
                 'sales_id' => $payload['sales_id'] ?? '',
-                'status' => 'added_to_cart',
+                'status' => $payload['status'] ?? '',
             ]);
         }
     }

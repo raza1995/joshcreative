@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a1230d692a0ff59993f23550e692a1f3",
+    "content-hash": "eec9b8b39cb23231f807e83a38503b7b",
     "packages": [
         {
             "name": "brick/math",
@@ -1191,6 +1191,61 @@
                 }
             ],
             "time": "2023-12-03T19:50:20+00:00"
+        },
+        {
+            "name": "klaviyo/api",
+            "version": "9.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/klaviyo/klaviyo-api-php.git",
+                "reference": "5654fffa3ece6209665b84ba3b4508bea7303552"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/klaviyo/klaviyo-api-php/zipball/5654fffa3ece6209665b84ba3b4508bea7303552",
+                "reference": "5654fffa3ece6209665b84ba3b4508bea7303552",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "guzzlehttp/guzzle": "^7.3",
+                "guzzlehttp/psr7": "^1.7 || ^2.0",
+                "php": "^7.4 || ^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "KlaviyoAPI\\": "lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Klaviyo",
+                    "homepage": "https://www.klaviyo.com/"
+                }
+            ],
+            "description": "PHP SDK for Klaviyo's API.",
+            "homepage": "https://developers.klaviyo.com",
+            "keywords": [
+                "api",
+                "openapi",
+                "openapi-generator",
+                "openapitools",
+                "php",
+                "rest",
+                "sdk"
+            ],
+            "support": {
+                "issues": "https://github.com/klaviyo/klaviyo-api-php/issues",
+                "source": "https://github.com/klaviyo/klaviyo-api-php/tree/v9.0.1"
+            },
+            "time": "2024-07-16T15:26:12+00:00"
         },
         {
             "name": "laravel/framework",
