@@ -36,6 +36,9 @@ class SalesDataDataTable extends DataTable
                 } elseif ($data->status == 'added_to_cart') {
                     return '<span class="badge bg-warning">Added to Cart</span>';
                 }
+                elseif ($data->status == 'seasonal_application') {
+                    return '<span class="badge bg-info">Seasonal Application</span>';
+                }
                 return $data->status;
             })
             ->editColumn('created_at', function ($data) {
