@@ -42,11 +42,11 @@ class SalesDataDataTable extends DataTable
                 return $data->status;
             })
             ->editColumn('created_at', function ($data) {
-                return $data->created_at->format('Y-m-d H:i:s');
+                return $data->created_at->format('Y-m-d h:i:s A');
             })
             ->editColumn('updated_at', function ($data) {
-                return $data->updated_at->format('Y-m-d H:i:s');
-            })
+                return $data->updated_at->format('Y-m-d h:i:s A');
+            })            
             ->rawColumns(['status', 'action'])
             ->setRowId('id');
     }

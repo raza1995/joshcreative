@@ -52,10 +52,22 @@
             <ul class="timeline">
                 @foreach ($userJourneys as $index => $event)
                     <li>
-                        <span class="timeline-date">{{ \Carbon\Carbon::parse($event->start_time)->format('d M Y H:i') }}</span>
+                        <span class="timeline-date">{{ \Carbon\Carbon::parse($event->start_time)->format('Y-m-d h:i:s A') }}</span>
                         <div class="timeline-content">
                             <h3>{{ $event->page_url }}</h3>
                             <p>Focus Time: {{ $event->focus_time }} seconds</p>
+                    
+                            @if (!empty($journeyMap[$event->page_url]['click_events']))
+                            <p>Click Events:</p>
+                            <ul>
+                                @foreach ($journeyMap[$event->page_url]['click_events'] as $clickEvent)
+                                <li>
+                                    <strong>Text:</strong> {{ $clickEvent['text'] }}<br>
+                                    <strong>URL:</strong> <a href="{{ $clickEvent['url'] }}">{{ $clickEvent['url'] }}</a>
+                                </li>
+                            @endforeach
+                            </ul>
+                        @endif
                         </div>
                     </li>
                 @endforeach
