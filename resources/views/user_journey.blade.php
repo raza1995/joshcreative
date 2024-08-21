@@ -55,7 +55,11 @@
                         <span class="timeline-date">{{ \Carbon\Carbon::parse($event->start_time)->format('Y-m-d h:i:s A') }}</span>
                         <div class="timeline-content">
                             <h3>{{ $event->page_url }}</h3>
-                            <p>Focus Time: {{ $event->focus_time }} seconds</p>
+                            <p>Focus Time: 
+                                {{ $event->focus_time }} seconds 
+                                ({{ round($event->focus_time / 60, 2) }} minutes)
+                            </p>
+                            
                     
                             @if (!empty($journeyMap[$event->page_url]['click_events']))
                             <p>Click Events:</p>
