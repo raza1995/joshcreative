@@ -574,17 +574,35 @@ class SalesController extends Controller
             $journeyMap[$pageUrl]['total_focus_time'] += $event->focus_time;
     
             if ($event->event_type === 'click' && $event->element) {
-                // Extract the inner text and href from the element
                 $dom = new \DOMDocument();
                 @$dom->loadHTML($event->element);
+            
+           
+                $elementText = '';
+                $elementHref = '';
+            
+           
                 $link = $dom->getElementsByTagName('a')->item(0);
-                $linkText = $link ? $link->nodeValue : '';
-                $linkHref = $link ? $link->getAttribute('href') : '';
+                $button = $dom->getElementsByTagName('button')->item(0);
+                $form = $dom->getElementsByTagName('form')->item(0);
+            
+                if ($link) {
+                    $elementText = $link->nodeValue;
+                    $elementHref = $link->getAttribute('href');
+                } elseif ($button) {
+                    $elementText = $button->nodeValue;
+                    $elementHref = $button->getAttribute('onclick');
+                } elseif ($form) {
+                    $elementText = $form->getAttribute('name') ?: 'Form Submission';
+                    $elementHref = $form->getAttribute('action');
+                }
+            
                 $journeyMap[$pageUrl]['click_events'][] = [
-                    'text' => $linkText,
-                    'url' => $linkHref,
+                    'text' => $elementText,
+                    'url' => $elementHref,
                 ];
             }
+            
     
             if ($previousPage) {
                 if (!isset($journeyMap[$previousPage]['nextPages'][$pageUrl])) {
