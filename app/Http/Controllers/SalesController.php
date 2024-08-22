@@ -331,7 +331,7 @@ public function getUserJourney($userId)
     $userJourneys = UserEvent::where('user_events.user_id', $userId)
         ->join('sales', 'sales.dj_user_id', '=', 'user_events.user_id')
         ->orderBy('start_time', 'asc')
-        ->select('user_events.*', 'sales.email', 'sales.name')
+        ->select('user_events.*', 'sales.email', 'sales.name', 'sales.utm_source')
         ->get();
 
     $filteredUserJourneys = $userJourneys->unique(function ($item) {

@@ -11,6 +11,10 @@
             @if ($userJourneys->first()->email ?? false)
                 - Email: {{ $userJourneys->first()->email }}
             @endif
+
+            @if ($userJourneys->first()->utm_source ?? false)
+                - UTM Source: {{ $userJourneys->first()->utm_source }}
+            @endif
         </h1>
 
         <!-- Summary Cards -->
