@@ -326,90 +326,94 @@ class SalesController extends Controller
  
     
 
-    public function getUserJourney($userId)
-    {
-        $userJourneys = UserEvent::where('user_events.user_id', $userId)
-            ->join('sales', 'sales.dj_user_id', '=', 'user_events.user_id')
-            ->orderBy('start_time', 'asc')
-            ->select('user_events.*', 'sales.email', 'sales.name')
-            ->get();
-    
-        $filteredUserJourneys = $userJourneys->unique(function ($item) {
-            return $item['page_url'] . $item['start_time'];
-        });
-    
-        $journeyMap = [];
-        $previousPage = null;
-    
-        foreach ($filteredUserJourneys as $event) {
-            $pageUrl = $event->page_url;
-    
-            if (!isset($journeyMap[$pageUrl])) {
-                $journeyMap[$pageUrl] = [
-                    'visits' => 0,
-                    'total_focus_time' => 0,
-                    'nextPages' => [],
-                    'click_events' => [], // Initialize click events
-                ];
-            }
-    
-            $journeyMap[$pageUrl]['visits']++;
-            $journeyMap[$pageUrl]['total_focus_time'] += $event->focus_time;
-    
-            if ($event->event_type === 'click' && $event->element) {
-                $dom = new \DOMDocument();
-                @$dom->loadHTML($event->element);
-            
-           
-                $elementText = '';
-                $elementHref = '';
-            
-           
-                $link = $dom->getElementsByTagName('a')->item(0);
-                $button = $dom->getElementsByTagName('button')->item(0);
-                $form = $dom->getElementsByTagName('form')->item(0);
-            
-                if ($link) {
-                    $elementText = $link->nodeValue;
-                    $elementHref = $link->getAttribute('href');
-                } elseif ($button) {
-                    $elementText = $button->nodeValue;
-                    $elementHref = $button->getAttribute('onclick');
-                } elseif ($form) {
-                    $elementText = $form->getAttribute('name') ?: 'Form Submission';
-                    $elementHref = $form->getAttribute('action');
-                }
-            
-                $journeyMap[$pageUrl]['click_events'][] = [
-                    'text' => $elementText,
-                    'url' => $elementHref,
-                ];
-            }
-            
-    
-            if ($previousPage) {
-                if (!isset($journeyMap[$previousPage]['nextPages'][$pageUrl])) {
-                    $journeyMap[$previousPage]['nextPages'][$pageUrl] = 0;
-                }
-                $journeyMap[$previousPage]['nextPages'][$pageUrl]++;
-            }
-    
-            $previousPage = $pageUrl;
+public function getUserJourney($userId)
+{
+    $userJourneys = UserEvent::where('user_events.user_id', $userId)
+        ->join('sales', 'sales.dj_user_id', '=', 'user_events.user_id')
+        ->orderBy('start_time', 'asc')
+        ->select('user_events.*', 'sales.email', 'sales.name')
+        ->get();
+
+    $filteredUserJourneys = $userJourneys->unique(function ($item) {
+        return $item['page_url'] . $item['start_time'];
+    });
+
+    $journeyMap = [];
+    $previousPage = null;
+    $previousEventTime = null;
+
+    foreach ($filteredUserJourneys as $event) {
+        $pageUrl = $event->page_url;
+
+        // Skip reloads by checking if the page is the same as the previous one and the time difference is small
+        if ($previousPage === $pageUrl && $previousEventTime && strtotime($event->start_time) - strtotime($previousEventTime) < 2) {
+            continue;
         }
-    
-        $metrics = [
-            'totalPagesVisited' => count($journeyMap),
-            'totalVisits' => array_sum(array_column($journeyMap, 'visits')),
-            'totalFocusTime' => array_sum(array_column($journeyMap, 'total_focus_time')),
-        ];
-    
-        return view('user_journey', [
-            'userJourneys' => $filteredUserJourneys,
-            'journeyMap' => $journeyMap,
-            'metrics' => $metrics,
-        ]);
+
+        if (!isset($journeyMap[$pageUrl])) {
+            $journeyMap[$pageUrl] = [
+                'visits' => 0,
+                'total_focus_time' => 0,
+                'nextPages' => [],
+                'click_events' => [], // Initialize click events
+            ];
+        }
+
+        $journeyMap[$pageUrl]['visits']++;
+        $journeyMap[$pageUrl]['total_focus_time'] += $event->focus_time;
+
+        if ($event->event_type === 'click' && $event->element) {
+            $dom = new \DOMDocument();
+            @$dom->loadHTML($event->element);
+
+            $elementText = '';
+            $elementHref = '';
+
+            $link = $dom->getElementsByTagName('a')->item(0);
+            $button = $dom->getElementsByTagName('button')->item(0);
+            $form = $dom->getElementsByTagName('form')->item(0);
+
+            if ($link) {
+                $elementText = $link->nodeValue;
+                $elementHref = $link->getAttribute('href');
+            } elseif ($button) {
+                $elementText = $button->nodeValue;
+                $elementHref = $button->getAttribute('onclick');
+            } elseif ($form) {
+                $elementText = $form->getAttribute('name') ?: 'Form Submission';
+                $elementHref = $form->getAttribute('action');
+            }
+
+            $journeyMap[$pageUrl]['click_events'][] = [
+                'text' => $elementText,
+                'url' => $elementHref,
+            ];
+        }
+
+        if ($previousPage) {
+            if (!isset($journeyMap[$previousPage]['nextPages'][$pageUrl])) {
+                $journeyMap[$previousPage]['nextPages'][$pageUrl] = 0;
+            }
+            $journeyMap[$previousPage]['nextPages'][$pageUrl]++;
+        }
+
+        $previousPage = $pageUrl;
+        $previousEventTime = $event->start_time;
     }
-    
+
+    $metrics = [
+        'totalPagesVisited' => count($journeyMap),
+        'totalVisits' => array_sum(array_column($journeyMap, 'visits')),
+        'totalFocusTime' => array_sum(array_column($journeyMap, 'total_focus_time')),
+    ];
+
+    return view('user_journey', [
+        'userJourneys' => $filteredUserJourneys,
+        'journeyMap' => $journeyMap,
+        'metrics' => $metrics,
+    ]);
+}
+
         
   
 }
