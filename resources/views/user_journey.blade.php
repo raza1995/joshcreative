@@ -2,22 +2,23 @@
 
 @section('content')
     <div class="container">
-    <h1 class="my-4">
-    User Journey 
-    @if($userJourneys->first()->name || $userJourneys->first()->email || $userJourneys->first()->utm_source)
-        <small class="text-muted">
+    <div class="card my-4">
+    <div class="card-body">
+        <h2 class="card-title">User Journey Details</h2>
+        <p class="card-text">
             @if($userJourneys->first()->name)
-                for <strong>{{ $userJourneys->first()->name }}</strong>
+                <strong>Name:</strong> {{ $userJourneys->first()->name }}<br>
             @endif
             @if($userJourneys->first()->email)
-                - Email: <strong>{{ $userJourneys->first()->email }}</strong>
+                <strong>Email:</strong> {{ $userJourneys->first()->email }}<br>
             @endif
             @if($userJourneys->first()->utm_source)
-                - UTM Source: <strong>{{ $userJourneys->first()->utm_source }}</strong>
+                <strong>UTM Source:</strong> {{ $userJourneys->first()->utm_source }}
             @endif
-        </small>
-    @endif
-</h1>
+        </p>
+    </div>
+</div>
+
 
 
         <!-- Summary Cards -->
