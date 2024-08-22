@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdsController;
 use App\Http\Controllers\ExcludedIpController;
 use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\SalesController;
@@ -37,8 +38,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/user-events', [SalesController::class, 'getUserEventsData']);
     Route::get('/sales/journey/{user_id}', [SalesController::class, 'getUserJourney'])->name('sales.journey');
     // Route::get('/klaviyo/profile', [KlaviyoController::class, 'getProfile']);
+    // Route::get('/ads/performance/{adAccountId}', [AdsController::class, 'showAdPerformance']);
 
     Route::get('/test-klaviyo', [KlaviyoController::class, 'getProfile']);
 
+    // Route::get('/user-journeys', [SalesController::class, 'getUserJourneys']);
+    Route::get('/journey-map', [SalesController::class, 'getJourneyMap']);
+    Route::get('/metrics', [SalesController::class, 'getMetrics']);
+    // Route::get('/segments', [SalesController::class, 'getSegments']);
 
 });

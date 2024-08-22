@@ -9,6 +9,7 @@ use App\Models\UserEvent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -286,21 +287,26 @@ class SalesController extends Controller
     public function showJourney()
     {
         $baseUrl2 = 'https://academyofdjs.com';
-        
-        // Fetch the user journey data
-        $userJourneys = $this->fetchUserJourneys($baseUrl2);
     
-        // Process data to create a journey map and additional metrics
-        $journeyMap = $this->createJourneyMap($userJourneys);
+        // Fetch the user journey data asynchronously if required
+        $userJourneys = Cache::remember('userJourneys', 60, function () use ($baseUrl2) {
+            return $this->fetchUserJourneys($baseUrl2);
+        });
+    
+        $journeyMap = Cache::remember('journeyMap', 60, function () use ($userJourneys) {
+            return $this->createJourneyMap($userJourneys);
+        });
+    
         $metrics = $this->calculateMetrics($userJourneys, $journeyMap);
         $segments = $this->segmentUsers($userJourneys);
-
+    
         return view('sales.journey', array_merge($metrics, [
             'journeyMap' => $journeyMap,
             'landingPages' => array_unique($metrics['landingPages']),
             'segments' => $segments
         ]));
     }
+    
     
     private function fetchUserJourneys($baseUrl)
     {
@@ -314,20 +320,48 @@ class SalesController extends Controller
                         ELSE 
                             SUBSTRING_INDEX(page_url, "?", 1) 
                     END as cleaned_url'),
-                'start_time', 
-                'end_time',
-                'focus_time'
+                DB::raw('MIN(start_time) as start_time'), 
+                DB::raw('MIN(end_time) as end_time'),
+                DB::raw('SUM(focus_time) as focus_time'),
+                'created_at'
             )
             ->whereNotIn('user_id', $this->excludeUsers())
+            ->groupBy('user_id', 'created_at', 'cleaned_url')
             ->orderBy('user_id')
             ->orderBy('start_time')
             ->get()
+            ->filter(function($event, $key) use ($baseUrl) {
+                // Get previous event
+                
+                $previousEvent = $this->getPreviousEvent($event->user_id, $event->created_at);
+    
+                // Check if it's a reload (e.g., short time difference, same URL)
+                $isReload = $previousEvent && $event->cleaned_url === $previousEvent->page_url && 
+                            strtotime($event->start_time) - strtotime($previousEvent->end_time) < 2; 
+    
+                return !$isReload;
+            })
             ->map(function($event) use ($baseUrl) {
                 $event->page_url = $event->cleaned_url;
                 unset($event->cleaned_url);
                 return $event;
             });
     }
+    
+    // Example function to get previous event for a user
+    private function getPreviousEvent($userId, $createdAt)
+    {
+        return DB::table('user_events')
+            ->where('user_id', $userId)
+            ->where('created_at', '<', $createdAt)
+            ->orderBy('created_at', 'desc')
+            ->first();
+    }
+    
+
+    
+    
+    
     
     private function createJourneyMap($userJourneys)
     {
@@ -496,45 +530,55 @@ class SalesController extends Controller
         $returningUsers = [];
         $engagedUsers = [];
         $bouncedUsers = [];
-        $convertedUsers = []; // Define what conversion means for your application
+        $convertedUsers = [];
+        $userFirstEvents = [];
     
         foreach ($userJourneys as $visit) {
             $userId = $visit->user_id;
             $pageUrl = $visit->page_url;
             $focusTime = $visit->focus_time;
+            $createdAt = Carbon::parse($visit->created_at);
     
-            // Check if user is new or returning
-            if (!in_array($userId, $newUsers) && !in_array($userId, $returningUsers)) {
+            // Track the first event for each user and categorize new vs returning users
+            if (!isset($userFirstEvents[$userId])) {
+                $userFirstEvents[$userId] = $createdAt;
                 $newUsers[] = $userId;
-            } elseif (in_array($userId, $returningUsers)) {
-                $returningUsers[] = $userId;
+            } else {
+                $timeDifference = $createdAt->diffInHours($userFirstEvents[$userId]);
+                if ($timeDifference > 24) {
+                    if (!in_array($userId, $returningUsers)) {
+                        $returningUsers[] = $userId;
+                        $newUsers = array_diff($newUsers, [$userId]); // Remove from newUsers if present
+                    }
+                }
             }
     
-            // Check if user is engaged
-            if ($focusTime > 300) { // Example: more than 5 minutes of focus time
+            // Determine engaged users based on focus time
+            if ($focusTime > 200 && !in_array($userId, $engagedUsers)) {
                 $engagedUsers[] = $userId;
             }
     
-            // Check if user bounced
-            if (count(array_filter($userJourneys->toArray(), function($item) use ($userId) { return $item->user_id == $userId; })) == 1) {
+            // Determine bounced users based on the number of events
+            $userEvents = $userJourneys->where('user_id', $userId);
+            if ($userEvents->count() === 1 && !in_array($userId, $bouncedUsers)) {
                 $bouncedUsers[] = $userId;
             }
     
-            // Check if user converted
-            // Define your conversion criteria, e.g., visiting a specific page
-            if ($pageUrl == '/thank-you') { // Example: user visited the thank you page
+            // Determine converted users based on the page URL
+            if ($pageUrl === '/thank-you' && !in_array($userId, $convertedUsers)) {
                 $convertedUsers[] = $userId;
             }
         }
     
         return [
-            'newUsers' => count(array_unique($newUsers)),
-            'returningUsers' => count(array_unique($returningUsers)),
-            'engagedUsers' => count(array_unique($engagedUsers)),
-            'bouncedUsers' => count(array_unique($bouncedUsers)),
-            'convertedUsers' => count(array_unique($convertedUsers)),
+            'newUsers' => count($newUsers),
+            'returningUsers' => count($returningUsers),
+            'engagedUsers' => count($engagedUsers),
+            'bouncedUsers' => count($bouncedUsers),
+            'convertedUsers' => count($convertedUsers),
         ];
     }
+
     
 
     private function excludeUsers(){
@@ -627,10 +671,6 @@ class SalesController extends Controller
         ]);
     }
     
-    
-
-    
-
-    
+        
   
 }

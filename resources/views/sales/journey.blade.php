@@ -148,6 +148,7 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    
     var journeyMap = @json($journeyMap);
     var topLandingPages = @json($topLandingPages);
     var topExitPages = @json($topExitPages);
