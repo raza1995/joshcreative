@@ -346,7 +346,7 @@ public function getUserJourney($userId)
         $pageUrl = $event->page_url;
 
         // Skip reloads by checking if the page is the same as the previous one and the time difference is small
-        if ($previousPage === $pageUrl && $previousEventTime && strtotime($event->start_time) - strtotime($previousEventTime) < 2) {
+        if ($previousPage === $pageUrl && $previousEventTime && strtotime($event->start_time) - strtotime($previousEventTime) < 3) {
             continue;
         }
 
