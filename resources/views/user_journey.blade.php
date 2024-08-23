@@ -6,13 +6,13 @@
     <div class="card-body">
         <h2 class="card-title">User Journey Details</h2>
         <p class="card-text">
-            @if($userJourneys->first()->name)
+            @if($userJourneys->first()->name ?? '')
                 <strong>Name:</strong> {{ $userJourneys->first()->name }}<br>
             @endif
-            @if($userJourneys->first()->email)
+            @if($userJourneys->first()->email ?? '')
                 <strong>Email:</strong> {{ $userJourneys->first()->email }}<br>
             @endif
-            @if($userJourneys->first()->utm_source)
+            @if($userJourneys->first()->utm_source ?? '')
                 <strong>UTM Source:</strong> {{ $userJourneys->first()->utm_source }}
             @endif
         </p>

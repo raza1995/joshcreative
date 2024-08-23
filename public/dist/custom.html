@@ -1,0 +1,278 @@
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PCZT67CQ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-V852D5MYRD"></script>
+    <script>
+    
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', 'G-V852D5MYRD');
+      
+       const userID = getUserID();
+    
+          gtag('config', 'G-V852D5MYRD', {
+         'user_id': userID
+         });
+      
+      function setPerCookie(name, value, days) {
+        let expires = "";
+        if (days) {
+            let date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+         document.cookie = name + "=" + (value || "") + expires + "; path=/; domain=academyofdjs.com; SameSite=None; Secure";
+    }
+      
+      function setCookie(name, value, days) {
+              var expires = "";
+              if (days) {
+                  var date = new Date();
+                  date.setTime(date.getTime() + (days*24*60*60*1000));
+                  expires = "; expires=" + date.toUTCString();
+              }
+              document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+          }
+         function getCookie(name) {
+              var nameEQ = name + "=";
+              var ca = document.cookie.split(';');
+              for(var i=0;i < ca.length;i++) {
+                  var c = ca[i];
+                  while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                  if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+              }
+              return null;
+          }
+    
+          // Generate or retrieve a unique user ID
+          function getUserID() {
+              let userID = getCookie('user_id');
+              if (!userID) {
+                  userID = 'user_' + Math.random().toString(36).substr(2, 9);
+                  setCookie('user_id', userID, 365); // Set cookie to expire in 1 year
+                setPerCookie('dj_user_id', userID, 365);
+              }
+              return userID;
+          }
+                dataLayer.push({
+            'user_id' : userID,
+            })
+             dataLayer.push({'event': 'adding_user', 'user_id': userID});
+      
+        function getUrlParameter(name) {
+              name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+              var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+              var results = regex.exec(location.search);
+              return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+          }
+     // Capture UTM parameters and store them in cookies
+          function captureUtmParameters() {
+              var utmSource = getUrlParameter('utm_source') || '';
+              var utmMedium = getUrlParameter('utm_medium') || '';
+              var utmCampaign = getUrlParameter('utm_campaign') || '';
+    
+              if (utmSource) setCookie('utm_source', utmSource, 30);
+              if (utmMedium) setCookie('utm_medium', utmMedium, 30);
+              if (utmCampaign) setCookie('utm_campaign', utmCampaign, 30);
+            console.log('test');
+          }
+       // Call the function to capture UTM parameters
+          captureUtmParameters();
+         
+    
+          function sendUserDataToGA4() {
+              const utmSource = getCookie('utm_source') || '';
+              const utmMedium = getCookie('utm_medium') || '';
+              const utmCampaign = getCookie('utm_campaign') || '';
+    
+              // Send user data to GA4
+             gtag('event', 'page_view', {
+                   'user_id': userID,
+                  'utm_source': utmSource,
+                  'utm_medium': utmMedium,
+                  'utm_campaign': utmCampaign
+              });
+    
+              // Set user properties in GA4
+              gtag('set', {
+                  'user_properties': {
+                    'user_id': userID,
+                      'utm_source': utmSource,
+                      'utm_medium': utmMedium,
+                      'utm_campaign': utmCampaign
+                  }
+              });
+          }
+          document.addEventListener('DOMContentLoaded', function() {
+              sendUserDataToGA4();
+          });
+      let userIp;
+               if (document.getElementById("source")) {
+          document.getElementById("source").value = getCookie('utm_source') || '';
+      }
+      if (document.getElementById("user_id_dj")) {
+          document.getElementById("user_id_dj").value = getCookie('user_id') || '';
+      }
+        console.log(getCookie('utm_source'));
+      console.log('working');
+     fetch('https://api.ipify.org?format=json')
+          .then(response => response.json())
+          .then(data => {
+            if(document.getElementById('ip')){
+                      document.getElementById('ip').textContent = data.ip;
+            }
+    
+               userIp = data.ip || '';
+           
+          })
+    
+      
+       function generateRandomNumber() {
+          const now = new Date();
+          return now.getTime() + Math.floor(Math.random() * 1000);
+      }
+    
+      function setRandomNumberCookie(name, days) {
+          const randomNumber = generateRandomNumber();
+          setCookie(name, randomNumber, days);
+      }
+    
+      function setSalesIDCookie(days) {
+          const salesID = generateRandomNumber();
+          setCookie('sales_id', salesID, days);
+      }
+    setSalesIDCookie(1);
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('registered');
+        
+        const submitButton = document.querySelector('.senddata');
+        const seasonalButtonSubmit = document.querySelector('.seasonal_button_submit');
+        function handleSubmit(emailFieldId, status, shouldRedirect) {
+            // Get the email value based on the email field ID
+            const email = document.getElementById(emailFieldId).value || '';
+    
+            // Redirect URL with parameters
+            const baseUrl = 'https://academyofdjs.teachable.com/p/redirect?userId=';
+            const redirectUrl = baseUrl + encodeURIComponent(getCookie('user_id'));
+            const webHookUrl = 'https://joshcreative.co/api/webhook';
+    
+            const payload = {
+                'dj_user_id': getCookie('user_id') || '',
+                'utm_source': getCookie('utm_source') || '',
+                'ip_address': userIp || '',
+                'email': email,
+                'project_id': 1,
+                'sales_id': getCookie('sales_id') || '',
+                'status': status // Add the status to the payload
+            };
+    
+            fetch(webHookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                console.log(response);
+            });
+    
+            // Redirect only if shouldRedirect is true
+            if (shouldRedirect) {
+               window.location.href = redirectUrl;
+            }
+        }
+    
+       if (submitButton) {
+                console.log('submitted')
+                submitButton.addEventListener('click', function(event) {
+                    event.preventDefault(); // Prevent default form submission
+                    const klaviyoListId = document.querySelector("[data-klaviyo-list-id]").getAttribute("data-klaviyo-list-id");
+                    console.log(klaviyoListId);
+                    const attributes = {
+                    email: document.getElementById('email').value || '',
+                    first_name: document.getElementById('name').value || '',
+                };
+                const options = {
+                method: 'POST',
+                headers: {
+                    'revision': '2024-02-15',
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    data: {
+                        type: 'subscription',
+                        attributes: {
+                            profile: {
+                                data: {
+                                    type: 'profile',
+                                    attributes: attributes
+                                }
+                            }
+                        },
+                        relationships: {
+                            list: {
+                                data: {
+                                    type: 'list',
+                                    id: klaviyoListId
+                                }
+                            }
+                        }
+                    }
+                })
+            };
+    
+            fetch('https://a.klaviyo.com/client/subscriptions/?company_id=RLdyRP', options)
+                .then(response => {
+                    console.log("Response received:", response);
+                    if (!response.ok) {
+                    }
+    
+                })
+                .catch(err => {
+                    console.error('Error sending data to Klaviyo:', err);
+                    displayError(form);
+                });
+    
+                    handleSubmit('email', 'added_to_cart', true);
+                });
+            }
+        
+    
+        if (seasonalButtonSubmit) {
+            seasonalButtonSubmit.addEventListener('click', function(event) {
+                event.preventDefault(); // Prevent the default behavior
+    
+                // Trigger AJAX form submission
+                const form = $(seasonalButtonSubmit).closest('form');
+                form.submit();
+    
+                // Listen for the AJAX completion event
+                $(document).ajaxComplete(function(event, xhr, settings) {
+                    // Make sure we're responding to the correct AJAX request
+                    if (settings.url.includes('https://webflow.com/api/v1/form/65fa9675f31661d9d0caf574')) {
+                        handleSubmit('Student-Email', 'seasonal_application', false);
+                        // Unbind this handler to prevent multiple triggers
+                        $(document).off('ajaxComplete');
+                    }
+                });
+            });
+        }
+    });
+    
+    
+    
+    
+    
+    </script>
+    <script async src="https://joshcreative.co/js/pageViewTracking.js"></script>
+    
+    
+    
+    
+    
