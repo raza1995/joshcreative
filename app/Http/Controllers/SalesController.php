@@ -333,16 +333,25 @@ public function getUserJourney($userId)
         ->orderBy('start_time', 'asc')
         ->select('user_events.*', 'sales.email', 'sales.name', 'sales.utm_source')
         ->get();
+        
+        
+ $filteredUserJourneys = $userJourneys->filter(function ($item) {
+    // Exclude entries where event_type is 'page_view' and focus_time is 0
+    if ($item['focus_time'] === 0 && $item['stay_duration'] === 0) {
+        return false;
+    }
+    return true;
+})->unique(function ($item) {
+    // Apply unique filtering only when event_type is 'page_view'
+    if ($item['event_type'] === 'page_view') {
+        return $item['page_url'];
+    }
 
-        $filteredUserJourneys = $userJourneys->unique(function ($item) {
-            // Apply unique filtering only when event_type is 'page_view'
-            if ($item['event_type'] === 'page_view') {
-                return $item['event_type'] . '|' . $item['page_url'];
-            }
-            
-            // For other event types, do not apply unique filtering based on page_url
-            return $item;
-        });
+    // For other event types, do not apply unique filtering
+    return $item['event_type'] . '|' . $item['page_url'] ;
+});
+
+
         
 
     $journeyMap = [];
