@@ -19,11 +19,13 @@
         return;
     }
 
+
     function getCookie(name) {
         let value = "; " + document.cookie;
         let parts = value.split("; " + name + "=");
         if (parts.length === 2) return parts.pop().split(";").shift();
     }
+
 
     const userId = getCookie('user_id') || '';
     const pageUrl = window.location.href;
@@ -31,30 +33,33 @@
     let focusStartTime = new Date();
     let totalFocusTime = 0;
     let visibilityChangeTime = new Date();
-    const trackingData = new Set(); // Using a Set to avoid duplicate events
-    let lastInteraction = null; // To keep track of the last event to avoid duplicates
+    const trackingData = [];
 
     let requestCount = 0;
     const maxRequestsPerMinute = 5;
 
+ 
+    // Rate limiting function
     function rateLimitedSend(data) {
         if (requestCount < maxRequestsPerMinute) {
             requestCount++;
-            sendBatchEvents([data]);  // Send events in batch, even if only one
+            sendPageViewEvent(data);
         } else {
             console.log('Rate limit exceeded, skipping request.');
         }
     }
 
+    // Reset request counter every minute
     setInterval(() => {
         requestCount = 0;
     }, 60000);
 
-    function sendBatchEvents(events) {
-        if (events.length === 0) return;
+    // Function to send page view events
+    function sendPageViewEvent(data) {
+     
 
-        const jsonData = JSON.stringify(events);
-        console.log('Sending batch event data:', jsonData);
+        const jsonData = JSON.stringify(data);
+        console.log('Sending event data:', jsonData);
 
         if (navigator.sendBeacon) {
             navigator.sendBeacon('https://joshcreative.co/api/webhook/event', jsonData);
@@ -67,7 +72,7 @@
                 body: jsonData,
             })
             .then(response => response.json())
-            .then(data => console.log('Batch event recorded:', data))
+            .then(data => console.log('Event recorded:', data))
             .catch(error => console.error('Error:', error));
         }
     }
@@ -76,8 +81,17 @@
         const currentTime = new Date();
         if (document.visibilityState === 'hidden') {
             totalFocusTime += (currentTime - focusStartTime) / 1000; 
-            const event = createEvent('page_view');
-            addEventToTracking(event);
+            const event = {
+                user_id: userId,
+                page_url: pageUrl,
+                start_time: startTime.toISOString(),
+                end_time: currentTime.toISOString(),
+                focus_time: totalFocusTime,
+                event_type: 'page_view',
+                element: pageUrl
+            };
+            trackingData.push(event);
+            localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
             console.log('Page hidden, focus time recorded:', totalFocusTime); 
         } else if (document.visibilityState === 'visible') {
             focusStartTime = new Date();
@@ -86,48 +100,46 @@
         visibilityChangeTime = currentTime;
     }
 
-    function createEvent(eventType, element = pageUrl) {
-        const currentTime = new Date();
-        return {
+    function sendDataBeforeUnload() {
+        const endTime = new Date();
+        const focusEndTime = new Date();
+        totalFocusTime += (focusEndTime - focusStartTime) / 1000; 
+
+        const event = {
             user_id: userId,
             page_url: pageUrl,
             start_time: startTime.toISOString(),
-            end_time: currentTime.toISOString(),
+            end_time: endTime.toISOString(),
             focus_time: totalFocusTime,
-            event_type: eventType,
-            element: element,
-            timestamp: currentTime.toISOString()
+            event_type: 'page_view',
+            element: pageUrl
         };
-    }
+        trackingData.push(event);
 
-    function sendDataBeforeUnload() {
-        const event = createEvent('page_view');
-        addEventToTracking(event);
-        rateLimitedSend([...trackingData]);
+        localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+        rateLimitedSend(event);
         console.log('Before unload, data sent:', event); 
     }
 
-    function addEventToTracking(event) {
-        const eventKey = JSON.stringify(event);
-        if (!trackingData.has(eventKey)) {
-            trackingData.add(eventKey);
-            localStorage.setItem('pageViewTrackingData', JSON.stringify([...trackingData]));
-            console.log('User interaction tracked:', event);
-        } else {
-            console.log('Duplicate event detected, not adding:', event);
-        }
-    }
-
     function trackUserInteraction(eventType, element) {
-        const event = createEvent(eventType, element);
-        addEventToTracking(event);
+        const event = {
+            user_id: userId,
+            page_url: pageUrl,
+            event_type: eventType,
+            start_time: startTime.toISOString(),
+            element: JSON.stringify(element),
+            timestamp: new Date().toISOString()
+        };
+        trackingData.push(event);
+        localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+        console.log('User interaction tracked:', event); 
     }
 
     function sendStoredData() {
         const storedData = localStorage.getItem('pageViewTrackingData');
         if (storedData) {
             const events = JSON.parse(storedData);
-            sendBatchEvents(events);
+            events.forEach(event => rateLimitedSend(event));
             localStorage.removeItem('pageViewTrackingData');
             console.log('Stored data sent:', events); 
         }
@@ -149,6 +161,7 @@
             trackUserInteraction('form_submit', target.action);
         }
     });
+
 
     document.addEventListener('focus', function(event) {
         const target = event.target;
@@ -174,11 +187,12 @@
         }
     });
 
-    document.addEventListener('scroll', debounce(function() {
+    document.addEventListener('scroll', function() {
         const scrollDepth = Math.round((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100);
         trackUserInteraction('scroll', scrollDepth);
-    }, 200));
+    });
 
+    
     window.addEventListener('load', () => {
         startTime = new Date();
         focusStartTime = new Date();
@@ -187,23 +201,24 @@
     });
 
     setInterval(() => {
-        const event = createEvent('page_view');
-        addEventToTracking(event);
-        if (trackingData.size > 0) {
-            rateLimitedSend([...trackingData]);
-            trackingData.clear(); 
-        }
+        const currentTime = new Date();
+        totalFocusTime += (currentTime - visibilityChangeTime) / 1000; 
+        visibilityChangeTime = currentTime;
+
+        const event = {
+            user_id: userId,
+            page_url: pageUrl,
+            start_time: startTime.toISOString(),
+            end_time: currentTime.toISOString(),
+            focus_time: totalFocusTime,
+            event_type: 'page_view',
+            element: pageUrl
+        };
+        trackingData.push(event);
+
+        localStorage.setItem('pageViewTrackingData', JSON.stringify(trackingData));
+        rateLimitedSend(event);
+        trackingData.length = 0; 
         console.log('Periodic data sent:', event); 
     }, 60000);
-
-    // Debounce function to limit the rate at which a function can fire
-    function debounce(func, wait) {
-        let timeout;
-        return function(...args) {
-            const context = this;
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(context, args), wait);
-        };
-    }
-
 })();
