@@ -127,7 +127,6 @@
             page_url: pageUrl,
             event_type: eventType,
             start_time: startTime.toISOString(),
-            end_time: endTime.toISOString(),
             element: JSON.stringify(element),
             timestamp: new Date().toISOString()
         };
