@@ -334,8 +334,17 @@ public function getUserJourney($userId)
         ->select('user_events.*', 'sales.email', 'sales.name', 'sales.utm_source')
         ->get();
 
-    $filteredUserJourneys = $userJourneys->unique(function ($item) {
-        return $item['page_url'] . $item['created_at'];
+        $filteredUserJourneys = $userJourneys->unique(function ($item) {
+            // Handle possible NULL values by replacing them with a unique string
+            $startTime = $item['start_time'] ?? 'NULL';
+            $eventType = $item['event_type'] ?? 'NULL';
+            $pageUrl = $item['page_url'] ?? 'NULL';
+        
+            // Create a unique key using start_time, event_type, and page_url
+            return $startTime . '|' . $eventType . '|' . $pageUrl;
+        });
+           $filteredUserJourneys = $userJourneys->unique(function ($item) {
+        return $item['page_url'] . $item['start_time'];
     });
 
     $journeyMap = [];
