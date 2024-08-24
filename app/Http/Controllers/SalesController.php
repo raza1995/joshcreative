@@ -355,7 +355,10 @@ public function getUserJourney($userId)
                 'visits' => 0,
                 'total_focus_time' => 0,
                 'nextPages' => [],
-                'click_events' => [], // Initialize click events
+                'click_events' => [],  // Initialize click events
+                'scroll_depths' => [], // Initialize scroll depths
+                'focus_events' => [],  // Initialize focus events
+                'change_events' => [], // Initialize change events
             ];
         }
 
@@ -388,6 +391,12 @@ public function getUserJourney($userId)
                 'text' => $elementText,
                 'url' => $elementHref,
             ];
+        } elseif ($event->event_type === 'scroll' && $event->element) {
+            $journeyMap[$pageUrl]['scroll_depths'][] = json_decode($event->element, true); // Assume element contains scroll depth data in JSON format
+        } elseif ($event->event_type === 'focus' && $event->element) {
+            $journeyMap[$pageUrl]['focus_events'][] = json_decode($event->element, true); // Assume element contains focus data in JSON format
+        } elseif ($event->event_type === 'change' && $event->element) {
+            $journeyMap[$pageUrl]['change_events'][] = json_decode($event->element, true); // Assume element contains change data in JSON format
         }
 
         if ($previousPage) {
