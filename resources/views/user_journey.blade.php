@@ -86,7 +86,7 @@
                             <p><strong>Scroll Depths:</strong></p>
                             <ul>
                                 @foreach ($journeyMap[$event->page_url]['scroll_depths'] as $scrollDepth)
-                                    <li>Depth: {{ $scrollDepth['scrollDepth'] }}%</li>
+                                    <li>Depth: {{ $scrollDepth }}%</li>
                                 @endforeach
                             </ul>
                         @endif
