@@ -335,7 +335,7 @@ public function getUserJourney($userId)
         ->get();
 
     $filteredUserJourneys = $userJourneys->unique(function ($item) {
-        return $item['page_url'] . $item['start_time'];
+        return $item['page_url'] . $item['created_at'];
     });
 
     $journeyMap = [];
