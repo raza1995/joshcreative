@@ -338,10 +338,9 @@ public function getUserJourney($userId)
             // Create a unique key based on event_type, page_url, and start_time
             $eventType = $item['event_type'];
             $pageUrl = $item['page_url'];
-            $startTime = $item['start_time'];
             
             // Combine event_type, page_url, and start_time to create a unique identifier
-            return md5($eventType . '|' . $pageUrl . '|' . $startTime);
+            return md5($eventType . '|' . $pageUrl);
         });
         
         
