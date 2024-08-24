@@ -337,7 +337,7 @@ public function getUserJourney($userId)
         
  $filteredUserJourneys = $userJourneys->filter(function ($item) {
     // Exclude entries where event_type is 'page_view' and focus_time is 0
-    if ($item['focus_time'] === 0 ) {
+    if ($item['focus_time'] === 0 && $item['event_type'] === 'page_view') {
         return false;
     }
     return true;
