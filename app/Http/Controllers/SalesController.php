@@ -340,7 +340,7 @@ public function getUserJourney($userId)
             $pageUrl = $item['page_url'];
             
             // Combine event_type, page_url, and start_time to create a unique identifier
-            return md5($eventType . '|' . $pageUrl);
+            return md5($eventType . $pageUrl);
         });
         
         
