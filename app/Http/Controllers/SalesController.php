@@ -334,17 +334,9 @@ public function getUserJourney($userId)
         ->select('user_events.*', 'sales.email', 'sales.name', 'sales.utm_source')
         ->get();
 
-   $filteredUserJourneys = $userJourneys->unique(function ($item) {
-    // Create a unique key based on event_type, page_url, and start_time
-    $eventType = $item['event_type'];
-    $pageUrl = $item['page_url'];
-    $startTime = $item['start_time'];
-    
-    // Combine event_type, page_url, and start_time to create a unique identifier
-    return md5($eventType . '|' . $pageUrl . '|' . $startTime);
-});
-
-        
+    $filteredUserJourneys = $userJourneys->unique(function ($item) {
+        return $item['start_time'];
+    });
 
     $journeyMap = [];
     $previousPage = null;
@@ -399,11 +391,11 @@ public function getUserJourney($userId)
                 'text' => $elementText,
                 'url' => $elementHref,
             ];
-        } elseif ($event->event_type == 'scroll' && $event->element) {
+        } elseif ($event->event_type === 'scroll' && $event->element) {
             $journeyMap[$pageUrl]['scroll_depths'][] = json_decode($event->element, true); // Assume element contains scroll depth data in JSON format
-        } elseif ($event->event_type == 'focus' && $event->element) {
+        } elseif ($event->event_type === 'focus' && $event->element) {
             $journeyMap[$pageUrl]['focus_events'][] = json_decode($event->element, true); // Assume element contains focus data in JSON format
-        } elseif ($event->event_type == 'change' && $event->element) {
+        } elseif ($event->event_type === 'change' && $event->element) {
             $journeyMap[$pageUrl]['change_events'][] = json_decode($event->element, true); // Assume element contains change data in JSON format
         }
 
