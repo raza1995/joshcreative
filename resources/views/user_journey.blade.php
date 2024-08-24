@@ -81,15 +81,6 @@
                             </ul>
                         @endif
 
-                        <!-- Scroll Depths -->
-                        @if (!empty($journeyMap[$event->page_url]['scroll_depths']))
-                            <p><strong>Scroll Depths:</strong></p>
-                            <ul>
-                                @foreach ($journeyMap[$event->page_url]['scroll_depths'] as $scrollDepth)
-                                    <li>Depth: {{ $scrollDepth }}%</li>
-                                @endforeach
-                            </ul>
-                        @endif
 
                       <!-- Focus Events -->
 @if (!empty($journeyMap[$event->page_url]['focus_events']))
