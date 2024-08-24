@@ -91,25 +91,101 @@
                             </ul>
                         @endif
 
-                        <!-- Focus Events -->
-                        @if (!empty($journeyMap[$event->page_url]['focus_events']))
-                            <p><strong>Focus Events:</strong></p>
-                            <ul>
-                                @foreach ($journeyMap[$event->page_url]['focus_events'] as $focusEvent)
-                                    <li>Element: {{ $focusEvent['element'] }}, ID: {{ $focusEvent['id'] }}</li>
-                                @endforeach
-                            </ul>
-                        @endif
+                      <!-- Focus Events -->
+@if (!empty($journeyMap[$event->page_url]['focus_events']))
+    <p><strong>Focus Events:</strong></p>
+    <ul>
+        @foreach ($journeyMap[$event->page_url]['focus_events'] as $focusEvent)
+            @php
+                // Load the HTML element string into DOMDocument to parse
+                $dom = new DOMDocument();
+                @$dom->loadHTML($focusEvent['element']);
+                
+                // Extract the input element
+                $input = $dom->getElementsByTagName('input')->item(0);
+                $textarea = $dom->getElementsByTagName('textarea')->item(0);
+                $select = $dom->getElementsByTagName('select')->item(0);
+                
+                // Initialize variables
+                $elementName = 'Unknown';
+                $elementType = '';
+                $elementId = '';
+                $elementPlaceholder = '';
+                
+                if ($input) {
+                    $elementName = $input->getAttribute('name') ?: 'Unnamed input';
+                    $elementType = $input->getAttribute('type') ?: 'text';
+                    $elementId = $input->getAttribute('id') ?: 'No ID';
+                    $elementPlaceholder = $input->getAttribute('placeholder') ?: '';
+                } elseif ($textarea) {
+                    $elementName = $textarea->getAttribute('name') ?: 'Unnamed textarea';
+                    $elementType = 'textarea';
+                    $elementId = $textarea->getAttribute('id') ?: 'No ID';
+                    $elementPlaceholder = $textarea->getAttribute('placeholder') ?: '';
+                } elseif ($select) {
+                    $elementName = $select->getAttribute('name') ?: 'Unnamed select';
+                    $elementType = 'select';
+                    $elementId = $select->getAttribute('id') ?: 'No ID';
+                }
+            @endphp
+
+            <li>
+                <strong>Field Name:</strong> {{ $elementName }}<br>
+                @if($elementType) <strong>Field Type:</strong> {{ $elementType }}<br> @endif
+                @if($elementId) <strong>ID:</strong> {{ $elementId }}<br> @endif
+                @if($elementPlaceholder) <strong>Placeholder:</strong> {{ $elementPlaceholder }}<br> @endif
+            </li>
+        @endforeach
+    </ul>
+@endif
+
 
                         <!-- Change Events -->
                         @if (!empty($journeyMap[$event->page_url]['change_events']))
-                            <p><strong>Change Events:</strong></p>
-                            <ul>
-                                @foreach ($journeyMap[$event->page_url]['change_events'] as $changeEvent)
-                                    <li>Element: {{ $changeEvent['element'] }}, Value: {{ $changeEvent['value'] }}</li>
-                                @endforeach
-                            </ul>
-                        @endif
+    <p><strong>Change Events:</strong></p>
+    <ul>
+        @foreach ($journeyMap[$event->page_url]['change_events'] as $changeEvent)
+            @php
+                // Load the HTML element string into DOMDocument to parse
+                $dom = new DOMDocument();
+                @$dom->loadHTML($changeEvent['element']);
+                
+                // Extract the input element
+                $input = $dom->getElementsByTagName('input')->item(0);
+                $textarea = $dom->getElementsByTagName('textarea')->item(0);
+                $select = $dom->getElementsByTagName('select')->item(0);
+                
+                // Initialize variables
+                $elementName = 'Unknown';
+                $elementType = '';
+                $elementPlaceholder = '';
+                
+                if ($input) {
+                    $elementName = $input->getAttribute('name') ?: 'Unnamed input';
+                    $elementType = $input->getAttribute('type') ?: 'text';
+                    $elementPlaceholder = $input->getAttribute('placeholder') ?: '';
+                } elseif ($textarea) {
+                    $elementName = $textarea->getAttribute('name') ?: 'Unnamed textarea';
+                    $elementType = 'textarea';
+                    $elementPlaceholder = $textarea->getAttribute('placeholder') ?: '';
+                } elseif ($select) {
+                    $elementName = $select->getAttribute('name') ?: 'Unnamed select';
+                    $elementType = 'select';
+                }
+
+                $elementValue = $changeEvent['value'] ?? 'No Value';
+            @endphp
+
+            <li>
+                <strong>Field Name:</strong> {{ $elementName }}<br>
+                @if($elementType) <strong>Field Type:</strong> {{ $elementType }}<br> @endif
+                @if($elementPlaceholder) <strong>Placeholder:</strong> {{ $elementPlaceholder }}<br> @endif
+                <strong>Value:</strong> {{ $elementValue }}
+            </li>
+        @endforeach
+    </ul>
+@endif
+
                     </div>
                 </li>
             @endforeach
