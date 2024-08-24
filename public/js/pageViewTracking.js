@@ -126,7 +126,7 @@
             user_id: userId,
             page_url: pageUrl,
             event_type: eventType,
-            element: JSON.stringify(elementData),
+            element: element,
             timestamp: new Date().toISOString()
         };
         trackingData.push(event);
@@ -191,7 +191,7 @@
         trackUserInteraction('scroll', { scrollDepth });
     });
 
-
+    
     window.addEventListener('load', () => {
         startTime = new Date();
         focusStartTime = new Date();
