@@ -340,9 +340,10 @@ public function getUserJourney($userId)
             $eventType = $item['event_type'] ?? 'NULL';
             $pageUrl = $item['page_url'] ?? 'NULL';
         
-            // Create a unique key using start_time, event_type, and page_url
-            return $startTime . '|' . $eventType . '|' . $pageUrl;
+            // Create a unique key for each field to ensure every combination is unique
+            return md5($startTime . '|' . $eventType . '|' . $pageUrl);
         });
+        
            $filteredUserJourneys = $userJourneys->unique(function ($item) {
         return $item['page_url'] . $item['start_time'];
     });
