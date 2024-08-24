@@ -126,7 +126,7 @@
             user_id: userId,
             page_url: pageUrl,
             event_type: eventType,
-            element: element,
+            element: JSON.stringify(element),
             timestamp: new Date().toISOString()
         };
         trackingData.push(event);
