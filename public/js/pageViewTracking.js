@@ -188,7 +188,7 @@
 
     document.addEventListener('scroll', function() {
         const scrollDepth = Math.round((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100);
-        trackUserInteraction('scroll', { scrollDepth });
+        trackUserInteraction('scroll', scrollDepth);
     });
 
     
