@@ -161,6 +161,37 @@
         }
     });
 
+
+    document.addEventListener('focus', function(event) {
+        const target = event.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+            trackUserInteraction('focus', {
+                element: target.outerHTML,
+                id: target.id || null,
+                name: target.name || null,
+                type: target.type || null,
+            });
+        }
+    }, true);
+
+    document.addEventListener('change', function(event) {
+        const target = event.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+            trackUserInteraction('change', {
+                element: target.outerHTML,
+                id: target.id || null,
+                name: target.name || null,
+                value: target.value,
+            });
+        }
+    });
+
+    document.addEventListener('scroll', function() {
+        const scrollDepth = Math.round((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100);
+        trackUserInteraction('scroll', { scrollDepth });
+    });
+
+    
     window.addEventListener('load', () => {
         startTime = new Date();
         focusStartTime = new Date();
