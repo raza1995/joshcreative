@@ -163,6 +163,7 @@ class SalesController extends Controller
                 'ip_address' => $payload['ip_address'] ?? '',
                 'utm_source' => $payload['utm_source'] ?? '',
                 'email' => $payload['email'] ?? '',
+                'name' => $row['first_name'] ?? '',
                 'user_id' => $payload['user_id'] ?? '',
                 'project_id' => $payload['project_id'] ?? '',
                 'sales_id' => $payload['sales_id'] ?? '',
