@@ -82,10 +82,8 @@ class AnalyticsService
     
         // Fetch and process events where event_type is "click"
         $events = UserEvent::select('element', 'event_type')
-        ->where('event_type', '=', 'click')
-        ->where('created_at', '>=', now()->subDays(30))
-        ->get();
-    
+            ->where('event_type', '=', 'click')
+            ->get();
     
         foreach ($events as $event) {
             // Extract href links and their visible text from the element column
@@ -146,6 +144,7 @@ class AnalyticsService
                 'created_at'
             )
             ->whereNotIn('user_id', $this->excludeUsers())
+            ->where('created_at', '>=', Carbon::now()->subDays(30)) // Filter for the last 30 days
             ->groupBy('user_id', 'created_at', 'cleaned_url')
             ->orderBy('user_id')
             ->orderBy('start_time')

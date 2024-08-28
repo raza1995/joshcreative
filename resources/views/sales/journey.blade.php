@@ -117,14 +117,14 @@
                                 @endforeach
                             </select>
                         </div>
-                        {{-- <div class="col-md-3">
+                        <div class="col-md-3">
                             <label for="startDate">Start Date</label>
                             <input type="date" id="startDate" class="form-control">
                         </div>
                         <div class="col-md-3">
                             <label for="endDate">End Date</label>
                             <input type="date" id="endDate" class="form-control">
-                        </div> --}}
+                        </div>
                     </div>
 
                     <div id="analyticsChart" width="400" height="200"></div>
