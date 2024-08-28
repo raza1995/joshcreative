@@ -96,7 +96,7 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">User Journey Analytics (Last 30 Days)</h5>
+                    <h5 class="card-title">User Journey Analytics for the Last 30 Days</h5>
                     
                     <div class="row mb-3">
                         <div class="col-md-3">
@@ -117,14 +117,14 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        {{-- <div class="col-md-3">
                             <label for="startDate">Start Date</label>
                             <input type="date" id="startDate" class="form-control">
                         </div>
                         <div class="col-md-3">
                             <label for="endDate">End Date</label>
                             <input type="date" id="endDate" class="form-control">
-                        </div>
+                        </div> --}}
                     </div>
 
                     <div id="analyticsChart" width="400" height="200"></div>
