@@ -96,7 +96,7 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">User Journey Analytics</h5>
+                    <h5 class="card-title">User Journey Analytics (Last 30 Days)</h5>
                     
                     <div class="row mb-3">
                         <div class="col-md-3">
