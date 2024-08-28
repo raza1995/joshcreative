@@ -82,8 +82,10 @@ class AnalyticsService
     
         // Fetch and process events where event_type is "click"
         $events = UserEvent::select('element', 'event_type')
-            ->where('event_type', '=', 'click')
-            ->get();
+        ->where('event_type', '=', 'click')
+        ->where('created_at', '>=', now()->subDays(30))
+        ->get();
+    
     
         foreach ($events as $event) {
             // Extract href links and their visible text from the element column
