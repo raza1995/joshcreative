@@ -6,6 +6,7 @@ use Google\Service\Gmail;
 use Google\Service\Gmail\Message;
 use App\Models\ShopifyOrder;
 use Google\Service\Gmail\Draft;
+use Google\Service\Gmail\ModifyMessageRequest;
 use Illuminate\Support\Facades\Log;
 
 class GmailService
@@ -257,6 +258,227 @@ public function startWatch()
         Log::info("Gmail Watch started. Expiration: " . $response->expiration);
     } catch (\Exception $e) {
         Log::error("Error starting Gmail Watch: " . $e->getMessage());
+    }
+}
+public function fetchNewEmails()
+{
+    try {
+        $messages = $this->service->users_messages->listUsersMessages('me', [
+            'labelIds' => ['INBOX'],
+            'maxResults' => 10, // Fetch the latest 10 emails
+        ])->getMessages();
+
+        if (!$messages) {
+            Log::info("No new messages found.");
+            return [];
+        }
+
+        return $messages;
+    } catch (\Exception $e) {
+        Log::error("Error fetching new emails: " . $e->getMessage());
+        return [];
+    }
+}
+
+
+
+
+public function getUserLabelsMap($userId = 'me')
+{
+    $labelMap = [];
+    try {
+        $labelsResponse = $this->service->users_labels->listUsersLabels($userId);
+        $labels = $labelsResponse->getLabels() ?? [];
+
+        foreach ($labels as $lbl) {
+            // Only user-created labels
+            if ($lbl->getType() === 'user') {
+                $labelMap[strtolower($lbl->getName())] = $lbl->getId();
+            }
+        }
+    } catch (\Exception $e) {
+        Log::error("Error fetching labels: " . $e->getMessage());
+    }
+
+    return $labelMap;
+}
+
+// Return array of user label names in original case
+public function getUserLabelNames($userId = 'me')
+{
+    $labelNames = [];
+    try {
+        $labelsResponse = $this->service->users_labels->listUsersLabels($userId);
+        $labels = $labelsResponse->getLabels() ?? [];
+
+        foreach ($labels as $lbl) {
+            if ($lbl->getType() === 'user') {
+                $labelNames[] = $lbl->getName();
+            }
+        }
+    } catch (\Exception $e) {
+        Log::error("Error fetching label names: " . $e->getMessage());
+    }
+
+    return $labelNames;
+}
+
+// ---------------------------
+// 2) Search messages
+// ---------------------------
+public function searchMessages($query = "to:info@mycolean.com", $userId = 'me')
+{
+    $messages = [];
+    try {
+        // Initial search
+        $response = $this->service->users_messages->listUsersMessages($userId, ['q' => $query]);
+        $fetched = $response->getMessages() ?? [];
+        $messages = array_merge($messages, $fetched);
+
+        // Paginate if there's a nextPageToken
+        while ($response->getNextPageToken()) {
+            $response = $this->service->users_messages->listUsersMessages($userId, [
+                'q' => $query,
+                'pageToken' => $response->getNextPageToken()
+            ]);
+            $fetched = $response->getMessages() ?? [];
+            $messages = array_merge($messages, $fetched);
+        }
+    } catch (\Exception $e) {
+        Log::error("Error in searchMessages: " . $e->getMessage());
+    }
+    return $messages;
+}
+
+// ---------------------------
+// 3) Get message content
+// ---------------------------
+public function getMimeMessageContent($msgId, $userId = 'me')
+{
+    try {
+        $message = $this->service->users_messages->get($userId, $msgId, ['format' => 'full']);
+        $payload = $message->getPayload();
+
+        // Extract subject/from from headers
+        $headers = collect($payload->getHeaders());
+        $subject = $headers->where('name', 'Subject')->pluck('value')->first() ?? '';
+        $from = $headers->where('name', 'From')->pluck('value')->first() ?? '';
+
+        // Body can be in 'parts' or 'body'
+        $body = '';
+        $parts = $payload->getParts() ?? [];
+        if (isset($payload->getBody()['data'])) {
+            // Single part
+            $body = base64_decode(strtr($payload->getBody()['data'], '-_', '+/'));
+        } else {
+            // Multiple parts
+            foreach ($parts as $part) {
+                if (in_array($part->getMimeType(), ['text/plain','text/html'])) {
+                    $data = $part->getBody()->getData();
+                    if ($data) {
+                        $body = base64_decode(strtr($data, '-_', '+/'));
+                        break;
+                    }
+                }
+            }
+        }
+        return [$subject, $from, $body];
+    } catch (\Exception $e) {
+        Log::error("Could not retrieve message $msgId: " . $e->getMessage());
+        return [null, null, null];
+    }
+}
+
+// ---------------------------
+// 4) Check if message already has a user label
+// ---------------------------
+public function messageHasUserLabel($msgId, $userLabelIds, $userId = 'me')
+{
+    try {
+        $msg = $this->service->users_messages->get($userId, $msgId, ['format' => 'metadata']);
+        $existingLabelIds = $msg->getLabelIds() ?? [];
+        // If there's any intersection with user labels, it's already user-labeled
+        return (bool) array_intersect($existingLabelIds, $userLabelIds);
+    } catch (\Exception $e) {
+        Log::error("Error checking labels for message $msgId: " . $e->getMessage());
+        return false;
+    }
+}
+
+// ---------------------------
+// 5) Add label to email
+// (You already have applyLabel(), but we adapt the fallback logic)
+// ---------------------------
+public function addLabelToEmail($msgId, $labelName, $labelMap, $fallbackLabel, $userId = 'me')
+{
+    try {
+        // case-insensitive label lookup
+        $labelId = $labelMap[strtolower($labelName)] ?? null;
+
+        if (!$labelId) {
+            // fallback
+            Log::info("Label '$labelName' not found. Fallback to '$fallbackLabel'.");
+            $labelId = $labelMap[strtolower($fallbackLabel)] ?? null;
+            if (!$labelId) {
+                Log::warning("Fallback label '$fallbackLabel' also missing. No labeling applied.");
+                return;
+            }
+            $labelName = $fallbackLabel;
+        }
+
+        // Apply label
+        $modifyReq = new ModifyMessageRequest();
+        $modifyReq->setAddLabelIds([$labelId]);
+        $modifyReq->setRemoveLabelIds([]);
+        $this->service->users_messages->modify($userId, $msgId, $modifyReq);
+
+        Log::info("Labeled message $msgId with '$labelName' (ID: $labelId)");
+    } catch (\Exception $e) {
+        Log::error("Error adding label to email $msgId: " . $e->getMessage());
+    }
+}
+
+
+
+public function classifyEmailWithGpt($emailBody, $existingLabelNames)
+{
+    // Set up your user prompt (same logic as Python)
+    $validLabels = collect($existingLabelNames)->map(fn($l) => "- {$l}")->join("\n");
+    $userPrompt = <<<TXT
+You are classifying an incoming support email. 
+Only respond with exactly one label from the list below (no new labels).
+
+Valid labels:
+$validLabels
+
+Email content:
+\"\"\"$emailBody\"\"\"
+
+Which single label from the list is the best fit? Return only the label.
+TXT;
+
+    try {
+        $apiKey = env('OPENAI_API_KEY');
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer $apiKey",
+        ])->post('https://api.openai.com/v1/chat/completions', [
+            'model' => 'gpt-4',  // or gpt-3.5-turbo
+            'messages' => [
+                ["role" => "system", "content" => "You classify emails using existing labels only."],
+                ["role" => "user", "content" => $userPrompt],
+            ],
+            'temperature' => 0.0,
+            'max_tokens' => 30
+        ]);
+
+        $classification = trim($response['choices'][0]['message']['content'] ?? '');
+
+        // If GPT returns a label not in the list, we fallback in the next step
+        return $classification;
+    } catch (\Exception $e) {
+        Log::error("OpenAI classification error: " . $e->getMessage());
+        return null;
     }
 }
 

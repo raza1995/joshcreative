@@ -9,16 +9,15 @@ use Illuminate\Support\Facades\Artisan;
 class GmailWebhookController extends Controller
 {
     public function handleWebhook(Request $request)
-    {
-        Log::info('Gmail Webhook Received:', $request->all());
+{
+    Log::info('Gmail Webhook Payload:', $request->all());
 
-        $historyId = $request->input('historyId');
+    // historyId or other info
+    $historyId = $request->input('historyId');
 
-        if ($historyId) {
-            // Process new emails asynchronously
-            Artisan::call('gmail:process-emails', ['historyId' => $historyId]);
-        }
+    // Call the command that processes "to:info@mycolean.com"
+    \Artisan::call('gmail:process-mycolean');
 
-        return response()->json(['status' => 'success']);
-    }
+    return response()->json(['status' => 'ok']);
+}
 }
