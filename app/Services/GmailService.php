@@ -32,29 +32,55 @@ class GmailService
     private function authenticate()
     {
         if (file_exists($this->tokenPath)) {
+            // Load existing token
             $accessToken = json_decode(file_get_contents($this->tokenPath), true);
             $this->client->setAccessToken($accessToken);
-
+    
             // Refresh token if expired
             if ($this->client->isAccessTokenExpired()) {
-                Log::warning("Google API token expired. Attempting refresh...");
-                
+                Log::warning("🔄 Google API token expired. Attempting refresh...");
+    
                 if ($this->client->getRefreshToken()) {
                     $newAccessToken = $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
                     $this->client->setAccessToken($newAccessToken);
                     file_put_contents($this->tokenPath, json_encode($newAccessToken));
-                    Log::info("Google API token refreshed successfully.");
+                    Log::info("✅ Google API token refreshed successfully.");
                 } else {
-                    Log::error("No refresh token available. Re-authentication required.");
-                    throw new \Exception("Google API requires re-authentication. Run manually to generate a new token.");
+                    Log::warning("⚠️ No refresh token available. Re-authenticating...");
+                    $this->generateNewToken(); // Auto-generate a new token
                 }
             }
         } else {
-            Log::error("Google API token file not found. Please authenticate manually.");
-            throw new \Exception("Google API token missing. Authenticate manually.");
+            Log::warning("⚠️ Google API token file not found. Generating a new token...");
+            $this->generateNewToken();
         }
     }
-
+    
+    /**
+     * Generate a new Google API token if `token.json` is missing.
+     */
+    private function generateNewToken()
+    {
+        $authUrl = $this->client->createAuthUrl();
+        echo "🔗 Open this URL in your browser and authenticate:\n$authUrl\n";
+        echo "📥 Paste the authentication code here: ";
+    
+        $authCode = trim(fgets(STDIN));
+    
+        // Exchange the auth code for an access token
+        $accessToken = $this->client->fetchAccessTokenWithAuthCode($authCode);
+    
+        if (isset($accessToken['error'])) {
+            throw new \Exception("❌ Google OAuth authentication failed: " . $accessToken['error']);
+        }
+    
+        // Save the token
+        file_put_contents($this->tokenPath, json_encode($accessToken));
+        $this->client->setAccessToken($accessToken);
+    
+        Log::info("✅ Google API authentication successful. Token stored.");
+    }
+    
     public function fetchEmails()
 {
     $user = 'me';
