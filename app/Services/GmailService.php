@@ -440,47 +440,47 @@ public function addLabelToEmail($msgId, $labelName, $labelMap, $fallbackLabel, $
 
 
 
-public function classifyEmailWithGpt($emailBody, $existingLabelNames)
-{
-    // Set up your user prompt (same logic as Python)
-    $validLabels = collect($existingLabelNames)->map(fn($l) => "- {$l}")->join("\n");
-    $userPrompt = <<<TXT
-You are classifying an incoming support email. 
-Only respond with exactly one label from the list below (no new labels).
+            public function classifyEmailWithGpt($emailBody, $existingLabelNames)
+            {
+                // Set up your user prompt (same logic as Python)
+                $validLabels = collect($existingLabelNames)->map(fn($l) => "- {$l}")->join("\n");
+                $userPrompt = <<<TXT
+            You are classifying an incoming support email. 
+            Only respond with exactly one label from the list below (no new labels).
 
-Valid labels:
-$validLabels
+            Valid labels:
+            $validLabels
 
-Email content:
-\"\"\"$emailBody\"\"\"
+            Email content:
+            \"\"\"$emailBody\"\"\"
 
-Which single label from the list is the best fit? Return only the label.
-TXT;
+            Which single label from the list is the best fit? Return only the label.
+            TXT;
 
-    try {
-        $apiKey = env('OPENAI_API_KEY');
+                try {
+                    $apiKey = env('OPENAI_API_KEY');
 
-        $response = Http::withHeaders([
-            'Authorization' => "Bearer $apiKey",
-        ])->post('https://api.openai.com/v1/chat/completions', [
-            'model' => 'gpt-4',  // or gpt-3.5-turbo
-            'messages' => [
-                ["role" => "system", "content" => "You classify emails using existing labels only."],
-                ["role" => "user", "content" => $userPrompt],
-            ],
-            'temperature' => 0.0,
-            'max_tokens' => 30
-        ]);
+                    $response = Http::withHeaders([
+                        'Authorization' => "Bearer $apiKey",
+                    ])->post('https://api.openai.com/v1/chat/completions', [
+                        'model' => 'gpt-4',  // or gpt-3.5-turbo
+                        'messages' => [
+                            ["role" => "system", "content" => "You classify emails using existing labels only."],
+                            ["role" => "user", "content" => $userPrompt],
+                        ],
+                        'temperature' => 0.0,
+                        'max_tokens' => 30
+                    ]);
 
-        $classification = trim($response['choices'][0]['message']['content'] ?? '');
+                    $classification = trim($response['choices'][0]['message']['content'] ?? '');
 
-        // If GPT returns a label not in the list, we fallback in the next step
-        return $classification;
-    } catch (\Exception $e) {
-        Log::error("OpenAI classification error: " . $e->getMessage());
-        return null;
-    }
-}
+                    // If GPT returns a label not in the list, we fallback in the next step
+                    return $classification;
+                } catch (\Exception $e) {
+                    Log::error("OpenAI classification error: " . $e->getMessage());
+                    return null;
+                }
+            }
 
 
 }
