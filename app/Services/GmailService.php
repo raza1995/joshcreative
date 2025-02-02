@@ -442,6 +442,8 @@ public function addLabelToEmail($msgId, $labelName, $labelMap, $fallbackLabel, $
 
             public function classifyEmailWithGpt($emailBody, $existingLabelNames)
             {
+                
+    $openai = \OpenAI::client(config('services.openai.api_key'));
                 // Set up your user prompt (same logic as Python)
                 $validLabels = collect($existingLabelNames)->map(fn($l) => "- {$l}")->join("\n");
                 $userPrompt = <<<TXT
@@ -459,18 +461,17 @@ public function addLabelToEmail($msgId, $labelName, $labelMap, $fallbackLabel, $
 
                 try {
                     $apiKey = env('OPENAI_API_KEY');
-
-                    $response = Http::withHeaders([
-                        'Authorization' => "Bearer $apiKey",
-                    ])->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => 'gpt-4',  // or gpt-3.5-turbo
+                    
+                    $response = $openai->chat()->create([
+                        'model' => 'gpt-4o', // Use GPT-4o model
                         'messages' => [
                             ["role" => "system", "content" => "You classify emails using existing labels only."],
                             ["role" => "user", "content" => $userPrompt],
                         ],
-                        'temperature' => 0.0,
-                        'max_tokens' => 30
+                        'temperature' => 0.7,
+                        'max_tokens' => 200,
                     ]);
+
 
                     $classification = trim($response['choices'][0]['message']['content'] ?? '');
 
