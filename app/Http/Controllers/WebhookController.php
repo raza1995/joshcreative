@@ -13,6 +13,7 @@ class WebhookController extends Controller
 {
     public function handle(Request $request)
     {
+        die('test');
         // Log the entire request payload for debugging
         Log::info('Incoming request data: ' . json_encode($request->all()));
     
