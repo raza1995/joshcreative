@@ -144,6 +144,7 @@ class AnalyticsService
                 'created_at'
             )
             ->whereNotIn('user_id', $this->excludeUsers())
+            ->where('created_at', '>=', Carbon::now()->subDays(30)) // Filter for the last 30 days
             ->groupBy('user_id', 'created_at', 'cleaned_url')
             ->orderBy('user_id')
             ->orderBy('start_time')
