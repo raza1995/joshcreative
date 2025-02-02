@@ -249,17 +249,38 @@ private function getLabelId($labelName)
 public function startWatch()
 {
     try {
+        $labelIds = ['INBOX']; // Watch only the Inbox
+        $topicName = 'projects/gmail-api-449711/topics/gmail-webhook-topic';
+
+        Log::info("Creating WatchRequest with labelIds: " . json_encode($labelIds) . " and topicName: $topicName");
+
+        // Prepare the Watch Request
         $watchRequest = new \Google\Service\Gmail\WatchRequest([
-            'labelIds' => ['INBOX'], // Watch only Inbox
-            'topicName' => 'projects/gmail-api-449711/topics/gmail-webhook-topic' // Use your actual topic name
+            'labelIds' => $labelIds,
+            'topicName' => $topicName
         ]);
 
+        Log::info("Sending watch request to Gmail API for user 'me'...");
+        
+        // Call Gmail API to Start Watching
         $response = $this->service->users->watch('me', $watchRequest);
-        Log::info("Gmail Watch started. Expiration: " . $response->expiration);
+
+        // Extract expiration info
+        $expiration = $response->expiration ?? 'UNKNOWN';
+        
+        Log::info("Received response from Gmail API: " . json_encode($response));
+        Log::info("✅ Gmail Watch started successfully. Expiration: $expiration");
+
+    } catch (\Google\Service\Exception $gException) {
+        Log::error("🚨 Google API Error starting Gmail Watch: " . $gException->getMessage());
+        Log::error("📌 Error Details: " . json_encode($gException->getErrors()));
+
     } catch (\Exception $e) {
-        Log::error("Error starting Gmail Watch: " . $e->getMessage());
+        Log::error("🚨 General Error starting Gmail Watch: " . $e->getMessage());
+        Log::error("📌 Stack Trace: " . $e->getTraceAsString());
     }
 }
+
 public function fetchNewEmails()
 {
     try {
@@ -482,6 +503,36 @@ public function addLabelToEmail($msgId, $labelName, $labelMap, $fallbackLabel, $
                     return null;
                 }
             }
+
+            public function getMessagesFromHistory($historyId, $userId = 'me')
+{
+    try {
+        $response = $this->service->users_history->listUsersHistory($userId, [
+            'startHistoryId' => $historyId
+        ]);
+
+        $historyRecords = $response->getHistory();
+        $messages = [];
+
+        if (!$historyRecords) {
+            return [];
+        }
+
+        foreach ($historyRecords as $record) {
+            if ($record->getMessagesAdded()) {
+                foreach ($record->getMessagesAdded() as $addedMessage) {
+                    $messages[] = $addedMessage->getMessage();
+                }
+            }
+        }
+
+        return $messages;
+    } catch (\Exception $e) {
+        Log::error("Error fetching history: " . $e->getMessage());
+        return [];
+    }
+}
+
 
 
 }
