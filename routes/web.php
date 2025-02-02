@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\AdsController;
 use App\Http\Controllers\ExcludedIpController;
+use App\Http\Controllers\GmailWebhookController;
 use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\SalesController;
+use App\Http\Controllers\ShopifyOrderController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +29,7 @@ Route::get('/', function () {
     return view('home');
 });
 
+Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
 
 Route::middleware(['auth'])->group(function () {
     Route::get('sales', [SalesController::class, 'index'])->name('sales');
@@ -46,5 +49,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/journey-map', [SalesController::class, 'getJourneyMap']);
     Route::get('/metrics', [SalesController::class, 'getMetrics']);
     // Route::get('/segments', [SalesController::class, 'getSegments']);
+    Route::get('/fetch-shopify-orders', [ShopifyOrderController::class, 'fetchOrders']);
 
 });
