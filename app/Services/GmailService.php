@@ -245,7 +245,20 @@ private function getLabelId($labelName)
 
     return null;
 }
+public function startWatch()
+{
+    try {
+        $watchRequest = new \Google\Service\Gmail\WatchRequest([
+            'labelIds' => ['INBOX'], // Watch only Inbox
+            'topicName' => 'projects/gmail-api-449711/topics/gmail-webhook-topic' // Use your actual topic name
+        ]);
 
+        $response = $this->service->users->watch('me', $watchRequest);
+        Log::info("Gmail Watch started. Expiration: " . $response->expiration);
+    } catch (\Exception $e) {
+        Log::error("Error starting Gmail Watch: " . $e->getMessage());
+    }
+}
 
 
 }
