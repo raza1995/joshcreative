@@ -63,7 +63,7 @@ class ProcessGmailEmails extends Command
             }
 
             // 5) Classify with GPT
-            $classification = $this->classifyEmailWithGpt($body, $originalLabels);
+            $classification = $this->gmailService->classifyEmailWithGpt($body, $originalLabels);
 
             // If GPT returned something not in the list, fallback
             if (!in_array($classification, $originalLabels)) {
