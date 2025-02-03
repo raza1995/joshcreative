@@ -312,7 +312,7 @@ public function fetchNewEmails()
     try {
         $messages = $this->service->users_messages->listUsersMessages('me', [
             'labelIds' => ['INBOX'],
-            'maxResults' => 10, // Fetch the latest 10 emails
+            'maxResults' => 20, // Fetch the latest 10 emails
         ])->getMessages();
 
         if (!$messages) {
@@ -373,29 +373,6 @@ public function getUserLabelNames($userId = 'me')
 // ---------------------------
 // 2) Search messages
 // ---------------------------
-public function searchMessages($query = "to:info@mycolean.com", $userId = 'me')
-{
-    $messages = [];
-    try {
-        // Initial search
-        $response = $this->service->users_messages->listUsersMessages($userId, ['q' => $query]);
-        $fetched = $response->getMessages() ?? [];
-        $messages = array_merge($messages, $fetched);
-
-        // Paginate if there's a nextPageToken
-        while ($response->getNextPageToken()) {
-            $response = $this->service->users_messages->listUsersMessages($userId, [
-                'q' => $query,
-                'pageToken' => $response->getNextPageToken()
-            ]);
-            $fetched = $response->getMessages() ?? [];
-            $messages = array_merge($messages, $fetched);
-        }
-    } catch (\Exception $e) {
-        Log::error("Error in searchMessages: " . $e->getMessage());
-    }
-    return $messages;
-}
 
 // ---------------------------
 // 3) Get message content
@@ -557,6 +534,30 @@ public function addLabelToEmail($msgId, $labelName, $labelMap, $fallbackLabel, $
         Log::error("Error fetching history: " . $e->getMessage());
         return [];
     }
+}
+
+
+public function searchMessages($query, $userId = 'me')
+{
+    $messages = [];
+    try {
+        $response = $this->service->users_messages->listUsersMessages($userId, ['q' => $query]);
+        $fetched = $response->getMessages() ?? [];
+        $messages = array_merge($messages, $fetched);
+
+        // Paginate if there's a nextPageToken
+        while ($response->getNextPageToken()) {
+            $response = $this->service->users_messages->listUsersMessages($userId, [
+                'q' => $query,
+                'pageToken' => $response->getNextPageToken()
+            ]);
+            $fetched = $response->getMessages() ?? [];
+            $messages = array_merge($messages, $fetched);
+        }
+    } catch (\Exception $e) {
+        Log::error("🚨 Error in searchMessages: " . $e->getMessage());
+    }
+    return $messages;
 }
 
 

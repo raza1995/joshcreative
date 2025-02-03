@@ -8,8 +8,8 @@ use App\Services\GmailService;
 
 class ProcessGmailEmails extends Command
 {
-    protected $signature = 'gmail:process-mycolean {historyId?}';
-    protected $description = 'Process only newly pushed Gmail messages.';
+    protected $signature = 'gmail:process-emails-updated';
+    protected $description = 'Fetch and label emails from the last 3 hours.';
 
     protected $gmailService;
 
@@ -23,20 +23,23 @@ class ProcessGmailEmails extends Command
 
     public function handle()
     {
-        $historyId = $this->argument('historyId');
+        Log::info("🚀 Starting email processing for the last 3 hours...");
 
-        if (!$historyId) {
-            Log::error("No historyId provided. Exiting...");
-            $this->error("No historyId provided. This command should be triggered by Gmail webhook.");
-            return;
-        }
+        // Calculate the time 3 hours ago
+        $threeHoursAgo = now()->subHours(3)->format('Y-m-d H:i:s');
 
-        Log::info("Processing emails from historyId: $historyId");
+        // Gmail format requires RFC 3339 format
+        $rfc3339Time = date(DATE_RFC3339, strtotime($threeHoursAgo));
 
-        // Get the list of emails **ONLY from this historyId**
-        $messages = $this->gmailService->getMessagesFromHistory($historyId);
+        // Search for emails received in the last 3 hours
+        $threeHoursAgo = now()->subHours(3)->timestamp; // Get UNIX timestamp
+$query = "after:$threeHoursAgo "; // Only fetch unread emails
+
+        Log::info("🔍 Searching for emails with query: $query");
+
+        $messages = $this->gmailService->searchMessages($query);
         if (empty($messages)) {
-            $this->info("No new messages found in history.");
+            $this->info("✅ No new messages found.");
             return;
         }
 
@@ -56,7 +59,7 @@ class ProcessGmailEmails extends Command
 
             // Check if the email is already labeled
             if ($this->gmailService->messageHasUserLabel($msgId, $userLabelIds)) {
-                $this->info("Message $msgId already has a user label. Skipping.");
+                $this->info("✅ Message $msgId already has a user label. Skipping.");
                 continue;
             }
 
@@ -65,16 +68,16 @@ class ProcessGmailEmails extends Command
 
             // If classification doesn't match a user label, fallback
             if (!in_array($classification, $originalLabels)) {
-                $this->info("GPT returned '$classification' not in user labels. Falling back to '".self::FALLBACK_LABEL_NAME."'.");
+                $this->info("⚠️ GPT returned '$classification' not in user labels. Falling back to '".self::FALLBACK_LABEL_NAME."'.");
                 $classification = self::FALLBACK_LABEL_NAME;
             }
 
             // Apply the label
             $this->gmailService->addLabelToEmail($msgId, $classification, $labelMap, self::FALLBACK_LABEL_NAME);
 
-            $this->info("Done labeling message $msgId as '$classification'.");
+            $this->info("✅ Done labeling message $msgId as '$classification'.");
         }
 
-        $this->info("Done processing pushed emails.");
+        $this->info("🚀 Done processing emails.");
     }
 }
