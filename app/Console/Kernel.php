@@ -14,7 +14,9 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
         $schedule->command('cache:refresh-analytics')->everyThreeHours();
-        $schedule->command('gmail:process-emails-updated')->everyThreeHours();
+        // $schedule->command('gmail:process-emails-updated')->everyThreeHours();
+        $schedule->command('php artisan gmail:process-emails-updated')->cron('0 */3 * * *')->withoutOverlapping();
+
     }
 
     /**
