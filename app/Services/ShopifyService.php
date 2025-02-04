@@ -196,5 +196,91 @@ public function registerFulfillmentWebhook()
     return $response->successful() ? 'Fulfillment webhook registered successfully!' : 'Failed to register fulfillment webhook!';
 }
 
+public function fetchAllOrdersFromShopify($from_date = null, $to_date = null)
+{
+    if (!$from_date || !$to_date) {
+        $from_date = now()->subMonths(12)->format('Y-m-d');
+        $to_date = now()->format('Y-m-d');
+    }
+
+    $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+    $params = [
+        'status' => 'any',
+        'created_at_min' => $from_date . 'T00:00:00Z',
+        'created_at_max' => $to_date . 'T23:59:59Z',
+        'limit' => 250, // Fetch max records per page
+    ];
+
+    $allOrders = [];
+
+    do {
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $this->accessToken,
+            'Content-Type' => 'application/json',
+        ])->get($base_url, $params);
+
+        if (!$response->successful()) {
+            return 'Failed to fetch orders!';
+        }
+
+        $orders = $response->json()['orders'];
+        $allOrders = array_merge($allOrders, $orders);
+
+        $next_url = null;
+        $link_header = $response->header('Link');
+        if ($link_header && strpos($link_header, 'rel="next"') !== false) {
+            preg_match('/<([^>]+)>; rel="next"/', $link_header, $matches);
+            if (isset($matches[1])) {
+                $next_url = $matches[1];
+            }
+        }
+
+        if ($next_url) {
+            $parsed_url = parse_url($next_url);
+            parse_str($parsed_url['query'], $params);
+        }
+    } while ($next_url);
+
+    return $allOrders;
+}
+
+public function sendAllShopifyOrdersToMixpanel(MixpanelService $mixpanelService, $from_date = null, $to_date = null)
+{
+    $orders = $this->fetchAllOrdersFromShopify($from_date, $to_date);
+    $events = [];
+
+    foreach ($orders as $order) {
+        $customerName = trim(($order['customer']['first_name'] ?? '') . ' ' . ($order['customer']['last_name'] ?? ''));
+        $couponCode = $order['discount_codes'][0]['code'] ?? null;
+        $usedDiscount = $couponCode ? true : false;
+
+        $events[] = [
+            'event_name' => 'Order Created',
+            'properties' => [
+                'Order ID' => $order['id'],
+                'Customer Name' => $customerName,
+                'Email' => $order['email'] ?? 'N/A',
+                'Phone' => $order['customer']['phone'] ?? 'N/A',
+                'Shipping Address' => json_encode($order['shipping_address'] ?? []),
+                'Billing Address' => json_encode($order['billing_address'] ?? []),
+                'Total Price' => $order['total_price'],
+                'Discount' => $order['total_discounts'],
+                'Coupon' => $couponCode ?: 'None',
+                'Items Count' => is_array($order['line_items']) ? count($order['line_items']) : 0,
+                'Order Date' => Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'),
+                'Payment Method' => $order['payment_gateway_names'][0] ?? 'Unknown',
+                'Currency' => $order['currency'],
+                'Financial Status' => $order['financial_status'],
+                'Order Status URL' => $order['order_status_url'],
+                'Fulfillment Status' => $order['fulfillment_status'] ?? 'Unfulfilled',
+                'Used Discount' => $usedDiscount,
+            ]
+        ];
+    }
+
+    $mixpanelService->trackBulkEvents($events);
+
+    return "All Shopify orders sent to Mixpanel!";
+}
 
 }
