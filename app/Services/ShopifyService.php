@@ -93,6 +93,24 @@ class ShopifyService
 }
 
     
+public function registerWebhook()
+{
+    $webhookUrl = route('shopify.webhook.orders'); // Your Laravel webhook route
+    $topic = 'orders/create'; // Event type
+
+    $response = Http::withHeaders([
+        'X-Shopify-Access-Token' => $this->accessToken,
+        'Content-Type' => 'application/json',
+    ])->post("https://{$this->shopifyDomain}/admin/api/2024-01/webhooks.json", [
+        'webhook' => [
+            'topic' => $topic,
+            'address' => $webhookUrl,
+            'format' => 'json',
+        ],
+    ]);
+
+    return $response->successful() ? 'Webhook registered successfully!' : 'Failed to register webhook.';
+}
 
     
 

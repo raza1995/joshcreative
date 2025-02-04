@@ -10,12 +10,16 @@ class ShopifyOrder extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product_name', 
-        'order_date', 
-        'customer_name', 
         'order_number', 
+        'order_date', 
+        'product_name', 
+        'customer_name', 
         'email_address', 
         'tracking_number', 
-        'tracking_url'
+        'tracking_url',
+        'coupon',
+        'paid_amount',
+        'discount',
+        'number_of_items',
     ];
 }

@@ -8,7 +8,7 @@ use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ShopifyOrderController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\ShopifyWebhookController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -30,6 +30,10 @@ Route::get('/', function () {
 });
 
 Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
+
+
+Route::post('/shopify/webhook/orders', [ShopifyWebhookController::class, 'handleOrderWebhook'])
+    ->name('shopify.webhook.orders');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('sales', [SalesController::class, 'index'])->name('sales');
