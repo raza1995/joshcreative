@@ -16,82 +16,92 @@ class ShopifyService
         $this->accessToken = env('SHOPIFY_ACCESS_TOKEN');
     }
 
+    
     public function fetchOrders($from_date = null, $to_date = null)
-{
-    // Default to last 3 months if no date is provided
-    if (!$from_date || !$to_date) {
-        $from_date = now()->subMonths(3)->format('Y-m-d');
-        $to_date = now()->format('Y-m-d');
+    {
+        // Default to last 12 months if no date is provided
+        if (!$from_date || !$to_date) {
+            $from_date = now()->subMonths(12)->format('Y-m-d');
+            $to_date = now()->format('Y-m-d');
+        }
+    
+        // Shopify API base URL
+        $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+        $params = [
+            'status' => 'any',
+            'created_at_min' => $from_date . 'T00:00:00Z',
+            'created_at_max' => $to_date . 'T23:59:59Z',
+            'limit' => 250, // Fetch max records per page
+            'fields' => 'id,name,email,created_at,line_items,customer,fulfillments,total_price,total_discounts,discount_codes'
+        ];
+    
+        do {
+            // Send request to Shopify API
+            $response = Http::withHeaders([
+                'X-Shopify-Access-Token' => $this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($base_url, $params);
+    
+            // Check if the response is successful
+            if (!$response->successful()) {
+                return 'Failed to fetch orders!';
+            }
+    
+            // Get orders data
+            $orders = $response->json()['orders'];
+    
+            // Process each order and save it to the database
+            foreach ($orders as $order) {
+                $customerName = !empty($order['customer']['first_name']) || !empty($order['customer']['last_name'])
+                    ? trim(($order['customer']['first_name'] ?? '') . ' ' . ($order['customer']['last_name'] ?? ''))
+                    : 'Unknown Customer';
+    
+                // Get discount code if available
+                $couponCode = $order['discount_codes'][0]['code'] ?? null;
+    
+                foreach ($order['line_items'] as $item) {
+                    ShopifyOrder::updateOrCreate(
+                        ['order_number' => $order['id']], // Unique order identifier
+                        [
+                            'product_name' => $item['title'] ?? null,
+                            'order_date' => Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'), // Convert date to MySQL format
+                            'customer_name' => $customerName,
+                            'email_address' => $order['email'] ?? null,
+                            'tracking_number' => $order['fulfillments'][0]['tracking_number'] ?? null,
+                            'tracking_url' => $order['fulfillments'][0]['tracking_url'] ?? null,
+                            'coupon' => $couponCode,
+                            'paid_amount' => $order['total_price'] ?? 0.00,
+                            'discount' => $order['total_discounts'] ?? 0.00,
+                            'number_of_items' => count($order['line_items']),
+                        ]
+                    );
+                }
+            }
+    
+            // Get the next page URL from the "Link" header
+            $next_url = null;
+            $link_header = $response->header('Link');
+    
+            if ($link_header && strpos($link_header, 'rel="next"') !== false) {
+                preg_match('/<([^>]+)>; rel="next"/', $link_header, $matches);
+                if (isset($matches[1])) {
+                    $next_url = $matches[1];
+                }
+            }
+    
+            // Continue fetching the next page if available
+            if ($next_url) {
+                // Parse the next page URL to get query parameters
+                $parsed_url = parse_url($next_url);
+                parse_str($parsed_url['query'], $params);
+                $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+            }
+    
+        } while ($next_url);
+    
+        return 'All orders from the last 12 months fetched and stored successfully!';
     }
-
-    // Shopify API base URL
-    $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
-    $params = [
-        'status' => 'any',
-        'created_at_min' => $from_date . 'T00:00:00Z',
-        'created_at_max' => $to_date . 'T23:59:59Z',
-        'limit' => 250, // Fetch max records per page
-        'fields' => 'id,name,email,created_at,line_items,customer,fulfillments'
-    ];
-
-    do {
-        // Send request to Shopify API
-        $response = Http::withHeaders([
-            'X-Shopify-Access-Token' => $this->accessToken,
-            'Content-Type' => 'application/json',
-        ])->get($base_url, $params);
-
-        // Check if the response is successful
-        if (!$response->successful()) {
-            return 'Failed to fetch orders!';
-        }
-
-        // Get orders data
-        $orders = $response->json()['orders'];
-
-        // Process each order and save it to the database
-        foreach ($orders as $order) {
-            foreach ($order['line_items'] as $item) {
-                ShopifyOrder::updateOrCreate(
-                    ['order_number' => $order['id']], // Unique order identifier
-                    [
-                        'product_name' => $item['title'] ?? null,
-                        'order_date' => $order['created_at'] ?? null,
-'customer_name' => !empty($order['customer']['first_name']) || !empty($order['customer']['last_name'])
-    ? trim(($order['customer']['first_name'] ?? '') . ' ' . ($order['customer']['last_name'] ?? ''))
-    : 'Unknown Customer',
-                        'email_address' => $order['email'] ?? null,
-                        'tracking_number' => $order['fulfillments'][0]['tracking_number'] ?? null,
-                        'tracking_url' => $order['fulfillments'][0]['tracking_url'] ?? null,
-                    ]
-                );
-            }
-        }
-
-        // Get the next page URL from the "Link" header
-        $next_url = null;
-        $link_header = $response->header('Link');
-
-        if ($link_header && strpos($link_header, 'rel="next"') !== false) {
-            preg_match('/<([^>]+)>; rel="next"/', $link_header, $matches);
-            if (isset($matches[1])) {
-                $next_url = $matches[1];
-            }
-        }
-
-        // Continue fetching the next page if available
-        if ($next_url) {
-            // Parse the next page URL to get query parameters
-            $parsed_url = parse_url($next_url);
-            parse_str($parsed_url['query'], $params);
-            $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
-        }
-
-    } while ($next_url);
-
-    return 'All orders from the last 3 months fetched and stored successfully!';
-}
-
+    
     
 public function registerWebhook()
 {
