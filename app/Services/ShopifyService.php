@@ -37,6 +37,8 @@ class ShopifyService
         ];
     
         do {
+            Log::info('Fetching Shopify Orders from API', ['params' => $params]);
+    
             // Send request to Shopify API
             $response = Http::withHeaders([
                 'X-Shopify-Access-Token' => $this->accessToken,
@@ -45,6 +47,7 @@ class ShopifyService
     
             // Check if the response is successful
             if (!$response->successful()) {
+                Log::error('Failed to fetch orders from Shopify', ['response' => $response->body()]);
                 return 'Failed to fetch orders!';
             }
     
@@ -61,9 +64,23 @@ class ShopifyService
                 $couponCode = $order['discount_codes'][0]['code'] ?? null;
     
                 foreach ($order['line_items'] as $item) {
-                    ShopifyOrder::updateOrCreate(
-                        ['order_number' => $order['id']], // Unique order identifier
-                        [
+                    // Check if the order already exists with the same data
+                    $existingOrder = ShopifyOrder::where('order_number', $order['id'])
+                        ->where('product_name', $item['title'])
+                        ->where('order_date', Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'))
+                        ->where('customer_name', $customerName)
+                        ->where('email_address', $order['email'] ?? null)
+                        ->where('tracking_number', $order['fulfillments'][0]['tracking_number'] ?? null)
+                        ->where('tracking_url', $order['fulfillments'][0]['tracking_url'] ?? null)
+                        ->where('coupon', $couponCode)
+                        ->where('paid_amount', $order['total_price'] ?? 0.00)
+                        ->where('discount', $order['total_discounts'] ?? 0.00)
+                        ->where('number_of_items', count($order['line_items']))
+                        ->exists();
+    
+                    if (!$existingOrder) {
+                        // Insert new order only if no duplicate record exists
+                        ShopifyOrder::create([
                             'product_name' => $item['title'] ?? null,
                             'order_date' => Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'), // Convert date to MySQL format
                             'customer_name' => $customerName,
@@ -74,8 +91,10 @@ class ShopifyService
                             'paid_amount' => $order['total_price'] ?? 0.00,
                             'discount' => $order['total_discounts'] ?? 0.00,
                             'number_of_items' => count($order['line_items']),
-                        ]
-                    );
+                        ]);
+                    } else {
+                        Log::info("Skipping duplicate order: " . $order['id']);
+                    }
                 }
             }
     
@@ -96,13 +115,15 @@ class ShopifyService
                 $parsed_url = parse_url($next_url);
                 parse_str($parsed_url['query'], $params);
                 $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+    
+                // Create new tab for each pagination step
+                Log::info('Fetching next page: ' . $next_url);
             }
     
         } while ($next_url);
     
         return 'All orders from the last 12 months fetched and stored successfully!';
     }
-    
     
 public function registerWebhook()
 {
