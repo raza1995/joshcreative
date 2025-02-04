@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\ShopifyOrder;
 use Illuminate\Support\Facades\Http;
-
+use Illuminate\Support\Facades\Log;
 class ShopifyService
 {
     protected string $shopifyDomain;
@@ -98,6 +98,11 @@ public function registerWebhook()
     $webhookUrl = route('shopify.webhook.orders'); // Your Laravel webhook route
     $topic = 'orders/create'; // Event type
 
+    Log::info('Attempting to register Shopify webhook.', [
+        'webhook_url' => $webhookUrl,
+        'topic' => $topic,
+    ]);
+
     $response = Http::withHeaders([
         'X-Shopify-Access-Token' => $this->accessToken,
         'Content-Type' => 'application/json',
@@ -109,7 +114,16 @@ public function registerWebhook()
         ],
     ]);
 
-    return $response->successful() ? 'Webhook registered successfully!' : 'Failed to register webhook.';
+    if ($response->successful()) {
+        \Log::info('Webhook registered successfully.');
+        return 'Webhook registered successfully!';
+    } else {
+        \Log::error('Failed to register webhook.', [
+            'response_status' => $response->status(),
+            'response_body' => $response->body(),
+        ]);
+        return 'Failed to register webhook.';
+    }
 }
 
     

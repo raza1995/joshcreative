@@ -6,6 +6,7 @@ use App\Http\Controllers\GmailWebhookController;
 use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ShopifyOrderController;
+use App\Services\ShopifyService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShopifyWebhookController;
@@ -34,7 +35,10 @@ Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
 
 Route::post('/shopify/webhook/orders', [ShopifyWebhookController::class, 'handleOrderWebhook'])
     ->name('shopify.webhook.orders');
-
+    Route::get('/shopify/register-webhook', function () {
+        $shopifyService = new ShopifyService();
+        return $shopifyService->registerWebhook();
+    });
 Route::middleware(['auth'])->group(function () {
     Route::get('sales', [SalesController::class, 'index'])->name('sales');
     Route::post('/upload-sales-data', [SalesController::class, 'uploadSalesData'])->name('upload-sales-data');
