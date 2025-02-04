@@ -36,8 +36,7 @@ Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
 Route::post('/shopify/webhook/orders', [ShopifyWebhookController::class, 'handleOrderWebhook'])
     ->name('shopify.webhook.orders');
     Route::get('/shopify/register-webhook', function () {
-        $shopifyService = new ShopifyService();
-        return $shopifyService->registerWebhook();
+     
     });
 Route::middleware(['auth'])->group(function () {
     Route::get('sales', [SalesController::class, 'index'])->name('sales');

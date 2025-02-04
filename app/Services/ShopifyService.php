@@ -126,6 +126,15 @@ public function registerWebhook()
     }
 }
 
-    
+public function getAccessToken()
+{
+    return $this->accessToken;
+}
+
+public function getShopifyDomain()
+{
+    return $this->shopifyDomain;
+}
+
 
 }
