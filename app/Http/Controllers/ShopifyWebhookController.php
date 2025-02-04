@@ -33,4 +33,31 @@ class ShopifyWebhookController extends Controller
     
         return response()->json(['message' => 'Webhook received and order saved.']);
     }
+
+
+
+
+public function handleFulfillmentUpdate(Request $request)
+{
+    Log::info('Shopify Fulfillment Webhook Received:', ['body' => $request->all()]);
+
+    $fulfillmentData = $request->all();
+
+    // Check if the order exists in our database
+    $order = ShopifyOrder::where('order_number', $fulfillmentData['order_id'])->first();
+
+    if ($order) {
+        // Update fulfillment details
+        $order->update([
+            'tracking_number' => $fulfillmentData['tracking_number'] ?? $order->tracking_number,
+            'tracking_url' => $fulfillmentData['tracking_url'] ?? $order->tracking_url,
+            'customer_name' => ($fulfillmentData['recipient']['first_name'] ?? '') . ' ' . ($fulfillmentData['recipient']['last_name'] ?? ''),
+        ]);
+
+        return response()->json(['message' => 'Fulfillment updated successfully.']);
+    }
+
+    return response()->json(['message' => 'Order not found.'], 404);
+}
+
 }

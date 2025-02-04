@@ -145,4 +145,24 @@ public function listWebhooks()
     return $response->json();
 }
 
+public function registerFulfillmentWebhook()
+{
+    $webhookUrl = route('shopify.webhook.fulfillment'); // Ensure this route exists
+    $topic = 'fulfillments/update';
+
+    $response = Http::withHeaders([
+        'X-Shopify-Access-Token' => $this->accessToken,
+        'Content-Type' => 'application/json',
+    ])->post("https://{$this->shopifyDomain}/admin/api/2024-01/webhooks.json", [
+        'webhook' => [
+            'topic' => $topic,
+            'address' => $webhookUrl,
+            'format' => 'json',
+        ],
+    ]);
+
+    return $response->successful() ? 'Fulfillment webhook registered successfully!' : 'Failed to register fulfillment webhook!';
+}
+
+
 }
