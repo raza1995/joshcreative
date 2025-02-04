@@ -15,7 +15,9 @@ class ShopifyWebhookController extends Controller
         Log::info('Shopify Order Webhook Received:', ['body' => $request->all()]);
 
         $orderData = $request->all();
-
+        $customerId = $orderData['customer']['id'] ?? null;
+        $customerName = ($orderData['customer']['first_name'] ?? '') . ' ' . ($orderData['customer']['last_name'] ?? '');
+    
         foreach ($orderData['line_items'] as $item) {
             ShopifyOrder::updateOrCreate(
                 ['order_number' => $orderData['id']], // Ensure uniqueness
@@ -34,6 +36,17 @@ class ShopifyWebhookController extends Controller
             );
         }
 
+
+        $mixpanelService->identifyUser($customerId, [
+            '$name' => $customerName,
+            '$email' => $orderData['email'] ?? 'N/A',
+            'Total Orders' => ShopifyOrder::where('email_address', $orderData['email'])->count(),
+            'Total Spend' => ShopifyOrder::where('email_address', $orderData['email'])->sum('paid_amount'),
+            'Last Order Date' => Carbon::parse($orderData['created_at'])->format('Y-m-d H:i:s'),
+            'Campaign Source' => $orderData['source'] ?? 'Direct',
+            'Campaign Medium' => $orderData['medium'] ?? 'N/A',
+            'Coupon Used' => $orderData['discount_codes'][0]['code'] ?? 'None',
+        ]);
         // Send Order Created Event to Mixpanel
         $mixpanelService->trackEvent('Order Created', [
             'Order ID' => $orderData['id'],

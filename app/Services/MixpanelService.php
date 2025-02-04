@@ -17,4 +17,9 @@ class MixpanelService
     {
         $this->mixpanel->track($event, $properties);
     }
+
+    public function identifyUser($userId, $properties = [])
+    {
+        $this->mixpanel->people->set($userId, $properties);
+    }
 }
