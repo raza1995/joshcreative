@@ -5,20 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\ShopifyOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ShopifyWebhookController extends Controller
 {
     public function handleOrderWebhook(Request $request)
     {
-        Log::info('Shopify Order Webhook Received:', $request->all());
-
+        Log::info('Shopify Webhook Received:', ['body' => $request->all()]);
+    
         $orderData = $request->all();
-
-        // Save order details to database
+    
         foreach ($orderData['line_items'] as $item) {
             ShopifyOrder::create([
                 'order_number' => $orderData['id'],
-                'order_date' => $orderData['created_at'],
+                'order_date' => Carbon::parse($orderData['created_at'])->format('Y-m-d H:i:s'), // Convert ISO to MySQL format
                 'product_name' => $item['title'],
                 'customer_name' => ($orderData['customer']['first_name'] ?? '') . ' ' . ($orderData['customer']['last_name'] ?? ''),
                 'email_address' => $orderData['email'] ?? null,
@@ -30,7 +30,7 @@ class ShopifyWebhookController extends Controller
                 'number_of_items' => count($orderData['line_items']),
             ]);
         }
-
-        return response()->json(['message' => 'Order received and saved.']);
+    
+        return response()->json(['message' => 'Webhook received and order saved.']);
     }
 }
