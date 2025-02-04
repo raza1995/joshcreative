@@ -135,6 +135,14 @@ public function getShopifyDomain()
 {
     return $this->shopifyDomain;
 }
+public function listWebhooks()
+{
+    $response = Http::withHeaders([
+        'X-Shopify-Access-Token' => $this->accessToken,
+        'Content-Type' => 'application/json',
+    ])->get("https://{$this->shopifyDomain}/admin/api/2024-01/webhooks.json");
 
+    return $response->json();
+}
 
 }
