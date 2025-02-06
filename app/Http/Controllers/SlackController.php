@@ -92,37 +92,18 @@ class SlackController extends Controller
      */
     public function handleSlackEvent(Request $request)
     {
-        $timestamp = $request->header('X-Slack-Request-Timestamp');
-        $signature = $request->header('X-Slack-Signature');
-        $body = $request->getContent();
-        $signingSecret = env('SLACK_SIGNING_SECRET');
-
-        // 1️⃣ Prevent Replay Attacks
-        if (abs(time() - $timestamp) > 300) {
-            return response()->json(['error' => 'Invalid request timestamp'], 400);
-        }
-
-        // 2️⃣ Verify Slack Signature
-        $baseString = "v0:$timestamp:$body";
-        $computedSignature = 'v0=' . hash_hmac('sha256', $baseString, $signingSecret);
-
-        if (!hash_equals($computedSignature, $signature)) {
-            return response()->json(['error' => 'Invalid signature'], 400);
-        }
-
-        // 3️⃣ Handle Payload
         $payload = $request->all();
-
-        // Handle Slack URL Verification Challenge
+    
+        // ✅ 1) Handle Slack URL Verification Challenge
         if (isset($payload['type']) && $payload['type'] === 'url_verification') {
             return response($payload['challenge'], 200)
-                ->header('Content-Type', 'text/plain');
+                    ->header('Content-Type', 'text/plain');
         }
-
-        // Handle Event Callback
+    
+        // ✅ 2) Handle Event Callbacks
         if (isset($payload['type']) && $payload['type'] === 'event_callback') {
             $event = $payload['event'] ?? [];
-
+    
             if (
                 isset($event['type']) &&
                 $event['type'] === 'message' &&
@@ -130,18 +111,14 @@ class SlackController extends Controller
             ) {
                 $channelId = $event['channel'];
                 $messageText = $event['text'];
-
-                try {
-                    $context = "Some context that might inform OpenAI's reply...";
-                    $aiReply = $this->openAIService->generateReply($messageText, $context);
-                    $this->slackService->sendMessageToChannel($aiReply, $channelId);
-                } catch (\Exception $e) {
-                    Log::error("Slack Event Handling Failed: " . $e->getMessage());
-                    $this->slackService->sendMessageToChannel("🚨 Error processing message.", $channelId);
-                }
+    
+                $aiReply = $this->openAIService->generateReply($messageText, "Context here...");
+                $this->slackService->sendMessageToChannel($aiReply, $channelId);
             }
         }
-
+    
+        // ✅ Slack expects a 200 OK even if no event is processed
         return response()->json(['status' => 'ok']);
     }
+    
 }
