@@ -38,20 +38,33 @@ class OpenAIService
 
     // Format order details compactly
     private function formatOrderDetails($orders)
-    {
-        $formattedDetails = '';
-    
-        foreach ($orders as $order) {
-            $formattedDetails .= "
-            Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items} items)
-            - Name: {$order->customer_name}
-            - Paid: {$order->paid_amount} (Disc: {$order->discount}, Coupon: {$order->coupon})
-            - Tracking: {$order->tracking_number} | [Track]({$order->tracking_url})
-            - Date: {$order->order_date}\n\n";
-        }
-    
-        return $formattedDetails ?: "No orders found.";
+{
+    $formattedDetails = '';
+
+    foreach ($orders as $order) {
+        // Check if $order is an array or object
+        $orderNumber = is_array($order) ? ($order['order_number'] ?? null) : ($order->order_number ?? null);
+        $productName = is_array($order) ? ($order['product_name'] ?? null) : ($order->product_name ?? null);
+        $numberOfItems = is_array($order) ? ($order['number_of_items'] ?? null) : ($order->number_of_items ?? null);
+        $customerName = is_array($order) ? ($order['customer_name'] ?? null) : ($order->customer_name ?? null);
+        $paidAmount = is_array($order) ? ($order['paid_amount'] ?? null) : ($order->paid_amount ?? null);
+        $discount = is_array($order) ? ($order['discount'] ?? null) : ($order->discount ?? null);
+        $coupon = is_array($order) ? ($order['coupon'] ?? null) : ($order->coupon ?? null);
+        $trackingNumber = is_array($order) ? ($order['tracking_number'] ?? null) : ($order->tracking_number ?? null);
+        $trackingUrl = is_array($order) ? ($order['tracking_url'] ?? null) : ($order->tracking_url ?? null);
+        $orderDate = is_array($order) ? ($order['order_date'] ?? null) : ($order->order_date ?? null);
+
+        $formattedDetails .= "
+        Order #{$orderNumber} | {$productName} ({$numberOfItems} items)
+        - Name: {$customerName}
+        - Paid: {$paidAmount} (Disc: {$discount}, Coupon: {$coupon})
+        - Tracking: {$trackingNumber} | [Track]({$trackingUrl})
+        - Date: {$orderDate}\n\n";
     }
+
+    return $formattedDetails ?: "No orders found.";
+}
+
 
     
     // Retrieve cached conversation context
