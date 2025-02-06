@@ -1,9 +1,10 @@
 <?php
+
 namespace App\Services;
 
-use App\Models\ShopifyOrder;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\ShopifyOrder;
 
 class OpenAIService
 {
@@ -15,74 +16,104 @@ class OpenAIService
         $this->apiKey = config('services.openai.api_key');
         $this->model = config('services.openai.model', 'gpt-4');
     }
-    private function getOrderDetails($orderNumber)
+
+    // 1️⃣ Fetch Order by Order Number
+    private function getOrderByOrderNumber($orderNumber)
     {
         return ShopifyOrder::where('order_number', $orderNumber)->first();
     }
-    public function generateReply($customerQuery, $context = '')
-{
-    try {
-        // Extract potential order number (assuming it's numeric)
-        preg_match('/\d+/', $customerQuery, $matches);
-        $orderNumber = $matches[0] ?? null;
 
-        // Fetch order details if an order number is found
-        $orderDetails = $orderNumber ? $this->getOrderDetails($orderNumber) : null;
-
-        // Build order context if available
-        $orderContext = '';
-        if ($orderDetails) {
-            $orderContext = "Here are the order details:
-            - 📦 **Order Number:** {$orderDetails->order_number}
-            - 🙋‍♂️ **Customer Name:** {$orderDetails->customer_name}
-            - 🛒 **Product Name:** {$orderDetails->product_name}
-            - 🔢 **Number of Items:** {$orderDetails->number_of_items}
-            - 💰 **Paid Amount:** {$orderDetails->paid_amount}
-            - 🎁 **Discount:** {$orderDetails->discount}
-            - 🎟️ **Coupon Used:** {$orderDetails->coupon}
-            - 🚚 **Tracking Number:** {$orderDetails->tracking_number}
-            - 🔗 **Tracking URL:** {$orderDetails->tracking_url}
-            - 📅 **Order Date:** {$orderDetails->order_date}";
-        }
-
-        // AI Prompt
-        $prompt = "You are a friendly, knowledgeable customer support assistant. 
-                   Respond in a warm, conversational way, like you're chatting with a friend. 
-                   Be empathetic, clear, and solution-oriented, without encouraging product returns.
-
-                   When asked about an order, provide updates clearly. Use friendly language, emojis when appropriate, and avoid sounding too formal.
-
-                   ${context}
-                   ${orderContext}
-
-                   **Customer's Question:** \"$customerQuery\"
-                   **Your Friendly Reply:**";
-
-        $response = Http::withToken($this->apiKey)
-            ->post('https://api.openai.com/v1/chat/completions', [
-                'model' => $this->model,
-                'n' => 1,
-                'messages' => [
-                    ['role' => 'system', 'content' => 'You are a friendly customer support assistant. 
-                                  Respond in a casual, helpful, and engaging way. 
-                                  Be empathetic and solution-oriented, without encouraging returns.'],
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-                'temperature' => 0.85, // Slightly more natural, human-like responses
-                'max_tokens' => 200,
-            ]);
-
-        if ($response->successful()) {
-            return $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
-        } else {
-            Log::error('OpenAI API Error: ' . $response->body());
-            return 'Oops, something went wrong. Could you try again?';
-        }
-    } catch (\Exception $e) {
-        Log::error('Exception in OpenAIService: ' . $e->getMessage());
-        return 'Oh no! I hit a snag. Mind trying again?';
+    // 2️⃣ Fetch Orders by Email
+    private function getOrdersByEmail($email)
+    {
+        return ShopifyOrder::where('email_address', $email)->get();
     }
-}
+
+    // 3️⃣ Format Order Details for Readability
+    private function formatOrderDetails($orders)
+    {
+        $formattedDetails = '';
+
+        foreach ($orders as $order) {
+            $formattedDetails .= "
+📦 **Order Number:** {$order->order_number}
+👤 **Customer Name:** {$order->customer_name}
+📧 **Email:** {$order->email_address}
+🛒 **Product:** {$order->product_name}
+🔢 **Items:** {$order->number_of_items}
+💰 **Paid Amount:** {$order->paid_amount} (Discount: {$order->discount}, Coupon: {$order->coupon})
+🚚 **Tracking Number:** {$order->tracking_number} | [Track Order]({$order->tracking_url})
+📅 **Order Date:** {$order->order_date}
+
+-----------------------------\n";
+        }
+
+        return $formattedDetails ?: "No orders found.";
+    }
+
+    // 4️⃣ Generate AI Reply
+    public function generateReply($customerQuery, $context = '')
+    {
+        try {
+            // Detect email or order number
+            preg_match('/\d+/', $customerQuery, $orderMatches);
+            preg_match('/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\b/', $customerQuery, $emailMatches);
+
+            $orderNumber = $orderMatches[0] ?? null;
+            $email = $emailMatches[0] ?? null;
+
+            // Fetch order data
+            $orders = collect(); // Empty collection as default
+
+            if ($email) {
+                $orders = $this->getOrdersByEmail($email);
+            } elseif ($orderNumber) {
+                $order = $this->getOrderByOrderNumber($orderNumber);
+                if ($order) {
+                    $orders = collect([$order]);
+                }
+            }
+
+            // Format orders for AI
+            $orderContext = $this->formatOrderDetails($orders);
+
+            // AI Prompt
+            $prompt = "You are a friendly, professional customer support assistant. 
+                       Respond in a clear, structured, and friendly way without encouraging product returns. 
+                       Use bullet points, bold headers, and clean formatting for order details. 
+
+                       ${context}
+                       **Order Information:** 
+                       ${orderContext}
+
+                       **Customer Query:** \"$customerQuery\"
+                       **Your Reply:**";
+
+            $response = Http::withToken($this->apiKey)
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $this->model,
+                    'n' => 1,
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are a professional, friendly customer support assistant. 
+                                      Provide structured, easy-to-read responses with clear formatting.'],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'temperature' => 0.7,
+                    'max_tokens' => 250,
+                ]);
+
+            if ($response->successful()) {
+                return $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
+            } else {
+                Log::error('OpenAI API Error: ' . $response->body());
+                return 'Oops, something went wrong. Could you try again?';
+            }
+        } catch (\Exception $e) {
+            Log::error('Exception in OpenAIService: ' . $e->getMessage());
+            return 'Oh no! I hit a snag. Mind trying again?';
+        }
+    }
+
 
     
 
