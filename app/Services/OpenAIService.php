@@ -113,54 +113,107 @@ public function generateReply($customerQuery)
     $orderNumber = $orderMatches[0] ?? null;
     $email = $emailMatches[0] ?? null;
 
+    // Retrieve cached context
+    $cacheKey = $email ?: ($orderNumber ? "order_{$orderNumber}" : 'general');
+    $contextData = $this->getCachedContext($cacheKey);
+
+    // Fallback to previous data if no new info is provided
+ // Fallback to previous data if no new info is provided
+$orderNumber = $orderNumber ?? (is_array($contextData) ? $contextData['lastOrderNumber'] ?? null : null);
+$email = $email ?? (is_array($contextData) ? $contextData['lastEmail'] ?? null : null);
+
+
+    // Step 1: Fetch data from the local database
+    $orders = collect();
+    if ($email) {
+        $orders = $this->getOrdersByEmail($email);
+    } elseif ($orderNumber) {
+        $order = $this->getOrderByOrderNumber($orderNumber);
+        if ($order) {
+            $orders = collect([$order]);
+        }
+    }
+
+    // Step 2: Check if the requested information exists in the database
+    $missingInfo = $this->isInformationMissing($customerQuery, $orders);
+
+    // Step 3: If missing, fetch from Shopify
+    if ($missingInfo) {
+        $shopifyData = $this->fetchFromShopify($orderNumber, $email);
+        $orders = $orders->merge($shopifyData); // Merge data with existing orders
+    }
+
+    // Format orders concisely
+    $orderContext = $this->formatOrderDetails($orders);
     $userIdentifier = $email ?: 'guest';
 
-    // Retrieve conversation using flexible matching
-    $conversation = Conversation::where(function ($query) use ($userIdentifier, $orderNumber) {
-        $query->where('user_identifier', $userIdentifier);
+    $conversations = Conversation::where('user_identifier', $userIdentifier)
+        ->orWhere('order_number', $orderNumber)
+        ->get();
 
-        if ($orderNumber) {
-            $query->orWhere('order_number', $orderNumber);
-        }
-    })->first();
+$conversationLog = $conversation->conversation_data ?? [];
+    // AI Prompt
+    $prompt = "You are an intelligent customer support assistant designed to:
+- Provide concise, helpful responses to customer inquiries.
+- Answer only relevant questions based on the provided order data.
+- Write professional, empathetic emails when requested, tailored to the customer's issue.
+- Be polite, solution-oriented, and avoid suggesting returns unless absolutely necessary.
 
-    $conversationLog = $conversation->conversation_data ?? [];
+DATA FLOW:
+- Use 'Order Info' to understand the context of the order.
+- Refer to 'Previous Info' for conversation history to maintain continuity.
+- If the user requests an email draft, format it professionally with a friendly tone.
 
-    $prompt = "You are an intelligent customer support assistant.
-               Use the previous conversation and order info to respond accurately.
+Previous Info:
+{$contextData['previousContext']}
 
-               Previous Conversation: " . json_encode($conversationLog) . "
-               Customer Query: \"$customerQuery\"";
+Order Info:
+{$orderContext}
 
-    $response = Http::withToken($this->apiKey)
-        ->post('https://api.openai.com/v1/chat/completions', [
-            'model' => $this->model,
-            'n' => 1,
-            'messages' => [
-                ['role' => 'system', 'content' => 'You are a helpful assistant.'],
-                ['role' => 'user', 'content' => $prompt],
-            ],
-            'temperature' => 0.6,
-            'max_tokens' => 300,
-        ]);
+Customer Query:
+\"$customerQuery\"
+
+Your Task:
+- Answer concisely if it's a direct question.
+- Draft an email if the user asks for an email.
+- Ignore irrelevant questions unrelated to customer support.";
+
+
+$response = Http::withToken($this->apiKey)
+    ->post('https://api.openai.com/v1/chat/completions', [
+        'model' => $this->model,
+        'n' => 1,
+        'messages' => [
+            ['role' => 'system', 'content' => 'You are a highly intelligent customer support assistant. Provide concise responses, answer relevant questions, and draft emails based on order data when requested.'],
+            ['role' => 'user', 'content' => $prompt],
+        ],
+        'temperature' => 0.6,
+        'max_tokens' => 300,  // Increased for more detailed responses when drafting emails
+    ]);
+
 
     if ($response->successful()) {
         $reply = $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
 
-        // Append new message to conversation log
-        $conversationLog[] = [
+        // Append the new conversation to the log
+        $contextData['conversationLog'][] = [
             'timestamp' => now()->toDateTimeString(),
             'user' => $customerQuery,
             'ai' => $reply,
         ];
-
-        // Save to database
         $this->saveConversation($userIdentifier, $orderNumber, $conversationLog);
+        // Update cached context with new conversation data
+        $this->setCachedContext($cacheKey, [
+            'previousContext' => "{$contextData['previousContext']}\n{$customerQuery}: {$reply}",
+            'lastOrderNumber' => $orderNumber,
+            'lastEmail' => $email,
+            'conversationLog' => $contextData['conversationLog'], // Save the updated log
+        ]);
 
         return $reply;
     } else {
         Log::error('OpenAI API Error: ' . $response->body());
-        return 'Oops, something went wrong. Try again?';
+        return 'Oops, something went wrong. Could you try again?';
     }
 }
 
