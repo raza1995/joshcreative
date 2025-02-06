@@ -71,7 +71,7 @@ public function sendMessageToChannel($message, $channelId)
             return true;
         }
 
-        Log::error("🚨 Slack API Error: ", $response->json());
+        Log::error("🚨 Slack API Errorsssssssssssss: ", $response->json());
         return false;
 
     } catch (\Exception $e) {
