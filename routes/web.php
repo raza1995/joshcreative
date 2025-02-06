@@ -10,6 +10,8 @@ use App\Services\ShopifyService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShopifyWebhookController;
+use App\Services\GmailShopifyInvoiceService;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -34,6 +36,10 @@ Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
 
 
 
+Route::get('/test-email-processing', function (GmailShopifyInvoiceService $service) {
+    $service->processLabeledEmails();
+    return response()->json(['message' => 'Email processing triggered. Check logs.']);
+});
 Route::post('/shopify/webhook/fulfillment', [ShopifyWebhookController::class, 'handleFulfillmentUpdate'])
     ->name('shopify.webhook.fulfillment');
 
