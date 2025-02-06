@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use App\Models\ShopifyOrder;
 
 class OpenAIService
@@ -14,48 +15,52 @@ class OpenAIService
     public function __construct()
     {
         $this->apiKey = config('services.openai.api_key');
-        $this->model = config('services.openai.model', 'gpt-4');
+        $this->model = 'gpt-3.5-turbo'; // Using GPT-3.5 Turbo for faster, cost-effective responses
     }
 
-    // 1️⃣ Fetch Order by Order Number
+    // Fetch order by number
     private function getOrderByOrderNumber($orderNumber)
     {
         return ShopifyOrder::where('order_number', $orderNumber)->first();
     }
 
-    // 2️⃣ Fetch Orders by Email
+    // Fetch orders by email
     private function getOrdersByEmail($email)
     {
         return ShopifyOrder::where('email_address', $email)->get();
     }
 
-    // 3️⃣ Format Order Details for Readability
+    // Format order details compactly
     private function formatOrderDetails($orders)
     {
         $formattedDetails = '';
 
         foreach ($orders as $order) {
             $formattedDetails .= "
-📦 **Order Number:** {$order->order_number}
-👤 **Customer Name:** {$order->customer_name}
-📧 **Email:** {$order->email_address}
-🛒 **Product:** {$order->product_name}
-🔢 **Items:** {$order->number_of_items}
-💰 **Paid Amount:** {$order->paid_amount} (Discount: {$order->discount}, Coupon: {$order->coupon})
-🚚 **Tracking Number:** {$order->tracking_number} | [Track Order]({$order->tracking_url})
-📅 **Order Date:** {$order->order_date}
-
------------------------------\n";
+Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items} items)
+- Name: {$order->customer_name}
+- Paid: {$order->paid_amount} (Disc: {$order->discount}, Coupon: {$order->coupon})
+- Tracking: {$order->tracking_number} | [Track]({$order->tracking_url})
+- Date: {$order->order_date}\n\n";
         }
 
         return $formattedDetails ?: "No orders found.";
     }
 
-    // 4️⃣ Generate AI Reply
+    // Simulate learning by caching context
+    private function getCachedContext($key)
+    {
+        return Cache::get($key, '');
+    }
+
+    private function setCachedContext($key, $value)
+    {
+        Cache::put($key, $value, now()->addHours(6)); // Cache for 6 hours
+    }
+
     public function generateReply($customerQuery, $context = '')
     {
         try {
-            // Detect email or order number
             preg_match('/\d+/', $customerQuery, $orderMatches);
             preg_match('/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\b/', $customerQuery, $emailMatches);
 
@@ -63,8 +68,7 @@ class OpenAIService
             $email = $emailMatches[0] ?? null;
 
             // Fetch order data
-            $orders = collect(); // Empty collection as default
-
+            $orders = collect();
             if ($email) {
                 $orders = $this->getOrdersByEmail($email);
             } elseif ($orderNumber) {
@@ -74,36 +78,42 @@ class OpenAIService
                 }
             }
 
-            // Format orders for AI
+            // Retrieve cached context
+            $cacheKey = $email ?: ($orderNumber ? "order_{$orderNumber}" : 'general');
+            $previousContext = $this->getCachedContext($cacheKey);
+
+            // Format orders concisely
             $orderContext = $this->formatOrderDetails($orders);
 
             // AI Prompt
-            $prompt = "You are a friendly, professional customer support assistant. 
-                       Respond in a clear, structured, and friendly way without encouraging product returns. 
-                       Use bullet points, bold headers, and clean formatting for order details. 
+            $prompt = "You are a professional customer support assistant. 
+                       Respond concisely, using bullet points for clarity. 
+                       Be empathetic and helpful, without suggesting returns.
 
-                       ${context}
-                       **Order Information:** 
-                       ${orderContext}
+                       Previous Info: {$previousContext}
+                       Order Info: {$orderContext}
 
-                       **Customer Query:** \"$customerQuery\"
-                       **Your Reply:**";
+                       Customer Query: \"$customerQuery\"";
 
             $response = Http::withToken($this->apiKey)
                 ->post('https://api.openai.com/v1/chat/completions', [
                     'model' => $this->model,
                     'n' => 1,
                     'messages' => [
-                        ['role' => 'system', 'content' => 'You are a professional, friendly customer support assistant. 
-                                      Provide structured, easy-to-read responses with clear formatting.'],
+                        ['role' => 'system', 'content' => 'You are a helpful customer support assistant providing concise, clear responses.'],
                         ['role' => 'user', 'content' => $prompt],
                     ],
-                    'temperature' => 0.7,
-                    'max_tokens' => 250,
+                    'temperature' => 0.6, // Slightly reduced for consistency
+                    'max_tokens' => 150,   // Limit tokens to reduce costs
                 ]);
 
             if ($response->successful()) {
-                return $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
+                $reply = $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
+
+                // Update cached context for "learning"
+                $this->setCachedContext($cacheKey, "{$previousContext}\n{$customerQuery}: {$reply}");
+
+                return $reply;
             } else {
                 Log::error('OpenAI API Error: ' . $response->body());
                 return 'Oops, something went wrong. Could you try again?';
