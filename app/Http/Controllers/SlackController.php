@@ -33,7 +33,7 @@ class SlackController extends Controller
 
         try {
             $aiReply = $this->openAIService->generateReply($customerQuery, $context);
-            $this->slackService->sendMessage("🤖 AI Reply:\n$aiReply");
+            $this->slackService->sendMessageTo("🤖 AI Reply:\n$aiReply");
 
             return response()->json(['reply' => $aiReply], 200);
         } catch (\Exception $e) {

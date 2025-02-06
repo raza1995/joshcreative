@@ -577,9 +577,13 @@ public function fetchUnreadEmailsAndNotify()
 
     foreach ($messages as $message) {
         $messageId = $message->getId();
+        Log::info("📩 Processing email with Message ID: $messageId");
 
         // Check if the email has already been processed
-        if (ProcessedEmail::where('message_id', $messageId)->exists()) {
+        $alreadyProcessed = ProcessedEmail::where('message_id', $messageId)->exists();
+        Log::info("🔍 Check if Message ID $messageId already processed: " . ($alreadyProcessed ? 'YES' : 'NO'));
+
+        if ($alreadyProcessed) {
             Log::info("⏩ Skipping already processed email (Message ID: $messageId)");
             continue;
         }
@@ -588,11 +592,17 @@ public function fetchUnreadEmailsAndNotify()
         if ($emailData) {
             $this->notifySlack($emailData);
 
-            // Mark the email as processed
-            ProcessedEmail::create(['message_id' => $messageId]);
+            // Save the message ID after sending notification
+            try {
+                ProcessedEmail::create(['message_id' => $messageId]);
+                Log::info("✅ Message ID $messageId saved as processed.");
+            } catch (\Exception $e) {
+                Log::error("🚨 Failed to save Message ID $messageId: " . $e->getMessage());
+            }
         }
     }
 }
+
 
 
 /**
