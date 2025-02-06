@@ -204,7 +204,7 @@ private function processEmail($messageId)
     Write a professional and friendly apology email to inform them of the delay and provide the tracking details.";
 
     $response = $openai->chat()->create([
-        'model' => 'gpt-3.5-turbo', // Use gpt-3.5-turbo model
+        'model' => 'gpt-4o', // Use GPT-4o model
         'messages' => [
             ["role" => "system", "content" => "You write professional and friendly apology emails based on order details."],
             ["role" => "user", "content" => $user_prompt],
@@ -488,7 +488,7 @@ public function addLabelToEmail($msgId, $labelName, $labelMap, $fallbackLabel, $
                     $apiKey = env('OPENAI_API_KEY');
                     
                     $response = $openai->chat()->create([
-                        'model' => 'gpt-3.5-turbo', // Use gpt-3.5-turbo model
+                        'model' => 'gpt-4o', // Use GPT-4o model
                         'messages' => [
                             ["role" => "system", "content" => "You classify emails using existing labels only."],
                             ["role" => "user", "content" => $userPrompt],
