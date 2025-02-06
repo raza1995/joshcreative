@@ -66,7 +66,7 @@ Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items
 
     public function generateReply($customerQuery, $context = '')
     {
-        try {
+  
             preg_match('/\d+/', $customerQuery, $orderMatches);
             preg_match('/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\b/', $customerQuery, $emailMatches);
     
@@ -133,10 +133,7 @@ Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items
                 Log::error('OpenAI API Error: ' . $response->body());
                 return 'Oops, something went wrong. Could you try again?';
             }
-        } catch (\Exception $e) {
-            Log::error('Exception in OpenAIService: ' . $e->getMessage());
-            return 'Oh no! I hit a snag. Mind trying again?';
-        }
+        
     }
     
     // Check if the requested information exists in the database
