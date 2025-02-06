@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Conversation;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
@@ -144,7 +145,13 @@ $email = $email ?? (is_array($contextData) ? $contextData['lastEmail'] ?? null :
 
     // Format orders concisely
     $orderContext = $this->formatOrderDetails($orders);
+    $userIdentifier = $email ?: 'guest';
 
+    $conversations = Conversation::where('user_identifier', $userIdentifier)
+        ->orWhere('order_number', $orderNumber)
+        ->get();
+
+$conversationLog = $conversation->conversation_data ?? [];
     // AI Prompt
     $prompt = "You are an intelligent customer support assistant designed to:
 - Provide concise, helpful responses to customer inquiries.
@@ -194,6 +201,7 @@ $response = Http::withToken($this->apiKey)
             'user' => $customerQuery,
             'ai' => $reply,
         ];
+        $this->saveConversation($userIdentifier, $orderNumber, $conversationLog);
 
         // Update cached context with new conversation data
         $this->setCachedContext($cacheKey, [
@@ -309,5 +317,11 @@ public function getShopifyDomain()
         return 'Error communicating with AI for summary.';
     }
 }
-
+private function saveConversation($userIdentifier, $orderNumber, $conversationLog)
+{
+    Conversation::updateOrCreate(
+        ['user_identifier' => $userIdentifier, 'order_number' => $orderNumber],
+        ['conversation_data' => $conversationLog]
+    );
+}
 }
