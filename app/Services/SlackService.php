@@ -79,10 +79,6 @@ public function sendMessageToChannel($message, $channelId)
         return false;
     }
 }
-public function sendMessageTo($message)
-{
-    $defaultChannelId = env('SLACK_CHANNEL_ID');
-    return $this->sendMessageToChannel($message, $defaultChannelId);
-}
+
 
 }
