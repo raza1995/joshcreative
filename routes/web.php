@@ -37,7 +37,7 @@ Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
 Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);
 // routes/web.php
 Route::middleware(['public.urls'])->group(function () {
-    Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);
+    Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback'])->name('slack.oauth.callback');
     Route::post('/slack/webhook', [SlackController::class, 'handleWebhook']);
 
 });
