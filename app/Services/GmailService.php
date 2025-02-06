@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Models\ProcessedEmail;
 use Google\Client;
 use Google\Service\Gmail;
 use Google\Service\Gmail\Message;
@@ -566,7 +567,7 @@ public function fetchUnreadEmailsAndNotify()
     $user = 'me';
     $messages = $this->service->users_messages->listUsersMessages($user, [
         'q' => 'is:unread',
-        'maxResults' => 2,
+        'maxResults' => 20,
     ])->getMessages();
 
     if (!$messages) {
@@ -575,12 +576,24 @@ public function fetchUnreadEmailsAndNotify()
     }
 
     foreach ($messages as $message) {
-        $emailData = $this->parseEmail($message->getId());
+        $messageId = $message->getId();
+
+        // Check if the email has already been processed
+        if (ProcessedEmail::where('message_id', $messageId)->exists()) {
+            Log::info("⏩ Skipping already processed email (Message ID: $messageId)");
+            continue;
+        }
+
+        $emailData = $this->parseEmail($messageId);
         if ($emailData) {
             $this->notifySlack($emailData);
+
+            // Mark the email as processed
+            ProcessedEmail::create(['message_id' => $messageId]);
         }
     }
 }
+
 
 /**
  * Parse email content from Gmail message.
