@@ -91,34 +91,41 @@ class SlackController extends Controller
      * Handle Incoming Slack Events
      */
     public function handleSlackEvent(Request $request)
-    {
-        $payload = $request->all();
-    
-        // ✅ 1) Handle Slack URL Verification Challenge
-        if (isset($payload['type']) && $payload['type'] === 'url_verification') {
-            return response($payload['challenge'], 200)
-                    ->header('Content-Type', 'text/plain');
-        }
-    
-        // ✅ 2) Handle Event Callbacks
-        if (isset($payload['type']) && $payload['type'] === 'event_callback') {
-            $event = $payload['event'] ?? [];
-    
-            if (
-                isset($event['type']) &&
-                $event['type'] === 'message' &&
-                !isset($event['bot_id'])
-            ) {
-                $channelId = $event['channel'];
-                $messageText = $event['text'];
-    
-                $aiReply = $this->openAIService->generateReply($messageText, "Context here...");
-                $this->slackService->sendMessageToChannel($aiReply, $channelId);
-            }
-        }
-    
-        // ✅ Slack expects a 200 OK even if no event is processed
-        return response()->json(['status' => 'ok']);
+{
+    $payload = $request->all();
+
+    // ✅ 1) Handle Slack URL Verification Challenge
+    if (isset($payload['type']) && $payload['type'] === 'url_verification') {
+        return response($payload['challenge'], 200)
+                ->header('Content-Type', 'text/plain');
     }
+
+    // ✅ 2) Send Immediate Acknowledgment to Slack
+    response()->json(['status' => 'ok'])->send();  // Send 200 OK immediately
+
+    // Continue processing the event in the background
+    if (isset($payload['type']) && $payload['type'] === 'event_callback') {
+        $event = $payload['event'] ?? [];
+
+        if (
+            isset($event['type']) &&
+            $event['type'] === 'message' &&
+            !isset($event['bot_id']) // ✅ Prevent bot reply loops
+        ) {
+            $channelId = $event['channel'];
+            $messageText = $event['text'];
+
+            // Process asynchronously
+            dispatch(function () use ($messageText, $channelId) {
+                $aiReply = app(OpenAIService::class)->generateReply($messageText, "Context here...");
+                app(SlackService::class)->sendMessageToChannel($aiReply, $channelId);
+            });
+        }
+    }
+
+    // Slack already received a response, no need to return again
+    exit;
+}
+
     
 }
