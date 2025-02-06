@@ -6,16 +6,22 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use App\Models\ShopifyOrder;
-
+use App\Services\ShopifyService;
 class OpenAIService
 {
     protected $apiKey;
     protected $model;
+    protected $shopifyService;
+    protected string $shopifyDomain;
+    protected string $accessToken;
 
-    public function __construct()
+    public function __construct(ShopifyService $shopifyService)
     {
+        $this->shopifyDomain = env('SHOPIFY_STORE_DOMAIN');
+        $this->accessToken = env('SHOPIFY_ACCESS_TOKEN');
         $this->apiKey = config('services.openai.api_key');
         $this->model = 'gpt-3.5-turbo'; // Using GPT-3.5 Turbo for faster, cost-effective responses
+        $this->shopifyService = $shopifyService;
     }
 
     // Fetch order by number
@@ -63,11 +69,11 @@ Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items
         try {
             preg_match('/\d+/', $customerQuery, $orderMatches);
             preg_match('/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\b/', $customerQuery, $emailMatches);
-
+    
             $orderNumber = $orderMatches[0] ?? null;
             $email = $emailMatches[0] ?? null;
-
-            // Fetch order data
+    
+            // Step 1: Fetch data from the local database
             $orders = collect();
             if ($email) {
                 $orders = $this->getOrdersByEmail($email);
@@ -77,24 +83,33 @@ Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items
                     $orders = collect([$order]);
                 }
             }
-
+    
             // Retrieve cached context
             $cacheKey = $email ?: ($orderNumber ? "order_{$orderNumber}" : 'general');
             $previousContext = $this->getCachedContext($cacheKey);
-
+    
+            // Step 2: Check if the requested information exists in the database
+            $missingInfo = $this->isInformationMissing($customerQuery, $orders);
+    
+            // Step 3: If missing, fetch from Shopify
+            if ($missingInfo) {
+                $shopifyData = $this->fetchFromShopify($orderNumber, $email);
+                $orders = $orders->merge($shopifyData); // Merge data with existing orders
+            }
+    
             // Format orders concisely
             $orderContext = $this->formatOrderDetails($orders);
-
+    
             // AI Prompt
             $prompt = "You are a professional customer support assistant. 
                        Respond concisely, using bullet points for clarity. 
                        Be empathetic and helpful, without suggesting returns.
-
+    
                        Previous Info: {$previousContext}
                        Order Info: {$orderContext}
-
+    
                        Customer Query: \"$customerQuery\"";
-
+    
             $response = Http::withToken($this->apiKey)
                 ->post('https://api.openai.com/v1/chat/completions', [
                     'model' => $this->model,
@@ -106,13 +121,13 @@ Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items
                     'temperature' => 0.6, // Slightly reduced for consistency
                     'max_tokens' => 150,   // Limit tokens to reduce costs
                 ]);
-
+    
             if ($response->successful()) {
                 $reply = $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
-
+    
                 // Update cached context for "learning"
                 $this->setCachedContext($cacheKey, "{$previousContext}\n{$customerQuery}: {$reply}");
-
+    
                 return $reply;
             } else {
                 Log::error('OpenAI API Error: ' . $response->body());
@@ -123,9 +138,73 @@ Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items
             return 'Oh no! I hit a snag. Mind trying again?';
         }
     }
-
-
     
+    // Check if the requested information exists in the database
+    private function isInformationMissing($customerQuery, $orders)
+    {
+        $keywords = [
+            'shipping' => ['shipping_address', 'tracking_number', 'tracking_url'],
+            'payment' => ['payment_status', 'financial_status'],
+            'status' => ['fulfillment_status', 'order_status'],
+        ];
+    
+        foreach ($keywords as $key => $fields) {
+            if (stripos($customerQuery, $key) !== false) {
+                foreach ($fields as $field) {
+                    if (!$orders->pluck($field)->filter()->isNotEmpty()) {
+                        return true; // Information missing
+                    }
+                }
+            }
+        }
+    
+        return false; // All required info is present
+    }
+    public function getAccessToken()
+{
+    return $this->accessToken;
+}
+
+public function getShopifyDomain()
+{
+    return $this->shopifyDomain;
+}
+    // Fetch data from Shopify if not available in the database
+    private function fetchFromShopify($orderNumber = null, $email = null)
+    {
+        try {
+            $shopifyStoreUrl = env('SHOPIFY_STORE_URL');
+            $shopifyApiKey = env('SHOPIFY_API_KEY');
+            $shopifyPassword = env('SHOPIFY_API_PASSWORD');
+    
+            $endpoint = "https://{$shopifyStoreUrl}/admin/api/2023-01/orders.json";
+            $params = [];
+    
+            if ($orderNumber) {
+                $params['name'] = $orderNumber;
+            } elseif ($email) {
+                $params['email'] = $email;
+            }
+    
+            $response = Http::withHeaders([
+                'X-Shopify-Access-Token' => $this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get("https://{$this->shopifyDomain}/admin/api/2024-01/orders.json", [
+                'id' => $orderNumber,
+                'status' => 'any'
+            ]);
+    
+            if ($response->successful()) {
+                return collect($response->json()['orders'] ?? []);
+            } else {
+                Log::error('Shopify API Error: ' . $response->body());
+                return collect();
+            }
+        } catch (\Exception $e) {
+            Log::error('Exception in Shopify API: ' . $e->getMessage());
+            return collect();
+        }
+    }
 
     public function generateSummary($emailContent)
 {

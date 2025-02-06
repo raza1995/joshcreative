@@ -282,5 +282,32 @@ public function sendAllShopifyOrdersToMixpanel(MixpanelService $mixpanelService,
 
     return "All Shopify orders sent to Mixpanel!";
 }
+public function getOrderByNumber($orderNumber)
+{
+    $response = Http::withHeaders([
+        'X-Shopify-Access-Token' => $this->accessToken,
+        'Content-Type' => 'application/json',
+    ])->get("https://{$this->shopifyDomain}/admin/api/2024-01/orders.json", [
+        'id' => $orderNumber,
+        'status' => 'any'
+    ]);
+
+    return $response->successful() ? $response->json()['orders'][0] ?? null : null;
+}
+
+// Fetch orders by Email
+public function getOrdersByEmail($email)
+{
+    $response = Http::withHeaders([
+        'X-Shopify-Access-Token' => $this->accessToken,
+        'Content-Type' => 'application/json',
+    ])->get("https://{$this->shopifyDomain}/admin/api/2024-01/orders.json", [
+        'email' => $email,
+        'status' => 'any'
+    ]);
+
+    return $response->successful() ? $response->json()['orders'] ?? [] : [];
+}
+
 
 }
