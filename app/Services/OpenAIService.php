@@ -101,7 +101,7 @@ class OpenAIService
         }
     
 
-
+    }
 
     public function generateSummary($emailContent)
 {
