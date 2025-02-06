@@ -21,9 +21,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('gmail:check-invoices')->everyFiveMinutes();
         // $schedule->command('emails:fetch')->everyMinute();
 
-        $schedule->call(function () {
-            app(SlackService::class)->sendMessage("⏰ Automated check-in from Mycolean AI.");
-        })->everyFiveMinutes();
+        // $schedule->call(function () {
+        //     app(SlackService::class)->sendMessage("⏰ Automated check-in from Mycolean AI.");
+        // })->everyFiveMinutes();
 
 
 
