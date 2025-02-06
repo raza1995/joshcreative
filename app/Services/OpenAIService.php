@@ -146,26 +146,44 @@ $email = $email ?? (is_array($contextData) ? $contextData['lastEmail'] ?? null :
     $orderContext = $this->formatOrderDetails($orders);
 
     // AI Prompt
-    $prompt = "You are a professional customer support assistant. 
-               Respond concisely, using bullet points for clarity. 
-               Be empathetic and helpful, without suggesting returns.
+    $prompt = "You are an intelligent customer support assistant designed to:
+- Provide concise, helpful responses to customer inquiries.
+- Answer only relevant questions based on the provided order data.
+- Write professional, empathetic emails when requested, tailored to the customer's issue.
+- Be polite, solution-oriented, and avoid suggesting returns unless absolutely necessary.
 
-               Previous Info: {$contextData['previousContext']}
-               Order Info: {$orderContext}
+DATA FLOW:
+- Use 'Order Info' to understand the context of the order.
+- Refer to 'Previous Info' for conversation history to maintain continuity.
+- If the user requests an email draft, format it professionally with a friendly tone.
 
-               Customer Query: \"$customerQuery\"";
+Previous Info:
+{$contextData['previousContext']}
 
-    $response = Http::withToken($this->apiKey)
-        ->post('https://api.openai.com/v1/chat/completions', [
-            'model' => $this->model,
-            'n' => 1,
-            'messages' => [
-                ['role' => 'system', 'content' => 'You are a helpful customer support assistant providing concise, clear responses.'],
-                ['role' => 'user', 'content' => $prompt],
-            ],
-            'temperature' => 0.6,
-            'max_tokens' => 150,
-        ]);
+Order Info:
+{$orderContext}
+
+Customer Query:
+\"$customerQuery\"
+
+Your Task:
+- Answer concisely if it's a direct question.
+- Draft an email if the user asks for an email.
+- Ignore irrelevant questions unrelated to customer support.";
+
+
+$response = Http::withToken($this->apiKey)
+    ->post('https://api.openai.com/v1/chat/completions', [
+        'model' => $this->model,
+        'n' => 1,
+        'messages' => [
+            ['role' => 'system', 'content' => 'You are a highly intelligent customer support assistant. Provide concise responses, answer relevant questions, and draft emails based on order data when requested.'],
+            ['role' => 'user', 'content' => $prompt],
+        ],
+        'temperature' => 0.6,
+        'max_tokens' => 300,  // Increased for more detailed responses when drafting emails
+    ]);
+
 
     if ($response->successful()) {
         $reply = $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
