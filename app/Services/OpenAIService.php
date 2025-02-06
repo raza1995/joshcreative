@@ -29,7 +29,7 @@ class OpenAIService
      *
      * @return string
      */
-    public function generateReply(array $conversation, string $context = '')
+    public function generateReply($conversation, string $context = '')
     {
         try {
             // Start with a System message that defines the AI's "persona" or instructions
