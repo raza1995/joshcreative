@@ -42,6 +42,9 @@ Route::middleware(['public.urls'])->group(function () {
     Route::post('/slack/ai-reply', [SlackController::class, 'generateAIReply']);
     Route::post('/slack/events', [SlackController::class, 'handleSlackEvent']);
 
+Route::post('/slack/send-test', [SlackController::class, 'sendTestMessage']);
+
+
 
 });
 
