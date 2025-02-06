@@ -143,7 +143,7 @@ Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items
     private function isInformationMissing($customerQuery, $orders)
     {
         $keywords = [
-            'shipping' => ['shipping_address', 'tracking_number', 'tracking_url'],
+            'shipping' => ['shipping_address', 'tracking_number', 'tracking_url','location'],
             'payment' => ['payment_status', 'financial_status'],
             'status' => ['fulfillment_status', 'order_status'],
         ];
@@ -171,40 +171,40 @@ public function getShopifyDomain()
 }
     // Fetch data from Shopify if not available in the database
     private function fetchFromShopify($orderNumber = null, $email = null)
-    {
-        try {
-            $shopifyStoreUrl = env('SHOPIFY_STORE_URL');
-            $shopifyApiKey = env('SHOPIFY_API_KEY');
-            $shopifyPassword = env('SHOPIFY_API_PASSWORD');
-    
-            $endpoint = "https://{$shopifyStoreUrl}/admin/api/2023-01/orders.json";
-            $params = [];
-    
-            if ($orderNumber) {
-                $params['name'] = $orderNumber;
-            } elseif ($email) {
-                $params['email'] = $email;
+{
+    try {
+        $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+        $params = [
+            'status' => 'any',  // Include all orders (open, closed, etc.)
+            'limit' => 1        // Limit to the first order to reduce data load
+        ];
+
+        if ($orderNumber) {
+            $params['name'] = $orderNumber;  // Correct way to query by order number
+        } elseif ($email) {
+            $params['email'] = $email;       // Query by email address
+        }
+
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $this->accessToken,
+            'Content-Type' => 'application/json',
+        ])->get($endpoint, $params);
+
+        if ($response->successful()) {
+            $orders = collect($response->json()['orders'] ?? []);
+            if ($orders->isEmpty()) {
+                Log::info("No orders found for OrderNumber: {$orderNumber}, Email: {$email}");
             }
-    
-            $response = Http::withHeaders([
-                'X-Shopify-Access-Token' => $this->accessToken,
-                'Content-Type' => 'application/json',
-            ])->get("https://{$this->shopifyDomain}/admin/api/2024-01/orders.json", [
-                'id' => $orderNumber,
-                'status' => 'any'
-            ]);
-    
-            if ($response->successful()) {
-                return collect($response->json()['orders'] ?? []);
-            } else {
-                Log::error('Shopify API Error: ' . $response->body());
-                return collect();
-            }
-        } catch (\Exception $e) {
-            Log::error('Exception in Shopify API: ' . $e->getMessage());
+            return $orders;
+        } else {
+            Log::error('Shopify API Error: ' . $response->body());
             return collect();
         }
+    } catch (\Exception $e) {
+        Log::error('Exception in Shopify API: ' . $e->getMessage());
+        return collect();
     }
+}
 
     public function generateSummary($emailContent)
 {
