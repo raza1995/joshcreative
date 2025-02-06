@@ -4,23 +4,6 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class OpenAIService
-{
-    protected $apiKey;
-    protected $model;
-
-    public function __construct()
-    {
-        $this->apiKey = config('services.openai.api_key');
-        $this->model = config('services.openai.model', 'gpt-4');
-    }
-
-    <?php
-
-namespace App\Services;
-
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class OpenAIService
 {
