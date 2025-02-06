@@ -8,18 +8,18 @@ use App\Models\ShopifyOrder;
 use Google\Service\Gmail\Draft;
 use Google\Service\Gmail\ModifyMessageRequest;
 use Illuminate\Support\Facades\Log;
-
+use App\Services\SlackService;
 class GmailService
 {
     protected $client;
     protected $tokenPath;
-
+    protected $slackService;
     protected $service;
 
-    public function __construct()
+    public function __construct(SlackService $slackService)
     {
         $this->tokenPath = storage_path('app/token.json');
-
+        $this->slackService = $slackService;
         $this->client = new Client();
         $this->client->setAuthConfig(storage_path('app/credentials.json'));
         $this->client->addScope(Gmail::MAIL_GOOGLE_COM);
@@ -558,6 +558,82 @@ public function searchMessages($query, $userId = 'me')
         Log::error("🚨 Error in searchMessages: " . $e->getMessage());
     }
     return $messages;
+}
+
+
+public function fetchUnreadEmailsAndNotify()
+{
+    $user = 'me';
+    $messages = $this->service->users_messages->listUsersMessages($user, [
+        'q' => 'is:unread',
+        'maxResults' => 10,
+    ])->getMessages();
+
+    if (!$messages) {
+        Log::info('✅ No new unread emails found.');
+        return;
+    }
+
+    foreach ($messages as $message) {
+        $emailData = $this->parseEmail($message->getId());
+        if ($emailData) {
+            $this->notifySlack($emailData);
+        }
+    }
+}
+
+/**
+ * Parse email content from Gmail message.
+ */
+private function parseEmail($messageId)
+{
+    $message = $this->service->users_messages->get('me', $messageId, ['format' => 'full']);
+    $headers = $message->getPayload()->getHeaders();
+
+    $from = '';
+    $subject = '';
+    foreach ($headers as $header) {
+        if ($header->getName() === 'From') {
+            $from = $header->getValue();
+        }
+        if ($header->getName() === 'Subject') {
+            $subject = $header->getValue();
+        }
+    }
+
+    $body = '';
+    $parts = $message->getPayload()->getParts();
+    if ($parts) {
+        foreach ($parts as $part) {
+            if ($part->getMimeType() === 'text/plain') {
+                $body = base64_decode(strtr($part->getBody()->getData(), '-_', '+/'));
+                break;
+            }
+        }
+    } else {
+        $body = base64_decode(strtr($message->getPayload()->getBody()->getData(), '-_', '+/'));
+    }
+
+    return [
+        'from' => $from,
+        'subject' => $subject,
+        'body' => substr($body, 0, 300) . '...', // Shorten body preview
+    ];
+}
+
+/**
+ * Send Slack notification.
+ */
+private function notifySlack($emailData)
+{
+    $summary = app(OpenAIService::class)->generateSummary($emailData['body']);
+
+    $message = "📧 *New Customer Email*\n"
+             . "*From:* {$emailData['from']}\n"
+             . "*Subject:* {$emailData['subject']}\n"
+             . "*Summary:* $summary";
+
+    $this->slackService->sendMessage($message);
 }
 
 

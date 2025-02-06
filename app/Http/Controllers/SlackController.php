@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\OpenAIService;
 use App\Services\SlackService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -9,12 +10,32 @@ use Illuminate\Support\Facades\Http;
 class SlackController extends Controller
 {
     protected $slackService;
+    protected $openAIService;
 
-    public function __construct(SlackService $slackService)
+    public function __construct(SlackService $slackService, OpenAIService $openAIService)
     {
         $this->slackService = $slackService;
+        $this->openAIService = $openAIService;
     }
 
+    public function generateAIReply(Request $request)
+    {
+        $request->validate([
+            'customer_query' => 'required|string|max:1000',
+        ]);
+
+        $customerQuery = $request->input('customer_query');
+
+        // Optional: Add context like order status or customer info
+        $context = "Order Status: Delivered on time. No return policy for opened items.";
+
+        $aiReply = $this->openAIService->generateReply($customerQuery, $context);
+
+        // Send AI-generated reply to Slack
+        $this->slackService->sendMessage("🤖 AI Reply:\n$aiReply");
+
+        return response()->json(['reply' => $aiReply]);
+    }
     /**
      * Send a test message to Slack
      */
