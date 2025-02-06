@@ -562,46 +562,46 @@ public function searchMessages($query, $userId = 'me')
 }
 
 
-public function fetchUnreadEmailsAndNotify()
-{
-    $user = 'me';
-    $messages = $this->service->users_messages->listUsersMessages($user, [
-        'q' => 'is:unread',
-        'maxResults' => 20,
-    ])->getMessages();
+// public function fetchUnreadEmailsAndNotify()
+// {
+//     $user = 'me';
+//     $messages = $this->service->users_messages->listUsersMessages($user, [
+//         'q' => 'is:unread',
+//         'maxResults' => 20,
+//     ])->getMessages();
 
-    if (!$messages) {
-        Log::info('✅ No new unread emails found.');
-        return;
-    }
+//     if (!$messages) {
+//         Log::info('✅ No new unread emails found.');
+//         return;
+//     }
 
-    foreach ($messages as $message) {
-        $messageId = $message->getId();
-        Log::info("📩 Processing email with Message ID: $messageId");
+//     foreach ($messages as $message) {
+//         $messageId = $message->getId();
+//         Log::info("📩 Processing email with Message ID: $messageId");
 
-        // Check if the email has already been processed
-        $alreadyProcessed = ProcessedEmail::where('message_id', $messageId)->exists();
-        Log::info("🔍 Check if Message ID $messageId already processed: " . ($alreadyProcessed ? 'YES' : 'NO'));
+//         // Check if the email has already been processed
+//         $alreadyProcessed = ProcessedEmail::where('message_id', $messageId)->exists();
+//         Log::info("🔍 Check if Message ID $messageId already processed: " . ($alreadyProcessed ? 'YES' : 'NO'));
 
-        if ($alreadyProcessed) {
-            Log::info("⏩ Skipping already processed email (Message ID: $messageId)");
-            continue;
-        }
+//         if ($alreadyProcessed) {
+//             Log::info("⏩ Skipping already processed email (Message ID: $messageId)");
+//             continue;
+//         }
 
-        $emailData = $this->parseEmail($messageId);
-        if ($emailData) {
-            $this->notifySlack($emailData);
+//         $emailData = $this->parseEmail($messageId);
+//         if ($emailData) {
+//             $this->notifySlack($emailData);
 
-            // Save the message ID after sending notification
-            try {
-                ProcessedEmail::create(['message_id' => $messageId]);
-                Log::info("✅ Message ID $messageId saved as processed.");
-            } catch (\Exception $e) {
-                Log::error("🚨 Failed to save Message ID $messageId: " . $e->getMessage());
-            }
-        }
-    }
-}
+//             // Save the message ID after sending notification
+//             try {
+//                 ProcessedEmail::create(['message_id' => $messageId]);
+//                 Log::info("✅ Message ID $messageId saved as processed.");
+//             } catch (\Exception $e) {
+//                 Log::error("🚨 Failed to save Message ID $messageId: " . $e->getMessage());
+//             }
+//         }
+//     }
+// }
 
 
 
