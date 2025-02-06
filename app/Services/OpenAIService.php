@@ -202,7 +202,7 @@ $response = Http::withToken($this->apiKey)
             'ai' => $reply,
         ];
         $this->saveConversation($userIdentifier, $orderNumber, $conversationLog);
-
+dd($conversationLog);
         // Update cached context with new conversation data
         $this->setCachedContext($cacheKey, [
             'previousContext' => "{$contextData['previousContext']}\n{$customerQuery}: {$reply}",
