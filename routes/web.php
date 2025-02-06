@@ -6,6 +6,7 @@ use App\Http\Controllers\GmailWebhookController;
 use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ShopifyOrderController;
+use App\Http\Controllers\SlackController;
 use App\Services\ShopifyService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -33,8 +34,13 @@ Route::get('/', function () {
 });
 
 Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
+Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);
+// routes/web.php
+Route::middleware(['public.urls'])->group(function () {
+    Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);
+    Route::post('/slack/webhook', [SlackController::class, 'handleWebhook']);
 
-
+});
 
 Route::get('/test-email-processing', function (GmailShopifyInvoiceService $service) {
     $service->processLabeledEmails();

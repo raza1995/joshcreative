@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+class SlackService
+{
+    protected $botToken;
+    protected $channelId;
+
+    public function __construct()
+    {
+        $this->botToken = config('slack.bot_token');
+        $this->channelId = config('slack.channel_id');
+    }
+
+    /**
+     * Send a message to Slack
+     */
+    public function sendMessage($message)
+{
+    try {
+        $response = Http::withToken($this->botToken)
+            ->post('https://slack.com/api/chat.postMessage', [
+                'channel' => $this->channelId,
+                'text'    => $message,
+            ]);
+
+        // Log full response for debugging
+        Log::info("Slack API Response:", [
+            'status' => $response->status(),
+            'msg' => $message,
+            'channelId' => $this->channelId,
+            'body'   => $response->json()
+        ]);
+
+        if ($response->successful() && $response->json()['ok']) {
+            Log::info("✅ Message sent to Slack: $message");
+            return true;
+        }
+
+        Log::error("🚨 Slack API Error: ", $response->json());
+        return false;
+
+    } catch (\Exception $e) {
+        Log::error("🚨 Exception in SlackService: " . $e->getMessage());
+        return false;
+    }
+}
+
+}
