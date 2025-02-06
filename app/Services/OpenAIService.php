@@ -38,20 +38,33 @@ class OpenAIService
 
     // Format order details compactly
     private function formatOrderDetails($orders)
-    {
-        $formattedDetails = '';
-    
-        foreach ($orders as $order) {
-            $formattedDetails .= "
-            Order #{$order->order_number} | {$order->product_name} ({$order->number_of_items} items)
-            - Name: {$order->customer_name}
-            - Paid: {$order->paid_amount} (Disc: {$order->discount}, Coupon: {$order->coupon})
-            - Tracking: {$order->tracking_number} | [Track]({$order->tracking_url})
-            - Date: {$order->order_date}\n\n";
-        }
-    
-        return $formattedDetails ?: "No orders found.";
+{
+    $formattedDetails = '';
+
+    foreach ($orders as $order) {
+        // Check if $order is an array or object
+        $orderNumber = is_array($order) ? $order['order_number'] : $order->order_number;
+        $productName = is_array($order) ? $order['product_name'] : $order->product_name;
+        $numberOfItems = is_array($order) ? $order['number_of_items'] : $order->number_of_items;
+        $customerName = is_array($order) ? $order['customer_name'] : $order->customer_name;
+        $paidAmount = is_array($order) ? $order['paid_amount'] : $order->paid_amount;
+        $discount = is_array($order) ? $order['discount'] : $order->discount;
+        $coupon = is_array($order) ? $order['coupon'] : $order->coupon;
+        $trackingNumber = is_array($order) ? $order['tracking_number'] : $order->tracking_number;
+        $trackingUrl = is_array($order) ? $order['tracking_url'] : $order->tracking_url;
+        $orderDate = is_array($order) ? $order['order_date'] : $order->order_date;
+
+        $formattedDetails .= "
+        Order #{$orderNumber} | {$productName} ({$numberOfItems} items)
+        - Name: {$customerName}
+        - Paid: {$paidAmount} (Disc: {$discount}, Coupon: {$coupon})
+        - Tracking: {$trackingNumber} | [Track]({$trackingUrl})
+        - Date: {$orderDate}\n\n";
     }
+
+    return $formattedDetails ?: "No orders found.";
+}
+
     
     // Retrieve cached conversation context
     private function getCachedContext($key)
@@ -103,8 +116,10 @@ public function generateReply($customerQuery)
     $contextData = $this->getCachedContext($cacheKey);
 
     // Fallback to previous data if no new info is provided
-    $orderNumber = $orderNumber ?? $contextData['lastOrderNumber'];
-    $email = $email ?? $contextData['lastEmail'];
+ // Fallback to previous data if no new info is provided
+$orderNumber = $orderNumber ?? (is_array($contextData) ? $contextData['lastOrderNumber'] ?? null : null);
+$email = $email ?? (is_array($contextData) ? $contextData['lastEmail'] ?? null : null);
+
 
     // Step 1: Fetch data from the local database
     $orders = collect();
