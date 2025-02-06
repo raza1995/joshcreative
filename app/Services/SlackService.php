@@ -12,8 +12,8 @@ class SlackService
 
     public function __construct()
     {
-        $this->botToken = config('slack.bot_token');
-        $this->channelId = config('slack.channel_id');
+        $this->botToken = env('SLACK_BOT_TOKEN');
+        $this->channelId = env('SLACK_CHANNEL_ID');
     }
 
     /**
@@ -48,6 +48,41 @@ class SlackService
         Log::error("🚨 Exception in SlackService: " . $e->getMessage());
         return false;
     }
+}
+
+public function sendMessageToChannel($message, $channelId)
+{
+    try {
+        $response = Http::withToken($this->botToken)
+            ->post('https://slack.com/api/chat.postMessage', [
+                'channel' => $channelId,
+                'text'    => $message,
+            ]);
+
+        Log::info("Slack API Response:", [
+            'status' => $response->status(),
+            'msg' => $message,
+            'channelId' => $channelId,
+            'body'   => $response->json()
+        ]);
+
+        if ($response->successful() && ($response->json()['ok'] ?? false)) {
+            Log::info("✅ Message sent to Slack channel $channelId: $message");
+            return true;
+        }
+
+        Log::error("🚨 Slack API Error: ", $response->json());
+        return false;
+
+    } catch (\Exception $e) {
+        Log::error("🚨 Exception in SlackService: " . $e->getMessage());
+        return false;
+    }
+}
+public function sendMessageTo($message)
+{
+    $defaultChannelId = env('SLACK_CHANNEL_ID');
+    return $this->sendMessageToChannel($message, $defaultChannelId);
 }
 
 }

@@ -566,7 +566,7 @@ public function fetchUnreadEmailsAndNotify()
     $user = 'me';
     $messages = $this->service->users_messages->listUsersMessages($user, [
         'q' => 'is:unread',
-        'maxResults' => 10,
+        'maxResults' => 2,
     ])->getMessages();
 
     if (!$messages) {

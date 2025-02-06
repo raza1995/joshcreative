@@ -40,6 +40,7 @@ Route::middleware(['public.urls'])->group(function () {
     Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback'])->name('slack.oauth.callback');
     Route::post('/slack/webhook', [SlackController::class, 'handleWebhook']);
     Route::post('/slack/ai-reply', [SlackController::class, 'generateAIReply']);
+    Route::post('/slack/events', [SlackController::class, 'handleSlackEvent']);
 
 
 });
