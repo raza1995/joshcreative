@@ -6,6 +6,7 @@ use App\Services\OpenAIService;
 use App\Services\SlackService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SlackController extends Controller
 {
@@ -18,6 +19,9 @@ class SlackController extends Controller
         $this->openAIService = $openAIService;
     }
 
+    /**
+     * Generate AI Reply based on Customer Query
+     */
     public function generateAIReply(Request $request)
     {
         $request->validate([
@@ -25,107 +29,119 @@ class SlackController extends Controller
         ]);
 
         $customerQuery = $request->input('customer_query');
-
-        // Optional: Add context like order status or customer info
         $context = "Order Status: Delivered on time. No return policy for opened items.";
 
-        $aiReply = $this->openAIService->generateReply($customerQuery, $context);
+        try {
+            $aiReply = $this->openAIService->generateReply($customerQuery, $context);
+            $this->slackService->sendMessage("🤖 AI Reply:\n$aiReply");
 
-        // Send AI-generated reply to Slack
-        $this->slackService->sendMessage("🤖 AI Reply:\n$aiReply");
-
-        return response()->json(['reply' => $aiReply]);
+            return response()->json(['reply' => $aiReply], 200);
+        } catch (\Exception $e) {
+            Log::error("AI Reply Generation Failed: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate AI reply'], 500);
+        }
     }
+
     /**
-     * Send a test message to Slack
+     * Send a Test Message to Slack
      */
     public function sendTestMessage(Request $request)
     {
         $message = $request->input('message', 'Hello from Mycolean AI Assistant!');
-        $this->slackService->sendMessage($message);
-
-        return response()->json(['status' => 'Message sent']);
+        
+        try {
+            $this->slackService->sendMessage($message);
+            return response()->json(['status' => 'Message sent'], 200);
+        } catch (\Exception $e) {
+            Log::error("Slack Message Failed: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to send message'], 500);
+        }
     }
 
+    /**
+     * Handle Slack OAuth Callback
+     */
     public function handleOAuthCallback(Request $request)
     {
         $code = $request->input('code');
 
-        $response = Http::asForm()->post('https://slack.com/api/oauth.v2.access', [
-            'client_id'     => env('SLACK_CLIENT_ID'),
-            'client_secret' => env('SLACK_CLIENT_SECRET'),
-            'code'          => $code,
-            'redirect_uri'  => route('slack.oauth.callback'),
-        ]);
+        try {
+            $response = Http::asForm()->post('https://slack.com/api/oauth.v2.access', [
+                'client_id'     => env('SLACK_CLIENT_ID'),
+                'client_secret' => env('SLACK_CLIENT_SECRET'),
+                'code'          => $code,
+                'redirect_uri'  => route('slack.oauth.callback'),
+            ]);
 
-        $data = $response->json();
+            $data = $response->json();
 
-        if (isset($data['access_token'])) {
-            return redirect('/dashboard')->with('success', 'Slack Connected Successfully!');
-        } else {
-            return redirect('/')->with('error', 'Slack Authorization Failed!');
+            if (isset($data['access_token'])) {
+                return redirect('/dashboard')->with('success', 'Slack Connected Successfully!');
+            } else {
+                Log::error("Slack OAuth Failed: " . json_encode($data));
+                return redirect('/')->with('error', 'Slack Authorization Failed!');
+            }
+        } catch (\Exception $e) {
+            Log::error("Slack OAuth Exception: " . $e->getMessage());
+            return redirect('/')->with('error', 'An error occurred during Slack authorization.');
         }
     }
 
+    /**
+     * Handle Incoming Slack Events
+     */
     public function handleSlackEvent(Request $request)
     {
-
         $timestamp = $request->header('X-Slack-Request-Timestamp');
         $signature = $request->header('X-Slack-Signature');
-        $body      = $request->getContent();
-        $signingSecret = env('SLACK_SIGNING_SECRET'); // store in .env
-    
-        // Simple check to avoid replay attacks
+        $body = $request->getContent();
+        $signingSecret = env('SLACK_SIGNING_SECRET');
+
+        // 1️⃣ Prevent Replay Attacks
         if (abs(time() - $timestamp) > 300) {
             return response()->json(['error' => 'Invalid request timestamp'], 400);
         }
-    
-        // Create the basestring for signing verification
-        $basestring = 'v0:' . $timestamp . ':' . $body;
-        $computedSignature = 'v0=' . hash_hmac('sha256', $basestring, $signingSecret);
-    
+
+        // 2️⃣ Verify Slack Signature
+        $baseString = "v0:$timestamp:$body";
+        $computedSignature = 'v0=' . hash_hmac('sha256', $baseString, $signingSecret);
+
         if (!hash_equals($computedSignature, $signature)) {
             return response()->json(['error' => 'Invalid signature'], 400);
         }
-        // Parse the incoming Slack payload
+
+        // 3️⃣ Handle Payload
         $payload = $request->all();
 
-        // 1) Handle Slack URL Verification Challenge
-        //    Slack will send a 'challenge' parameter when you first add a Request URL
+        // Handle Slack URL Verification Challenge
         if (isset($payload['type']) && $payload['type'] === 'url_verification') {
             return response($payload['challenge'], 200)
-                    ->header('Content-Type', 'text/plain');
+                ->header('Content-Type', 'text/plain');
         }
 
-        // 2) Optionally, verify Slack signature (security best practice)
-        // see Slack docs: https://api.slack.com/authentication/verifying-requests-from-slack
-        // We'll skip the details here for brevity (code snippet below).
-
-        // 3) Handle "event_callback" type
+        // Handle Event Callback
         if (isset($payload['type']) && $payload['type'] === 'event_callback') {
             $event = $payload['event'] ?? [];
 
-            // We only care about actual messages (not e.g. channel join events, etc.)
-            // Also skip bot messages to avoid infinite loops
             if (
-                isset($event['type']) && $event['type'] === 'message' &&
-                !isset($event['bot_id']) // ensure it's not from a bot
+                isset($event['type']) &&
+                $event['type'] === 'message' &&
+                !isset($event['bot_id'])
             ) {
                 $channelId = $event['channel'];
                 $messageText = $event['text'];
 
-                // (Optional) Add any context you want to pass to your AI
-                $context = "Some context that might inform OpenAI's reply...";
-
-                // 4) Generate a reply using your OpenAIService
-                $aiReply = $this->openAIService->generateReply($messageText, $context);
-
-                // 5) Respond in Slack by sending a message to the same channel
-                $this->slackService->sendMessageToChannel($aiReply, $channelId);
+                try {
+                    $context = "Some context that might inform OpenAI's reply...";
+                    $aiReply = $this->openAIService->generateReply($messageText, $context);
+                    $this->slackService->sendMessageToChannel($aiReply, $channelId);
+                } catch (\Exception $e) {
+                    Log::error("Slack Event Handling Failed: " . $e->getMessage());
+                    $this->slackService->sendMessageToChannel("🚨 Error processing message.", $channelId);
+                }
             }
         }
 
-        // Slack expects a 200 OK response even if we do nothing
         return response()->json(['status' => 'ok']);
     }
 }
