@@ -151,7 +151,7 @@ private function getLastConversationByEmail(string $email)
 private function generateEmailReply(string $conversationData): string
 {
     $prompt = <<<EOT
-You are an AI customer support assistant responsible for drafting professional, friendly, and empathetic email replies.
+You are an AI Smart responsible for drafting professional, friendly, and empathetic email replies and also you can understand json data array data coding to craft emails.
 
 Based on the following conversation history, draft a clear, polite, and helpful response.
 
