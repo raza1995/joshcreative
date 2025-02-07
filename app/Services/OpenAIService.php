@@ -261,8 +261,14 @@ EOT;
         }
 
 
-        if (preg_match('/\b(generate|draft|write|create|compose|prepare|formulate|build|craft|send)\s*(reply|email reply|email response|response|follow-up|customer reply|customer response|email draft|message|customer message)\b/i', $query)) {
+        if (preg_match('/\b(generate|draft|write|create|compose|prepare|formulate|build|craft|send)\s*(?:a\s*)?(reply|email reply|email response|response|follow-up|customer reply|customer response|email draft|message|customer message)?\s*(?:for\s*)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})?\b/i', $query, $matches)) {
+            Log::info('Detected generate reply email request.');
             $intent['generateReplyEmail'] = true;
+        
+            // Extract email if present
+            if (isset($matches[3])) {
+                $intent['email'] = $matches[3];
+            }
         }
         
          // Specific field requests
