@@ -143,67 +143,58 @@ class OpenAIService
      * ======================================================================== */
 
      private function detectIntent(string $query): array
-    {
-        $lowerQuery = strtolower($query);
+{
+    $lowerQuery = strtolower($query);
 
-        $intent = [
-            'helpRequest'   => false,
-            'updateRequest' => false,
-            'lastRecord'    => false,
-            'specificField' => null,
-            'removeCache'   => false,   // <-- new
-        ];
+    $intent = [
+        'helpRequest'   => false,
+        'updateRequest' => false,
+        'lastRecord'    => false,
+        'specificField' => null,
+        'removeCache'   => false,
+        'fetchLastOrders' => 0, // New intent
+    ];
 
-        // 1. Check for remove cache
-        //    E.g. "remove all cache", "delete all cache", "clear all cache"
-        $removeCachePattern = '/\b(remove|delete|clear)\b.*\bcache\b/i';
-        if (preg_match($removeCachePattern, $query)) {
-            $intent['removeCache'] = true;
-        }
-
-        // 2. Check for help
-        if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
-            $intent['helpRequest'] = true;
-        }
-
-        // 3. Check for update
-        $updatePatterns = [
-            '/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i'
-        ];
-        foreach ($updatePatterns as $pattern) {
-            if (preg_match($pattern, $query)) {
-                $intent['updateRequest'] = true;
-                break;
-            }
-        }
-
-        // 4. Check for last record
-        $lastRecordPatterns = [
-            '/\b(last record|previous order|recent order|show last|latest order|last details)\b/i'
-        ];
-        foreach ($lastRecordPatterns as $pattern) {
-            if (preg_match($pattern, $query)) {
-                $intent['lastRecord'] = true;
-                break;
-            }
-        }
-
-        // 5. Check for specific field
-        $specificFieldPatterns = [
-            'email_address' => '/\b(email|e-mail|mail address)\b/i',
-            'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
-            'phone'         => '/\b(phone|contact number|mobile)\b/i',
-        ];
-        foreach ($specificFieldPatterns as $field => $pattern) {
-            if (preg_match($pattern, $query)) {
-                $intent['specificField'] = $field;
-                break;
-            }
-        }
-        
-        return $intent;
-    
+    // Check for removing cache
+    if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
+        $intent['removeCache'] = true;
     }
+
+    // Help request
+    if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
+        $intent['helpRequest'] = true;
+    }
+
+    // Update request
+    if (preg_match('/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i', $query)) {
+        $intent['updateRequest'] = true;
+    }
+
+    // Last record
+    if (preg_match('/\b(last record|previous order|recent order|show last|latest order|last details)\b/i', $query)) {
+        $intent['lastRecord'] = true;
+    }
+
+    // New: Fetch last X orders
+    if (preg_match('/get last (\d+) orders/i', $query, $matches)) {
+        $intent['fetchLastOrders'] = (int) $matches[1]; // Extract number
+    }
+
+    // Specific field requests
+    $specificFieldPatterns = [
+        'email_address' => '/\b(email|e-mail|mail address)\b/i',
+        'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
+        'phone'         => '/\b(phone|contact number|mobile)\b/i',
+    ];
+    foreach ($specificFieldPatterns as $field => $pattern) {
+        if (preg_match($pattern, $query)) {
+            $intent['specificField'] = $field;
+            break;
+        }
+    }
+
+    return $intent;
+}
 
     /**
      * If user specifically wants a field that DB doesn't store, 
@@ -551,27 +542,24 @@ EOT;
     }
 
     private function formatOrderDetails(Collection $orders): string
-    {
-        if ($orders->isEmpty()) {
-            return "No orders found.";
-        }
-
-        $formatted = '';
-        foreach ($orders as $order) {
-            $formatted .= "Order: " . ($order['order_number'] ?? 'N/A') . "\n"
-                . " - Date: "       . ($order['order_date']      ?? 'N/A') . "\n"
-                . " - Name: "       . ($order['customer_name']   ?? 'N/A') . "\n"
-                . " - Email: "      . ($order['email_address']   ?? 'N/A') . "\n"
-                . " - Product(s): " . ($order['product_name']     ?? 'N/A')
-                . " (Items: "       . ($order['number_of_items']  ?? 'N/A') . ")\n"
-                . " - Paid: "       . ($order['paid_amount']     ?? 'N/A') . "\n"
-                . " - Discount: "   . ($order['discount']        ?? '0.00')
-                . " (Coupon: "      . ($order['coupon']          ?? 'None') . ")\n"
-                . " - Tracking: "   . (($order['tracking_number'] ?? 'N/A'))
-                . " | [Track]("     . ($order['tracking_url']     ?? '#') . ")\n\n";
-        }
-        return $formatted;
+{
+    if ($orders->isEmpty()) {
+        return "No orders found.";
     }
+
+    $formatted = '';
+    foreach ($orders as $order) {
+        $formatted .= "Order: " . ($order['order_number'] ?? 'N/A') . "\n"
+            . " - Date: "       . ($order['created_at']      ?? 'N/A') . "\n"
+            . " - Name: "       . ($this->resolveCustomerName($order) ?? 'N/A') . "\n"
+            . " - Email: "      . ($order['email']           ?? 'N/A') . "\n"
+            . " - Paid: $"      . ($order['total_price']     ?? 'N/A') . "\n"
+            . " - Status: "     . ($order['financial_status'] ?? 'N/A') . "\n"
+            . " - Tracking: "   . (($order['fulfillments'][0]['tracking_number'] ?? 'N/A')) . "\n\n";
+    }
+    return $formatted;
+}
+
 
     /* ========================================================================
      *                 OPENAI PROMPT & RESPONSE
@@ -863,5 +851,35 @@ EOT;
          $contextData['previousContext'] = "[CONTEXT WAS SUMMARIZED]\n" . $summary;
          return $contextData;
      }
+
+
+     private function fetchLastOrdersFromShopify(int $limit = 2): Collection
+{
+    try {
+        $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+        $params = [
+            'status' => 'any',
+            'limit'  => $limit,
+            'order'  => 'created_at desc' // Ensures latest orders
+        ];
+
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $this->accessToken,
+            'Content-Type'           => 'application/json',
+        ])->get($endpoint, $params);
+
+        if ($response->successful()) {
+            $json = $response->json();
+            return collect($json['orders'] ?? []);
+        }
+
+        Log::error('Shopify API Error (Last Orders): ' . $response->body());
+        return collect();
+    } catch (\Exception $e) {
+        Log::error('Shopify Exception (Last Orders): ' . $e->getMessage());
+        return collect();
+    }
+}
+
  
 }
