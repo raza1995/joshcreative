@@ -19,63 +19,45 @@ class OpenAIService
     protected string $accessToken;
 
     // ~~~~~~~~~ CONFIG CONSTANTS ~~~~~~~~~
-    /**
-     * The maximum character length of conversation context
-     * before we attempt to summarize it.
-     */
-    private const MAX_CONTEXT_LENGTH = 2000;
-
-    /**
-     * Summaries can be appended or replace older context 
-     * to prevent token overflow.
-     */
+    private const MAX_CONTEXT_LENGTH         = 2000;
     private const CONTEXT_SUMMARY_CHUNK_SIZE = 1000;
 
     public function __construct(ShopifyService $shopifyService)
     {
-        // Load env config
-        $this->shopifyDomain = env('SHOPIFY_STORE_DOMAIN');
-        $this->accessToken   = env('SHOPIFY_ACCESS_TOKEN');
-        $this->apiKey        = config('services.openai.api_key');
-        $this->model         = 'gpt-3.5-turbo';
-
-        $this->shopifyService = $shopifyService;
+        $this->shopifyDomain   = env('SHOPIFY_STORE_DOMAIN');
+        $this->accessToken     = env('SHOPIFY_ACCESS_TOKEN');
+        $this->apiKey          = config('services.openai.api_key');
+        $this->model           = 'gpt-3.5-turbo';
+        $this->shopifyService  = $shopifyService;
     }
 
     /**
-     * Primary function to handle a user query, fetch needed data,
-     * and return an AI-based reply (can be Slack-formatted).
-     *
-     * @param  string       $customerQuery    The user's query, e.g. "What's the status of order #1234"
-     * @param  bool         $useSlackBlocks   If true, returns Slack BlockKit format
-     * @param  string|null  $slackUserId      If you have a Slack user ID for unique identification
-     * @return string|array
+     * Main entry point for generating a reply. 
+     * - We fetch from DB first for basic info.
+     * - If user wants more detail, we fetch from Shopify (no DB update).
      */
     public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
     {
-        // 1. Detect if user asked for /help
+        // 1. Detect overall intent (/help, etc.)
         $intent = $this->detectIntent($customerQuery);
         if ($intent['helpRequest']) {
-            // Return help text or Slack blocks with instructions
             return $this->generateHelpResponse($useSlackBlocks);
         }
 
-        // 2. Extract order number / email from user query
+        // 2. Extract order number / email
         $orderNumber = $this->extractOrderNumber($customerQuery);
         $email       = $this->extractEmail($customerQuery);
 
-        // 3. Determine conversation "cache key"
-        $cacheKey = $this->determineCacheKey($slackUserId, $orderNumber, $email);
-
-        // 4. Load prior context & maybe summarize
+        // 3. Determine cache key & load context
+        $cacheKey   = $this->determineCacheKey($slackUserId, $orderNumber, $email);
         $contextData = $this->getCachedContext($cacheKey);
         $contextData = $this->checkConversationLengthAndSummarize($contextData);
 
-        // 5. If user didn’t supply an order/email now, fallback to last known
+        // 4. Fallback to last known if none provided
         $orderNumber = $orderNumber ?: $contextData['lastOrderNumber'];
         $email       = $email       ?: $contextData['lastEmail'];
 
-        // 6. Handle “show me last record”
+        // 5. If user says "show me last record"
         if ($intent['lastRecord']) {
             $lastOrderResponse = $this->handleLastRecordRequest($contextData, $useSlackBlocks);
             if ($lastOrderResponse) {
@@ -83,43 +65,144 @@ class OpenAIService
             }
         }
 
-        // 7. Fetch data
+        // 6. Fetch basic data from DB or Shopify
+        //    (DB is always minimal info: order_number, date, name, email, etc.)
         $orders = $this->fetchRelevantOrders($intent, $orderNumber, $email);
 
-        // 8. If user asked for a specific field from the order
+        // 7. If user specifically wants one field (like email or phone) and we have it in DB:
         if ($intent['specificField'] && $orders->isNotEmpty()) {
-            $fieldValue = $orders->first()[$intent['specificField']] ?? 'Information not available.';
-            return "Requested info ({$intent['specificField']}): {$fieldValue}";
+            // Check if the DB has that field:
+            $fieldValue = $orders->first()[$intent['specificField']] ?? null;
+            if ($fieldValue) {
+                return "Requested info ({$intent['specificField']}): {$fieldValue}";
+            } else {
+                // If DB doesn't have it, fetch from Shopify for that single order
+                if ($orders->count() === 1 && $orderNumber) {
+                    $shopifyData = $this->fetchSingleOrderFromShopify($orderNumber);
+                    if ($shopifyData) {
+                        // Attempt to retrieve the requested field from the Shopify JSON
+                        $fieldValue = $this->extractAdditionalField($shopifyData, $intent['specificField']);
+                        if ($fieldValue) {
+                            return "Requested info ({$intent['specificField']}): {$fieldValue}";
+                        }
+                    }
+                }
+                // fallback message
+                return "Information for ({$intent['specificField']}) not available.";
+            }
         }
 
-        // 9. If multiple orders found and no specific order was requested, prompt user to pick
+        // 8. If multiple orders but no specific order # given, show summary
         if ($orders->count() > 1 && !$orderNumber) {
             return $this->handleMultipleOrders($orders, $useSlackBlocks);
         }
 
-        // 10. Format the order details
+        // 9. Format basic details from DB
         $orderContext = $this->formatOrderDetails($orders);
 
-        // 11. Build prompt for ChatGPT
-        $prompt = $this->buildPrompt($contextData, $orderContext, $customerQuery);
-
-        // 12. Get AI response
-        $reply = $this->callOpenAI($prompt);
-
-        // 13. Store conversation in cache & DB
-        $this->storeInCache($cacheKey, $customerQuery, $reply, $orders->first(), $orderNumber, $email, $contextData);
-
-        // 14. Return final reply
-        if ($useSlackBlocks) {
-            return $this->buildSlackBlockResponse($reply, $orders);
+        // 10. If user wants more data than the DB can store (like financial_status, shipping cost),
+        //     or you want to always show expanded info:
+        //     We can fetch the single order from Shopify and enrich the response in memory.
+        $shopifyExtra = [];
+        if ($orders->count() === 1 && $orderNumber) {
+            $shopifyData = $this->fetchSingleOrderFromShopify($orderNumber);
+            if ($shopifyData) {
+                // Build a text snippet with additional data
+                $shopifyExtra = $this->formatAdditionalShopifyInfo($shopifyData);
+            }
         }
 
+        // Merge the "extra" text block into orderContext for final display
+        if (!empty($shopifyExtra)) {
+            $orderContext .= "\n\nAdditional real-time Shopify data:\n" . $shopifyExtra;
+        }
+
+        // 11. Build ChatGPT prompt
+        $prompt = $this->buildPrompt($contextData, $orderContext, $customerQuery);
+        $reply  = $this->callOpenAI($prompt);
+
+        // 12. Store conversation
+        $this->storeInCache($cacheKey, $customerQuery, $reply, $orders->first(), $orderNumber, $email, $contextData);
+
+        // 13. Return final response
+        if ($useSlackBlocks) {
+            return $this->buildSlackBlockResponse($reply, $orders, $shopifyExtra);
+        }
         return $reply;
     }
 
+    /* ========================================================================
+     *     HELPER: DETECT INTENT, EXTRACT ORDER/EMAIL, /HELP, ETC.
+     * ======================================================================== */
+
+    private function detectIntent(string $query): array
+    {
+        $lowerQuery = strtolower($query);
+
+        $intent = [
+            'helpRequest'   => str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query),
+            'updateRequest' => false,
+            'lastRecord'    => false,
+            'specificField' => null,
+        ];
+
+        // update patterns
+        $updatePatterns = [
+            '/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i'
+        ];
+        foreach ($updatePatterns as $pattern) {
+            if (preg_match($pattern, $query)) {
+                $intent['updateRequest'] = true;
+                break;
+            }
+        }
+
+        // last record patterns
+        $lastRecordPatterns = [
+            '/\b(last record|previous order|recent order|show last|latest order|last details)\b/i'
+        ];
+        foreach ($lastRecordPatterns as $pattern) {
+            if (preg_match($pattern, $query)) {
+                $intent['lastRecord'] = true;
+                break;
+            }
+        }
+
+        // specific field patterns
+        $specificFieldPatterns = [
+            'email_address' => '/\b(email|e-mail|mail address)\b/i',
+            'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
+            'phone'         => '/\b(phone|contact number|mobile)\b/i',
+        ];
+        foreach ($specificFieldPatterns as $field => $pattern) {
+            if (preg_match($pattern, $query)) {
+                $intent['specificField'] = $field;
+                break;
+            }
+        }
+
+        return $intent;
+    }
+
     /**
-     * Generates a help/usage response showing the user all the prompts/commands available.
+     * If user specifically wants a field that DB doesn't store, 
+     * we can parse it from Shopify's raw JSON response. 
+     * (Expand this logic as needed.)
      */
+    private function extractAdditionalField(array $shopifyData, string $field)
+    {
+        // For example, "phone" might live in $shopifyData['phone'] or shipping/billing phone
+        if ($field === 'phone') {
+            // Check top-level phone, or shipping/billing address phone
+            return $shopifyData['phone']
+                ?? $shopifyData['shipping_address']['phone']
+                ?? $shopifyData['billing_address']['phone']
+                ?? null;
+        }
+        // Add more logic if you store or want to parse other fields
+        return null;
+    }
+
     private function generateHelpResponse(bool $useSlackBlocks = false): string|array
     {
         $helpText = <<<'EOT'
@@ -134,7 +217,7 @@ class OpenAIService
 • **Refresh or update data**  
   - Example: "Refresh data for order #1234"
 • **Request specific information**  
-  - Example: "What's the email address on that order?" or "Give me the customer's name"
+  - Example: "What's the email address on that order?" or "Give me the customer's phone"
 • **Help**  
   - Type "/help" or "help" to see this message again.
 EOT;
@@ -154,109 +237,21 @@ EOT;
             ];
         }
 
-        // Plain text response for non-Slack usage
         return $helpText;
     }
 
-    /* ========================================================================
-     *                  INTENT DETECTION & FETCH LOGIC
-     * ======================================================================== */
-
-    /**
-     * More robust intent detection:
-     * - Help requests
-     * - Update requests
-     * - Last record requests
-     * - Specific field requests
-     */
-    private function detectIntent(string $query): array
-    {
-        $lowerQuery = strtolower($query);
-
-        $intent = [
-            'helpRequest'   => str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query),
-            'updateRequest' => false,
-            'lastRecord'    => false,
-            'specificField' => null,
-        ];
-
-        // Detect update request
-        $updatePatterns = [
-            '/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i'
-        ];
-        foreach ($updatePatterns as $pattern) {
-            if (preg_match($pattern, $query)) {
-                $intent['updateRequest'] = true;
-                break;
-            }
-        }
-
-        // Detect last record request
-        $lastRecordPatterns = [
-            '/\b(last record|previous order|recent order|show last|latest order|last details)\b/i'
-        ];
-        foreach ($lastRecordPatterns as $pattern) {
-            if (preg_match($pattern, $query)) {
-                $intent['lastRecord'] = true;
-                break;
-            }
-        }
-
-        // Check for specific field (expandable)
-        $specificFieldPatterns = [
-            'email_address' => '/\b(email|e-mail|mail address)\b/i',
-            'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
-            'phone'         => '/\b(phone|contact number|mobile)\b/i',
-        ];
-        foreach ($specificFieldPatterns as $field => $pattern) {
-            if (preg_match($pattern, $query)) {
-                $intent['specificField'] = $field;
-                break;
-            }
-        }
-
-        return $intent;
-    }
-
-    /**
-     * Decide how to fetch relevant orders (local DB or Shopify),
-     * depending on an "update request" (force refresh) or normal flow.
-     */
-    private function fetchRelevantOrders(array $intent, ?string $orderNumber, ?string $email): Collection
-    {
-        // If user specifically wants updated data, fetch from Shopify
-        if ($intent['updateRequest']) {
-            return $this->fetchFromShopify($orderNumber, $email);
-        }
-
-        // Otherwise, attempt local DB first, then fallback to Shopify
-        $orders = $this->fetchFromDatabase($orderNumber, $email);
-        if ($orders->isEmpty()) {
-            $orders = $this->fetchFromShopify($orderNumber, $email);
-        }
-        return $orders;
-    }
-
-    /* ========================================================================
-     *            HELPER METHODS: EXTRACTING ORDER/EMAIL, ETC.
-     * ======================================================================== */
-
     private function extractOrderNumber(string $query): ?string
     {
-        // Try to match "order #1234" or "#1234" or "1234"
         preg_match('/(?:order\s*#?\s*|#)(\d+)/i', $query, $matches);
-        if (isset($matches[1])) {
+        if (!empty($matches[1])) {
             return $matches[1];
         }
-
-        // Fallback: any raw digits
         preg_match('/\b\d{3,}\b/', $query, $digitsOnly);
         return $digitsOnly[0] ?? null;
     }
 
     private function extractEmail(string $query): ?string
     {
-        // More robust email pattern
         preg_match('/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,7}\b/i', $query, $matches);
         return $matches[0] ?? null;
     }
@@ -276,99 +271,62 @@ EOT;
     }
 
     /* ========================================================================
-     *               SUMMARIZATION AND CONTEXT MANAGEMENT
+     *        FETCH ORDERS: DB BASIC + (OPTIONALLY) SHOPIFY
      * ======================================================================== */
 
-    private function checkConversationLengthAndSummarize(array $contextData): array
+    /**
+     * We fetch local DB for minimal info, unless user wants an update/refresh. 
+     */
+    private function fetchRelevantOrders(array $intent, ?string $orderNumber, ?string $email): Collection
     {
-        $previousContext = $contextData['previousContext'] ?? '';
-        if (strlen($previousContext) <= self::MAX_CONTEXT_LENGTH) {
-            return $contextData; 
+        if ($intent['updateRequest']) {
+            // Directly fetch from Shopify
+            return $this->fetchShopifyOrders($orderNumber, $email, false);
         }
-
-        // Summarize older portion in chunks
-        $chunks = str_split($previousContext, self::CONTEXT_SUMMARY_CHUNK_SIZE);
-        $summary = '';
-
-        foreach ($chunks as $chunk) {
-            $summary .= $this->generateSummary($chunk) . "\n";
+        // Otherwise check DB first, fallback to Shopify if none
+        $orders = $this->fetchFromDatabase($orderNumber, $email);
+        if ($orders->isEmpty()) {
+            $orders = $this->fetchShopifyOrders($orderNumber, $email, false);
         }
-
-        $contextData['previousContext'] = "[CONTEXT WAS SUMMARIZED]\n" . $summary;
-        return $contextData;
+        return $orders;
     }
 
-    public function generateSummary($textContent): string
-    {
-        try {
-            $prompt = <<<EOT
-Please summarize the following text in a concise, professional tone, highlighting only key points:
-
-"$textContent"
-EOT;
-
-            $response = Http::withToken($this->apiKey)->post(
-                'https://api.openai.com/v1/chat/completions',
-                [
-                    'model' => $this->model,
-                    'messages' => [
-                        [
-                            'role'    => 'system',
-                            'content' => 'You are a concise summarizer. Keep important details, omit fluff.'
-                        ],
-                        [
-                            'role'    => 'user',
-                            'content' => $prompt
-                        ],
-                    ],
-                    'temperature' => 0.3,
-                    'max_tokens'  => 150,
-                ]
-            );
-
-            if ($response->successful()) {
-                return $response->json()['choices'][0]['message']['content'] ?? 'Summary not available.';
-            }
-
-            Log::error('OpenAI API Summary Error: ' . $response->body());
-            return 'Error generating summary.';
-        } catch (\Exception $e) {
-            Log::error('Exception in OpenAIService (Summary): ' . $e->getMessage());
-            return 'Error communicating with AI for summary.';
-        }
-    }
-
-    /* ========================================================================
-     *                  DATABASE + SHOPIFY FETCH
-     * ======================================================================== */
-
+    /**
+     * DB only stores minimal columns. If user wants more details 
+     * we won't store them in DB (just show them in the response).
+     */
     private function fetchFromDatabase(?string $orderNumber, ?string $email): Collection
     {
         if ($email) {
             return ShopifyOrder::where('email_address', $email)->get();
         }
         if ($orderNumber) {
-            $order = ShopifyOrder::where('order_number', $orderNumber)->first();
-            return $order ? collect([$order]) : collect();
+            return ShopifyOrder::where('order_number', 'like', "%{$orderNumber}%")->get();
         }
         return collect();
     }
 
-    private function fetchFromShopify(?string $orderNumber = null, ?string $email = null): Collection
+    /**
+     * Return a list of orders from Shopify, 
+     * but do NOT store extended fields in DB (only minimal).
+     * 
+     * @param bool $storeInDb If true, we store basic columns in DB. 
+     *                        If false, we skip DB update entirely.
+     */
+    private function fetchShopifyOrders(?string $orderNumber, ?string $email, bool $storeInDb = true): Collection
     {
         try {
+            // Single or multiple
             if ($orderNumber) {
-                // Assuming $orderNumber is the Shopify ID or name
                 $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/{$orderNumber}.json";
             } else {
-                $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/orders.json";
+                $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
             }
-            
+
             $params = [
                 'status' => 'any',
                 'limit'  => 5,
             ];
-
             if (!$orderNumber && $email) {
                 $params['email'] = $email;
             }
@@ -377,26 +335,22 @@ EOT;
                 'X-Shopify-Access-Token' => $this->accessToken,
                 'Content-Type'           => 'application/json',
             ])->get($endpoint, $params);
-            Log::info('Shopify API Response:', ['response' => $response->json()]);
 
             if ($response->successful()) {
                 $json = $response->json();
-
                 if ($orderNumber && isset($json['order'])) {
                     $orders = collect([$json['order']]);
                 } else {
                     $orders = collect($json['orders'] ?? []);
                 }
 
-                if ($orders->isNotEmpty()) {
-                    $this->syncOrdersToLocalDb($orders);
-                } else {
-                    Log::info("No Shopify orders found for orderNumber={$orderNumber}, email={$email}");
+                if ($orders->isNotEmpty() && $storeInDb) {
+                    // Optionally store minimal columns only
+                    $this->storeBasicOrderData($orders);
                 }
 
                 return $orders;
             }
-
             Log::error('Shopify API Error: ' . $response->body());
             return collect();
         } catch (\Exception $e) {
@@ -405,44 +359,153 @@ EOT;
         }
     }
 
-    private function syncOrdersToLocalDb(Collection $shopifyOrders): void
+    /**
+     * If we need just one single order’s real-time data (for extra fields),
+     * we call Shopify directly. 
+     * We do NOT store any data in DB.
+     */
+    private function fetchSingleOrderFromShopify(string $orderNumber): ?array
+    {
+        try {
+            $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/{$orderNumber}.json";
+            $response = Http::withHeaders([
+                'X-Shopify-Access-Token' => $this->accessToken,
+                'Content-Type'           => 'application/json',
+            ])->get($endpoint);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                return $json['order'] ?? null;
+            }
+            Log::error('Shopify Single-Order API Error: ' . $response->body());
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Shopify Single-Order Exception: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Minimal data insertion. Only store columns your DB is built for:
+     * order_number, order_date, product_name, etc.
+     */
+    private function storeBasicOrderData(Collection $shopifyOrders): void
     {
         foreach ($shopifyOrders as $order) {
+            // build line item names
+            $lineItems    = $order['line_items'] ?? [];
+            $productNames = collect($lineItems)->pluck('name')->implode(', ');
+            $numItems     = collect($lineItems)->sum('quantity');
+
+            // fulfillment tracking
+            $fulfillments   = $order['fulfillments'] ?? [];
+            $trackingNumber = null;
+            $trackingUrl    = null;
+            if (!empty($fulfillments)) {
+                $firstFulfillment = $fulfillments[0];
+                $trackingNumber   = $firstFulfillment['tracking_numbers'][0] ?? null;
+                $trackingUrl      = $firstFulfillment['tracking_urls'][0] ?? null;
+            }
+
+            // discount codes
+            $discountCodes = $order['discount_codes'] ?? [];
+            $coupon        = $discountCodes ? collect($discountCodes)->pluck('code')->implode(', ') : null;
+
+            $orderNumberVal = $order['order_number'] ?? null;
+            $nameField      = $order['name'] ?? '';
+
             $data = [
-                'id'              => $order['id'], // or your local PK logic
-                'order_number'    => $order['name'] ?? $order['order_number'],
-                'email_address'   => $order['email'] ?? null,
-                'customer_name'   => $order['customer']['first_name'] ?? null,
-                'paid_amount'     => $order['total_price'] ?? null,
-                'tracking_number' => null,
-                'tracking_url'    => null,
+                'order_number'    => $nameField ?: $orderNumberVal,
                 'order_date'      => $order['created_at'] ?? null,
+                'product_name'    => $productNames,
+                'customer_name'   => $this->resolveCustomerName($order),
+                'email_address'   => $order['email'] ?? $order['contact_email'] ?? null,
+                'tracking_number' => $trackingNumber,
+                'tracking_url'    => $trackingUrl,
+                'coupon'          => $coupon,
+                'paid_amount'     => $order['total_price'] ?? null,
+                'discount'        => $order['total_discounts'] ?? null,
+                'number_of_items' => $numItems,
             ];
 
             ShopifyOrder::updateOrCreate(
-                ['id' => $data['id']],
+                ['order_number' => $data['order_number']],
                 $data
             );
         }
     }
 
+    private function resolveCustomerName(array $order): string
+    {
+        // billing
+        if (!empty($order['billing_address']['first_name']) || !empty($order['billing_address']['last_name'])) {
+            $first = $order['billing_address']['first_name'] ?? '';
+            $last  = $order['billing_address']['last_name'] ?? '';
+            return trim("$first $last");
+        }
+        // shipping
+        if (!empty($order['shipping_address']['first_name']) || !empty($order['shipping_address']['last_name'])) {
+            $first = $order['shipping_address']['first_name'] ?? '';
+            $last  = $order['shipping_address']['last_name'] ?? '';
+            return trim("$first $last");
+        }
+        // customer object
+        if (!empty($order['customer'])) {
+            $first = $order['customer']['first_name'] ?? '';
+            $last  = $order['customer']['last_name'] ?? '';
+            return trim("$first $last");
+        }
+        return 'N/A';
+    }
+
     /* ========================================================================
-     *          ORDER FORMATTING + MULTI-ORDER RESPONSES
+     *           ADDITIONAL SHOPIFY DATA (not in DB)
+     * ======================================================================== */
+
+    /**
+     * Format extra fields from the Shopify JSON that you do NOT store in DB, 
+     * e.g. phone, shipping lines, financial_status, fulfillment_status, etc.
+     * Return a string snippet to append to the final user message.
+     */
+    private function formatAdditionalShopifyInfo(array $shopifyData): string
+    {
+        $phone              = $shopifyData['phone'] ?? $shopifyData['shipping_address']['phone'] ?? 'N/A';
+        $financialStatus    = $shopifyData['financial_status'] ?? 'N/A';
+        $fulfillmentStatus  = $shopifyData['fulfillment_status'] ?? 'N/A';
+        $shippingLines      = $shopifyData['shipping_lines'] ?? [];
+        $shippingTitle      = 'N/A';
+        $shippingCost       = 'N/A';
+
+        if (!empty($shippingLines)) {
+            $firstLine     = $shippingLines[0];
+            $shippingTitle = $firstLine['title'] ?? 'N/A';
+            $shippingCost  = $firstLine['price'] ?? 'N/A';
+        }
+
+        // Build a small text snippet
+        $extraSnippet = " - Phone: {$phone}\n"
+            . " - Financial Status: {$financialStatus}\n"
+            . " - Fulfillment Status: {$fulfillmentStatus}\n"
+            . " - Shipping Method: {$shippingTitle} (Cost: {$shippingCost})\n";
+
+        return $extraSnippet;
+    }
+
+    /* ========================================================================
+     *          ORDER FORMATTING + MULTIPLE ORDERS
      * ======================================================================== */
 
     private function handleMultipleOrders(Collection $orders, bool $useSlackBlocks = false): string|array
     {
         $count = $orders->count();
         if ($count < 2) {
-            return $this->formatOrderDetails($orders); // fallback
+            return $this->formatOrderDetails($orders);
         }
-
         $summary = "I found $count matching orders:\n\n";
         foreach ($orders as $idx => $order) {
             $idxDisplay   = $idx + 1;
-            $shopifyId    = $order['id'] ?? 'N/A';
             $nameOrNumber = $order['order_number'] ?? 'Unknown #';
-            $summary     .= "$idxDisplay) Order #$nameOrNumber (Shopify ID: $shopifyId)\n";
+            $summary     .= "$idxDisplay) Order $nameOrNumber\n";
         }
         $summary .= "\nPlease specify which order you want details on (e.g. 'Order #2').";
 
@@ -472,43 +535,28 @@ EOT;
 
         $formatted = '';
         foreach ($orders as $order) {
-            $orderNumber    = $order['order_number'] ?? 'N/A';
-            $productName    = $order['product_name'] ?? null;
-            $numItems       = $order['number_of_items'] ?? null;
-            $customerName   = $order['customer_name'] ?? 'N/A';
-            $email          = $order['email_address'] ?? 'N/A';
-            $paidAmount     = $order['paid_amount'] ?? 'N/A';
-            $trackingNumber = $order['tracking_number'] ?? 'N/A';
-            $trackingUrl    = $order['tracking_url'] ?? '#';
-            $orderDate      = $order['order_date'] ?? 'N/A';
-
-            $formatted .= "Order #{$orderNumber}";
-            if ($productName) {
-                $formatted .= " | {$productName}";
-            }
-            if ($numItems) {
-                $formatted .= " ({$numItems} items)";
-            }
-
-            $formatted .= "\n"
-                . " - Name: {$customerName}\n"
-                . " - Email: {$email}\n"
-                . " - Paid: {$paidAmount}\n"
-                . " - Tracking: {$trackingNumber} | [Track]({$trackingUrl})\n"
-                . " - Date: {$orderDate}\n\n";
+            $formatted .= "Order: " . ($order['order_number'] ?? 'N/A') . "\n"
+                . " - Date: "       . ($order['order_date']      ?? 'N/A') . "\n"
+                . " - Name: "       . ($order['customer_name']   ?? 'N/A') . "\n"
+                . " - Email: "      . ($order['email_address']   ?? 'N/A') . "\n"
+                . " - Product(s): " . ($order['product_name']     ?? 'N/A')
+                . " (Items: "       . ($order['number_of_items']  ?? 'N/A') . ")\n"
+                . " - Paid: "       . ($order['paid_amount']     ?? 'N/A') . "\n"
+                . " - Discount: "   . ($order['discount']        ?? '0.00')
+                . " (Coupon: "      . ($order['coupon']          ?? 'None') . ")\n"
+                . " - Tracking: "   . (($order['tracking_number'] ?? 'N/A'))
+                . " | [Track]("     . ($order['tracking_url']     ?? '#') . ")\n\n";
         }
-
         return $formatted;
     }
 
     /* ========================================================================
-     *                   OPENAI PROMPT & RESPONSE LOGIC
+     *                 OPENAI PROMPT & RESPONSE
      * ======================================================================== */
 
     private function buildPrompt(array $contextData, string $orderContext, string $customerQuery): string
     {
         $previousContext = $contextData['previousContext'] ?? '';
-
         return <<<PROMPT
 You are a helpful internal support AI assistant with knowledge about Shopify orders and relevant user history. 
 Maintain a friendly, concise, and professional tone.
@@ -548,9 +596,9 @@ PROMPT;
             );
 
             if ($response->successful()) {
-                return $response->json()['choices'][0]['message']['content'] ?? 'No response from AI.';
+                return $response->json()['choices'][0]['message']['content'] 
+                    ?? 'No response from AI.';
             }
-
             Log::error('OpenAI API Error: ' . $response->body());
             return 'Oops, something went wrong with OpenAI. Try again.';
         } catch (\Exception $e) {
@@ -559,7 +607,10 @@ PROMPT;
         }
     }
 
-    private function buildSlackBlockResponse(string $reply, Collection $orders): array
+    /**
+     * Build Slack block response. Incorporate extra Shopify data if present.
+     */
+    private function buildSlackBlockResponse(string $reply, Collection $orders, string $shopifyExtra = ''): array
     {
         $blocks = [
             [
@@ -571,7 +622,7 @@ PROMPT;
             ]
         ];
 
-        // If there's exactly 1 order, show a summary block
+        // If exactly 1 order
         if ($orders->count() === 1) {
             $o = $orders->first();
             $fields = [
@@ -587,13 +638,37 @@ PROMPT;
                     "type" => "mrkdwn",
                     "text" => "*Paid:* \n" . ($o['paid_amount'] ?? 'N/A')
                 ],
-                // Add more as desired
+                [
+                    "type" => "mrkdwn",
+                    "text" => "*Discount:* \n" . ($o['discount'] ?? '0.00')
+                ],
+                [
+                    "type" => "mrkdwn",
+                    "text" => "*Coupon:* \n" . ($o['coupon'] ?? 'None')
+                ],
+                [
+                    "type" => "mrkdwn",
+                    "text" => "*Tracking:* \n" 
+                        . ($o['tracking_number'] ?? 'N/A')
+                        . " | <" . ($o['tracking_url'] ?? '#') . "|Track>"
+                ]
             ];
 
             $blocks[] = [
                 "type"   => "section",
                 "fields" => $fields
             ];
+
+            // If we have extra real-time data from Shopify
+            if ($shopifyExtra) {
+                $blocks[] = [
+                    "type" => "section",
+                    "text" => [
+                        "type" => "mrkdwn",
+                        "text" => "*Additional Shopify Info:*\n" . $shopifyExtra
+                    ]
+                ];
+            }
         }
 
         return [
@@ -603,7 +678,7 @@ PROMPT;
     }
 
     /* ========================================================================
-     *         LAST RECORD HANDLING + STORING CONVERSATION HISTORY
+     *         LAST RECORD / STORING CONVERSATION
      * ======================================================================== */
 
     private function handleLastRecordRequest(array $contextData, bool $useSlackBlocks = false): string|array
@@ -615,12 +690,15 @@ PROMPT;
         if ($lastOrder) {
             $o = $lastOrder['orderDetails'];
             $text = "Here is your last referenced order:\n"
-                . "- **Order #**: ".($o['order_number'] ?? 'N/A')."\n"
-                . "- **Name**: ".($o['customer_name'] ?? 'N/A')."\n"
-                . "- **Email**: ".($o['email_address'] ?? 'N/A')."\n"
-                . "- **Paid**: ".($o['paid_amount'] ?? 'N/A')."\n"
-                . "- **Tracking**: ".($o['tracking_number'] ?? 'N/A')." | [Track](".($o['tracking_url'] ?? '#').")\n"
-                . "- **Date**: ".($o['order_date'] ?? 'N/A')."\n";
+                . "- **Order #**: ".($o['order_number']    ?? 'N/A')."\n"
+                . "- **Name**: ".($o['customer_name']      ?? 'N/A')."\n"
+                . "- **Email**: ".($o['email_address']      ?? 'N/A')."\n"
+                . "- **Paid**: ".($o['paid_amount']         ?? 'N/A')."\n"
+                . "- **Discount**: ".($o['discount']        ?? '0.00')."\n"
+                . "- **Coupon**: ".($o['coupon']            ?? 'None')."\n"
+                . "- **Tracking**: ".($o['tracking_number'] ?? 'N/A')
+                . " | [Track](".($o['tracking_url']         ?? '#').")\n"
+                . "- **Date**: ".($o['order_date']          ?? 'N/A')."\n";
 
             if ($useSlackBlocks) {
                 return [
@@ -636,16 +714,11 @@ PROMPT;
                     ]
                 ];
             }
-
             return $text;
         }
-
         return "No previously referenced order found in this conversation.";
     }
 
-    /**
-     * Store conversation context & logs in both cache and DB.
-     */
     private function storeInCache(
         string $cacheKey,
         string $customerQuery,
@@ -655,8 +728,7 @@ PROMPT;
         ?string $email,
         array $contextData
     ): void {
-        // 1. Append new message
-        $conversationLog = $contextData['conversationLog'] ?? [];
+        $conversationLog   = $contextData['conversationLog'] ?? [];
         $conversationLog[] = [
             'timestamp'    => now()->toDateTimeString(),
             'user'         => $customerQuery,
@@ -664,7 +736,6 @@ PROMPT;
             'orderDetails' => $firstOrder ?? null,
         ];
 
-        // 2. Update context
         $updatedContext = [
             'previousContext' => ($contextData['previousContext'] ?? '')
                 . "\nUser: {$customerQuery}\nAI: {$reply}",
@@ -673,10 +744,7 @@ PROMPT;
             'conversationLog' => $conversationLog,
         ];
 
-        // 3. Save to DB
         $this->saveConversation($cacheKey, $orderNumber, $updatedContext);
-
-        // 4. Save to cache
         $this->setCachedContext($cacheKey, $updatedContext);
     }
 
@@ -693,13 +761,9 @@ PROMPT;
 
     private function setCachedContext(string $key, array $data): void
     {
-        // Cache for 6 hours
         Cache::put($key, $data, now()->addHours(6));
     }
 
-    /**
-     * Save conversation in the DB (Conversation model).
-     */
     private function saveConversation($userIdentifier, $orderNumber, $conversationData)
     {
         Conversation::updateOrCreate(
