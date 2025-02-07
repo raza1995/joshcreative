@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('processed_emails', function (Blueprint $table) {
             $table->id();
             $table->string('message_id')->unique();
-            $table->string('sender_email');
-            $table->string('subject');
+            $table->string('sender_email')->nullable();;
+            $table->string('subject')->nullable();;
             $table->text('snippet')->nullable();
+            $table->text('received_at')->nullable();
             $table->timestamps();
         });
     }
