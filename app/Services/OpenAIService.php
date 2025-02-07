@@ -413,7 +413,7 @@ EOT;
             // discount codes
             $discountCodes = $order['discount_codes'] ?? [];
             $coupon        = $discountCodes ? collect($discountCodes)->pluck('code')->implode(', ') : null;
-
+            Log::info('Order Data:', $order);
             $orderNumberVal = $order['order_number'] ?? null;
             $nameField      = $order['name'] ?? '';
 
