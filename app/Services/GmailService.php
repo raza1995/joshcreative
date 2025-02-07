@@ -274,6 +274,48 @@ private function getLabelId($labelName)
 
     return null;
 }
+
+private function authenticatepub($forceReauth = false)
+{
+    if ($forceReauth || !file_exists($this->tokenPath)) {
+        \Log::info("🔄 Forcing re-authentication with Google API...");
+
+        // Delete the old token if forcing re-auth
+        if (file_exists($this->tokenPath)) {
+            unlink($this->tokenPath);
+        }
+
+        $this->generateNewToken();
+        return;
+    }
+
+    $accessToken = json_decode(file_get_contents($this->tokenPath), true);
+    $this->client->setAccessToken($accessToken);
+
+    if ($this->client->isAccessTokenExpired()) {
+        \Log::warning("🔄 Google API token expired. Attempting refresh...");
+
+        if ($this->client->getRefreshToken()) {
+            $newAccessToken = $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
+            $this->client->setAccessToken($newAccessToken);
+            file_put_contents($this->tokenPath, json_encode($newAccessToken));
+            \Log::info("✅ Google API token refreshed successfully.");
+        } else {
+            \Log::warning("⚠️ No refresh token available. Re-authenticating...");
+            $this->generateNewTokenForPub();
+        }
+    }
+}
+public function generateNewTokenForPub()
+{
+    $authUrl = $this->client->createAuthUrl();
+    \Log::info("🔗 Please authorize access via the following URL: $authUrl");
+
+    // Redirect user to Google's OAuth URL
+    header('Location: ' . filter_var($authUrl, FILTER_SANITIZE_URL));
+    exit;
+}
+
 public function startWatch()
 {
     try {
@@ -295,7 +337,7 @@ public function startWatch()
             \Log::warning("⚠️ Forbidden error detected. Triggering re-authentication...");
 
             // Trigger Re-authentication
-            $this->authenticate(true);  // Force re-authentication
+            $this->authenticatepub(true);  // Force re-authentication
 
             // Retry Watch Request after re-auth
             return $this->startWatch();

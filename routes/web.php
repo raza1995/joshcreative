@@ -7,6 +7,7 @@ use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ShopifyOrderController;
 use App\Http\Controllers\SlackController;
+use App\Services\GmailService;
 use App\Services\ShopifyService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,7 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name
 Route::get('/', function () {
     return view('home');
 });
+Route::get('/gmail/callback', [GmailService::class, 'handleOAuthCallback']);
 
 Route::post('/gmail/webhook', [GmailWebhookController::class, 'handle']);
 Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);

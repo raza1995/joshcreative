@@ -15,7 +15,8 @@ class VerifyCsrfToken extends Middleware
         'shopify/webhook/orders', // Exclude Shopify Webhook from CSRF Protection
         'shopify/webhook/fulfillment',
         '/slack/events',
-        '/gmail/webhook'
+        '/gmail/webhook',
+        '/gmail/callback'
         // Exclude Shopify Webhook from CSRF Protection
     ];
     
