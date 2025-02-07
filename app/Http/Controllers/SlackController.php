@@ -22,25 +22,25 @@ class SlackController extends Controller
     /**
      * Generate AI Reply based on Customer Query
      */
-    public function generateAIReply(Request $request)
-    {
-        $request->validate([
-            'customer_query' => 'required|string|max:1000',
-        ]);
+    // public function generateAIReply(Request $request)
+    // {
+    //     $request->validate([
+    //         'customer_query' => 'required|string|max:1000',
+    //     ]);
 
-        $customerQuery = $request->input('customer_query');
-        $context = "Order Status: Delivered on time. No return policy for opened items.";
+    //     $customerQuery = $request->input('customer_query');
+    //     $context = "Order Status: Delivered on time. No return policy for opened items.";
 
-        try {
-            $aiReply = $this->openAIService->generateReply($customerQuery, $context);
-            $this->slackService->sendMessageTo("🤖 AI Reply:\n$aiReply");
+    //     try {
+    //         $aiReply = $this->openAIService->generateReply($customerQuery, $context);
+    //         $this->slackService->sendMessageTo("🤖 AI Reply:\n$aiReply");
 
-            return response()->json(['reply' => $aiReply], 200);
-        } catch (\Exception $e) {
-            Log::error("AI Reply Generation Failed: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to generate AI reply'], 500);
-        }
-    }
+    //         return response()->json(['reply' => $aiReply], 200);
+    //     } catch (\Exception $e) {
+    //         Log::error("AI Reply Generation Failed: " . $e->getMessage());
+    //         return response()->json(['error' => 'Failed to generate AI reply'], 500);
+    //     }
+    // }
 
     /**
      * Send a Test Message to Slack

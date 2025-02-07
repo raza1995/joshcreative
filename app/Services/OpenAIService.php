@@ -48,7 +48,7 @@ class OpenAIService
                 $productName = $order['product_name'] ?? $order->product_name ?? null;
                 $numberOfItems = $order['number_of_items'] ?? $order->number_of_items ?? null;
                 $customerName = $order['customer_name'] ?? $order->customer_name ?? null;
-                $email = $order['email'] ?? $order->email ?? null;
+                $email = $order['email_address'] ?? $order->email_address ?? null;
                 $paidAmount = $order['paid_amount'] ?? $order->paid_amount ?? null;
                 $trackingNumber = $order['tracking_number'] ?? $order->tracking_number ?? null;
                 $trackingUrl = $order['tracking_url'] ?? $order->tracking_url ?? null;
@@ -106,6 +106,21 @@ class OpenAIService
             $contextData = $this->getCachedContext($key);
             return $contextData['conversationLog'] ?? [];
         }
+
+        private function detectUpdateRequest($query)
+{
+    $patterns = [
+        '/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i'
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $query)) {
+            return true; // Update request detected
+        }
+    }
+    return false; // No update request
+}
+
     
         public function generateReply($customerQuery)
         {
@@ -122,18 +137,30 @@ class OpenAIService
             // Auto-fill missing order number or email
             $orderNumber = $orderNumber ?? $contextData['lastOrderNumber'];
             $email = $email ?? $contextData['lastEmail'];
-    
+
+
+            $isUpdateRequest = $this->detectUpdateRequest($customerQuery);
+
             // Detect if the user is requesting specific details (name, email, etc.)
             $requestType = $this->detectSpecificRequest($customerQuery);
     
             // Fetch orders from local database or Shopify
             $orders = collect();
-            if ($email) {
-                $orders = $this->getOrdersByEmail($email);
-            } elseif ($orderNumber) {
-                $order = $this->getOrderByOrderNumber($orderNumber);
-                if ($order) {
-                    $orders = collect([$order]);
+            if ($isUpdateRequest) {
+                $orders = $this->fetchFromShopify($orderNumber, $email); // Fetch fresh data
+            } else {
+                if ($email) {
+                    $orders = $this->getOrdersByEmail($email);
+                } elseif ($orderNumber) {
+                    $order = $this->getOrderByOrderNumber($orderNumber);
+                    if ($order) {
+                        $orders = collect([$order]);
+                    }
+                }
+        
+                if ($orders->isEmpty()) {
+                    $shopifyData = $this->fetchFromShopify($orderNumber, $email);
+                    $orders = $orders->merge($shopifyData);
                 }
             }
     
@@ -244,7 +271,7 @@ public function getShopifyDomain()
         ];
 
         if ($orderNumber) {
-            $params['name'] = $orderNumber;  // Correct way to query by order number
+            $params['id'] = $orderNumber;  // Correct way to query by order number
         } elseif ($email) {
             $params['email'] = $email;       // Query by email address
         }
