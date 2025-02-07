@@ -27,7 +27,7 @@ class OpenAIService
         $this->shopifyDomain   = env('SHOPIFY_STORE_DOMAIN');
         $this->accessToken     = env('SHOPIFY_ACCESS_TOKEN');
         $this->apiKey          = config('services.openai.api_key');
-        $this->model           = 'ft:gpt-3.5-turbo-1106:josh-creative-co::AyNhCTJf';
+        $this->model           = 'gpt-3.5-turbo';
         $this->shopifyService  = $shopifyService;
     }
 
@@ -114,10 +114,9 @@ class OpenAIService
     // ✅ Handle General Queries (Fallback)
     if ($intent['cleanQuery']) {
         $prompt = "User asked: {$intent['cleanQuery']}. Provide a concise and helpful response.";
-        Log::info('Handling general query with OpenAI:', ['query' => $prompt]);
         return $this->callOpenAI($prompt);
     }
-    Log::info('Handling general query with OpenAI:', ['query' => $intent['cleanQuery']]);
+
     // Default Fallback Response
     return $intent['cleanQuery'];
 }
