@@ -363,7 +363,7 @@ EOT;
             } else {
                 $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
             }
-
+            
             $params = [
                 'status' => 'any',
                 'limit'  => 5,
@@ -377,6 +377,7 @@ EOT;
                 'X-Shopify-Access-Token' => $this->accessToken,
                 'Content-Type'           => 'application/json',
             ])->get($endpoint, $params);
+            Log::info('Shopify API Response:', ['response' => $response->json()]);
 
             if ($response->successful()) {
                 $json = $response->json();
