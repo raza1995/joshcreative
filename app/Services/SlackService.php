@@ -21,6 +21,13 @@ class SlackService
      */
     public function sendMessage($message)
 {
+
+    Log::info("Slack API Response:", [
+   
+        'channelId' => $this->channelId,
+  
+    ]);
+
     try {
         $response = Http::withToken($this->botToken)
             ->post('https://slack.com/api/chat.postMessage', [
