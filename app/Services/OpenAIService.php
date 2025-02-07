@@ -21,9 +21,9 @@ class OpenAIService
     // ~~~~~~~~~ CONFIG CONSTANTS ~~~~~~~~~
     /**
      * The maximum character length of conversation context
-     * before we attempt to summarize it in a single chunk.
+     * before we attempt to summarize it.
      */
-    private const MAX_CONTEXT_LENGTH = 2000; // Adjust as needed
+    private const MAX_CONTEXT_LENGTH = 2000;
 
     /**
      * Summaries can be appended or replace older context 
@@ -43,32 +43,39 @@ class OpenAIService
     }
 
     /**
-     * Entry point for generating a reply to the user’s query.
+     * Primary function to handle a user query, fetch needed data,
+     * and return an AI-based reply (can be Slack-formatted).
+     *
+     * @param  string       $customerQuery    The user's query, e.g. "What's the status of order #1234"
+     * @param  bool         $useSlackBlocks   If true, returns Slack BlockKit format
+     * @param  string|null  $slackUserId      If you have a Slack user ID for unique identification
+     * @return string|array
      */
     public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
     {
-        // 1. Parse user’s query
+        // 1. Detect if user asked for /help
+        $intent = $this->detectIntent($customerQuery);
+        if ($intent['helpRequest']) {
+            // Return help text or Slack blocks with instructions
+            return $this->generateHelpResponse($useSlackBlocks);
+        }
+
+        // 2. Extract order number / email from user query
         $orderNumber = $this->extractOrderNumber($customerQuery);
         $email       = $this->extractEmail($customerQuery);
 
-        // 2. Determine the cache key
-        //    Use Slack user ID if available, otherwise fallback to email/order/general
+        // 3. Determine conversation "cache key"
         $cacheKey = $this->determineCacheKey($slackUserId, $orderNumber, $email);
 
-        // 3. Load prior conversation from cache
+        // 4. Load prior context & maybe summarize
         $contextData = $this->getCachedContext($cacheKey);
-
-        // Summarize older context if it’s too large
         $contextData = $this->checkConversationLengthAndSummarize($contextData);
 
-        // 4. Fallback to last known order/email if not found in this query
+        // 5. If user didn’t supply an order/email now, fallback to last known
         $orderNumber = $orderNumber ?: $contextData['lastOrderNumber'];
         $email       = $email       ?: $contextData['lastEmail'];
 
-        // 5. Detect special requests / user intent
-        $intent = $this->detectIntent($customerQuery);
-
-        // 6. Handle “show me my last record”
+        // 6. Handle “show me last record”
         if ($intent['lastRecord']) {
             $lastOrderResponse = $this->handleLastRecordRequest($contextData, $useSlackBlocks);
             if ($lastOrderResponse) {
@@ -76,76 +83,104 @@ class OpenAIService
             }
         }
 
-        // 7. Fetch data from DB or Shopify
-        $orders = collect();
-        if ($intent['updateRequest']) {
-            // Force refresh from Shopify
-            $orders = $this->fetchFromShopify($orderNumber, $email);
-        } else {
-            $orders = $this->fetchFromDatabase($orderNumber, $email);
-            if ($orders->isEmpty()) {
-                $orders = $this->fetchFromShopify($orderNumber, $email);
-            }
-        }
+        // 7. Fetch data
+        $orders = $this->fetchRelevantOrders($intent, $orderNumber, $email);
 
-        // 8. If user requested a specific field (email, phone, etc.)
+        // 8. If user asked for a specific field from the order
         if ($intent['specificField'] && $orders->isNotEmpty()) {
             $fieldValue = $orders->first()[$intent['specificField']] ?? 'Information not available.';
             return "Requested info ({$intent['specificField']}): {$fieldValue}";
         }
 
-        // 9. If multiple orders found and no specific orderNumber given, ask user to specify
+        // 9. If multiple orders found and no specific order was requested, prompt user to pick
         if ($orders->count() > 1 && !$orderNumber) {
             return $this->handleMultipleOrders($orders, $useSlackBlocks);
         }
 
-        // 10. Format found order data
+        // 10. Format the order details
         $orderContext = $this->formatOrderDetails($orders);
 
-        // 11. Build a ChatGPT prompt
+        // 11. Build prompt for ChatGPT
         $prompt = $this->buildPrompt($contextData, $orderContext, $customerQuery);
 
-        // 12. Call OpenAI
+        // 12. Get AI response
         $reply = $this->callOpenAI($prompt);
 
-        // 13. Store in cache + DB for conversation continuity
-        $this->storeInCache(
-            $cacheKey,
-            $customerQuery,
-            $reply,
-            $orders->first(),
-            $orderNumber,
-            $email,
-            $contextData
-        );
+        // 13. Store conversation in cache & DB
+        $this->storeInCache($cacheKey, $customerQuery, $reply, $orders->first(), $orderNumber, $email, $contextData);
 
-        // 14. Return final response
+        // 14. Return final reply
         if ($useSlackBlocks) {
             return $this->buildSlackBlockResponse($reply, $orders);
         }
+
         return $reply;
     }
 
+    /**
+     * Generates a help/usage response showing the user all the prompts/commands available.
+     */
+    private function generateHelpResponse(bool $useSlackBlocks = false): string|array
+    {
+        $helpText = <<<'EOT'
+*Here are some commands/prompts you can use:*
+
+• **Order lookup by number**  
+  - Example: "Show me order #1234" or "Find status of order 1002"
+• **Lookup by email**  
+  - Example: "Any orders for example@example.com?"
+• **Show the last record**  
+  - Example: "Show me the last record" or "What was the previous order we discussed?"
+• **Refresh or update data**  
+  - Example: "Refresh data for order #1234"
+• **Request specific information**  
+  - Example: "What's the email address on that order?" or "Give me the customer's name"
+• **Help**  
+  - Type "/help" or "help" to see this message again.
+EOT;
+
+        if ($useSlackBlocks) {
+            return [
+                "response_type" => "ephemeral",
+                "blocks" => [
+                    [
+                        "type" => "section",
+                        "text" => [
+                            "type" => "mrkdwn",
+                            "text" => $helpText
+                        ]
+                    ]
+                ]
+            ];
+        }
+
+        // Plain text response for non-Slack usage
+        return $helpText;
+    }
+
     /* ========================================================================
-     *                     INTENT / DETECTION HELPERS
+     *                  INTENT DETECTION & FETCH LOGIC
      * ======================================================================== */
 
     /**
-     * A more advanced intent detection that checks if the user wants:
-     *  - An update/refresh
-     *  - The last record
-     *  - A specific field (e.g. email, phone, etc.)
-     *  - Potentially other future expansions (cancellations, returns, etc.)
+     * More robust intent detection:
+     * - Help requests
+     * - Update requests
+     * - Last record requests
+     * - Specific field requests
      */
     private function detectIntent(string $query): array
     {
+        $lowerQuery = strtolower($query);
+
         $intent = [
+            'helpRequest'   => str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query),
             'updateRequest' => false,
             'lastRecord'    => false,
             'specificField' => null,
         ];
 
-        // Check for update request
+        // Detect update request
         $updatePatterns = [
             '/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i'
         ];
@@ -156,7 +191,7 @@ class OpenAIService
             }
         }
 
-        // Check for last record request
+        // Detect last record request
         $lastRecordPatterns = [
             '/\b(last record|previous order|recent order|show last|latest order|last details)\b/i'
         ];
@@ -173,7 +208,6 @@ class OpenAIService
             'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
             'phone'         => '/\b(phone|contact number|mobile)\b/i',
         ];
-
         foreach ($specificFieldPatterns as $field => $pattern) {
             if (preg_match($pattern, $query)) {
                 $intent['specificField'] = $field;
@@ -185,27 +219,41 @@ class OpenAIService
     }
 
     /**
-     * Extract an order number with more robust pattern detection.
-     * For instance, if user typed "Order #1234" or "#1234" or "1234".
+     * Decide how to fetch relevant orders (local DB or Shopify),
+     * depending on an "update request" (force refresh) or normal flow.
      */
+    private function fetchRelevantOrders(array $intent, ?string $orderNumber, ?string $email): Collection
+    {
+        // If user specifically wants updated data, fetch from Shopify
+        if ($intent['updateRequest']) {
+            return $this->fetchFromShopify($orderNumber, $email);
+        }
+
+        // Otherwise, attempt local DB first, then fallback to Shopify
+        $orders = $this->fetchFromDatabase($orderNumber, $email);
+        if ($orders->isEmpty()) {
+            $orders = $this->fetchFromShopify($orderNumber, $email);
+        }
+        return $orders;
+    }
+
+    /* ========================================================================
+     *            HELPER METHODS: EXTRACTING ORDER/EMAIL, ETC.
+     * ======================================================================== */
+
     private function extractOrderNumber(string $query): ?string
     {
-        // Example pattern that catches "#1234", "Order #1234", or just "1234"
-        // This pattern might still be simplistic, but is a step up.
+        // Try to match "order #1234" or "#1234" or "1234"
         preg_match('/(?:order\s*#?\s*|#)(\d+)/i', $query, $matches);
-
         if (isset($matches[1])) {
             return $matches[1];
         }
 
-        // Fallback: any raw digits if not matched above
+        // Fallback: any raw digits
         preg_match('/\b\d{3,}\b/', $query, $digitsOnly);
         return $digitsOnly[0] ?? null;
     }
 
-    /**
-     * Extract email address from the user’s query using a robust pattern.
-     */
     private function extractEmail(string $query): ?string
     {
         // More robust email pattern
@@ -213,10 +261,6 @@ class OpenAIService
         return $matches[0] ?? null;
     }
 
-    /**
-     * If you have a Slack user ID (or any unique user identifier),
-     * prefer that to avoid collisions. Otherwise, fallback to email or order.
-     */
     private function determineCacheKey(?string $slackUserId, ?string $orderNumber, ?string $email): string
     {
         if ($slackUserId) {
@@ -232,17 +276,14 @@ class OpenAIService
     }
 
     /* ========================================================================
-     *                CONTEXT SUMMARIZATION & CONVERSATION
+     *               SUMMARIZATION AND CONTEXT MANAGEMENT
      * ======================================================================== */
 
-    /**
-     * If conversation context is too large, we chunk it and summarize older parts.
-     */
     private function checkConversationLengthAndSummarize(array $contextData): array
     {
         $previousContext = $contextData['previousContext'] ?? '';
         if (strlen($previousContext) <= self::MAX_CONTEXT_LENGTH) {
-            return $contextData; // No need to summarize
+            return $contextData; 
         }
 
         // Summarize older portion in chunks
@@ -257,9 +298,6 @@ class OpenAIService
         return $contextData;
     }
 
-    /**
-     * Summarizes a piece of text, e.g. an internal email or conversation snippet.
-     */
     public function generateSummary($textContent): string
     {
         try {
@@ -290,19 +328,18 @@ EOT;
 
             if ($response->successful()) {
                 return $response->json()['choices'][0]['message']['content'] ?? 'Summary not available.';
-            } else {
-                Log::error('OpenAI API Summary Error: ' . $response->body());
-                return 'Error generating summary.';
             }
+
+            Log::error('OpenAI API Summary Error: ' . $response->body());
+            return 'Error generating summary.';
         } catch (\Exception $e) {
             Log::error('Exception in OpenAIService (Summary): ' . $e->getMessage());
             return 'Error communicating with AI for summary.';
         }
     }
 
-
     /* ========================================================================
-     *                    DATABASE + SHOPIFY FETCH
+     *                  DATABASE + SHOPIFY FETCH
      * ======================================================================== */
 
     private function fetchFromDatabase(?string $orderNumber, ?string $email): Collection
@@ -320,10 +357,8 @@ EOT;
     private function fetchFromShopify(?string $orderNumber = null, ?string $email = null): Collection
     {
         try {
-            // If we believe $orderNumber is the Shopify ID (integer),
-            // we use single-order endpoint. Otherwise, listing with filters.
-            // Adjust this logic if your local "order_number" differs from Shopify "id".
             if ($orderNumber) {
+                // Assuming $orderNumber is the Shopify ID or name
                 $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/{$orderNumber}.json";
             } else {
                 $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
@@ -353,7 +388,6 @@ EOT;
                 }
 
                 if ($orders->isNotEmpty()) {
-                    // Store/update in local DB
                     $this->syncOrdersToLocalDb($orders);
                 } else {
                     Log::info("No Shopify orders found for orderNumber={$orderNumber}, email={$email}");
@@ -370,10 +404,6 @@ EOT;
         }
     }
 
-    /**
-     * Sync each fetched Shopify order into local DB.
-     * Customize the mapping per your DB schema.
-     */
     private function syncOrdersToLocalDb(Collection $shopifyOrders): void
     {
         foreach ($shopifyOrders as $order) {
@@ -395,7 +425,6 @@ EOT;
         }
     }
 
-
     /* ========================================================================
      *          ORDER FORMATTING + MULTI-ORDER RESPONSES
      * ======================================================================== */
@@ -404,19 +433,16 @@ EOT;
     {
         $count = $orders->count();
         if ($count < 2) {
-            // Fallback, though we expect > 1 here
-            return $this->formatOrderDetails($orders);
+            return $this->formatOrderDetails($orders); // fallback
         }
 
         $summary = "I found $count matching orders:\n\n";
-
         foreach ($orders as $idx => $order) {
             $idxDisplay   = $idx + 1;
             $shopifyId    = $order['id'] ?? 'N/A';
             $nameOrNumber = $order['order_number'] ?? 'Unknown #';
             $summary     .= "$idxDisplay) Order #$nameOrNumber (Shopify ID: $shopifyId)\n";
         }
-
         $summary .= "\nPlease specify which order you want details on (e.g. 'Order #2').";
 
         if ($useSlackBlocks) {
@@ -437,9 +463,6 @@ EOT;
         return $summary;
     }
 
-    /**
-     * Format order details for 1 or more orders in plain text.
-     */
     private function formatOrderDetails(Collection $orders): string
     {
         if ($orders->isEmpty()) {
@@ -449,7 +472,7 @@ EOT;
         $formatted = '';
         foreach ($orders as $order) {
             $orderNumber    = $order['order_number'] ?? 'N/A';
-            $productName    = $order['product_name'] ?? null; // if you store product details
+            $productName    = $order['product_name'] ?? null;
             $numItems       = $order['number_of_items'] ?? null;
             $customerName   = $order['customer_name'] ?? 'N/A';
             $email          = $order['email_address'] ?? 'N/A';
@@ -477,7 +500,6 @@ EOT;
         return $formatted;
     }
 
-
     /* ========================================================================
      *                   OPENAI PROMPT & RESPONSE LOGIC
      * ======================================================================== */
@@ -488,9 +510,9 @@ EOT;
 
         return <<<PROMPT
 You are a helpful internal support AI assistant with knowledge about Shopify orders and relevant user history. 
-Adopt a friendly, concise, and professional tone. 
+Maintain a friendly, concise, and professional tone.
 
-Here is the conversation context so far:
+Here is the conversation so far:
 {$previousContext}
 
 Relevant order data (if any):
@@ -498,7 +520,7 @@ Relevant order data (if any):
 
 The user just asked: "{$customerQuery}"
 
-Please provide a concise, direct response with any relevant details.
+Provide a concise, direct response with any relevant details.
 PROMPT;
     }
 
@@ -538,17 +560,17 @@ PROMPT;
 
     private function buildSlackBlockResponse(string $reply, Collection $orders): array
     {
-        $blocks = [];
-
-        $blocks[] = [
-            "type" => "section",
-            "text" => [
-                "type" => "mrkdwn",
-                "text" => $reply
+        $blocks = [
+            [
+                "type" => "section",
+                "text" => [
+                    "type" => "mrkdwn",
+                    "text" => $reply
+                ]
             ]
         ];
 
-        // If there's exactly 1 order, show a summary
+        // If there's exactly 1 order, show a summary block
         if ($orders->count() === 1) {
             $o = $orders->first();
             $fields = [
@@ -564,7 +586,7 @@ PROMPT;
                     "type" => "mrkdwn",
                     "text" => "*Paid:* \n" . ($o['paid_amount'] ?? 'N/A')
                 ],
-                // Add more fields as you want
+                // Add more as desired
             ];
 
             $blocks[] = [
@@ -579,14 +601,12 @@ PROMPT;
         ];
     }
 
-
     /* ========================================================================
      *         LAST RECORD HANDLING + STORING CONVERSATION HISTORY
      * ======================================================================== */
 
     private function handleLastRecordRequest(array $contextData, bool $useSlackBlocks = false): string|array
     {
-        // Look at the conversationLog array and get the last entry with orderDetails
         $lastOrder = collect($contextData['conversationLog'])->last(function ($entry) {
             return !empty($entry['orderDetails']);
         });
@@ -619,12 +639,11 @@ PROMPT;
             return $text;
         }
 
-        return null;
+        return "No previously referenced order found in this conversation.";
     }
 
     /**
-     * Store conversation context + log in both cache and DB
-     * so we can reference it in future queries.
+     * Store conversation context & logs in both cache and DB.
      */
     private function storeInCache(
         string $cacheKey,
@@ -635,7 +654,7 @@ PROMPT;
         ?string $email,
         array $contextData
     ): void {
-        // 1. Append new message to conversation log
+        // 1. Append new message
         $conversationLog = $contextData['conversationLog'] ?? [];
         $conversationLog[] = [
             'timestamp'    => now()->toDateTimeString(),
@@ -644,9 +663,9 @@ PROMPT;
             'orderDetails' => $firstOrder ?? null,
         ];
 
-        // 2. Update the context
+        // 2. Update context
         $updatedContext = [
-            'previousContext' => $contextData['previousContext'] 
+            'previousContext' => ($contextData['previousContext'] ?? '')
                 . "\nUser: {$customerQuery}\nAI: {$reply}",
             'lastOrderNumber' => $orderNumber,
             'lastEmail'       => $email,
@@ -660,30 +679,25 @@ PROMPT;
         $this->setCachedContext($cacheKey, $updatedContext);
     }
 
-    /**
-     * Retrieve context from cache or fall back to defaults.
-     */
     private function getCachedContext(string $key): array
     {
         $cachedData = Cache::get($key, []);
-
         return array_merge([
             'previousContext' => '',
             'lastOrderNumber' => null,
             'lastEmail'       => null,
             'conversationLog' => [],
-        ], (array) $cachedData);
+        ], (array)$cachedData);
     }
 
     private function setCachedContext(string $key, array $data): void
     {
-        // Store for 6 hours (adjust as needed).
+        // Cache for 6 hours
         Cache::put($key, $data, now()->addHours(6));
     }
 
     /**
-     * Save conversation in the DB. 
-     * Adjust the fields as per your `Conversation` model/table.
+     * Save conversation in the DB (Conversation model).
      */
     private function saveConversation($userIdentifier, $orderNumber, $conversationData)
     {
@@ -693,7 +707,7 @@ PROMPT;
                 'order_number'    => $orderNumber ?? null,
             ],
             [
-                'conversation_data' => $conversationData 
+                'conversation_data' => $conversationData
             ]
         );
     }
