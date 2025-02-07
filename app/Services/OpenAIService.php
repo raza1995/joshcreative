@@ -361,7 +361,7 @@ EOT;
                 // Assuming $orderNumber is the Shopify ID or name
                 $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/{$orderNumber}.json";
             } else {
-                $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+                $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/orders.json";
             }
             
             $params = [
