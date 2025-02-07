@@ -91,41 +91,57 @@ class SlackController extends Controller
      * Handle Incoming Slack Events
      */
     public function handleSlackEvent(Request $request)
-{
-    $payload = $request->all();
-
-    // ✅ 1) Handle Slack URL Verification Challenge
-    if (isset($payload['type']) && $payload['type'] === 'url_verification') {
-        return response($payload['challenge'], 200)
-                ->header('Content-Type', 'text/plain');
-    }
-
-    // ✅ 2) Send Immediate Acknowledgment to Slack
-    response()->json(['status' => 'ok'])->send();  // Send 200 OK immediately
-
-    // Continue processing the event in the background
-    if (isset($payload['type']) && $payload['type'] === 'event_callback') {
-        $event = $payload['event'] ?? [];
-
-        if (
-            isset($event['type']) &&
-            $event['type'] === 'message' &&
-            !isset($event['bot_id']) // ✅ Prevent bot reply loops
-        ) {
-            $channelId = $event['channel'];
-            $messageText = $event['text'];
-
-            // Process asynchronously
-            dispatch(function () use ($messageText, $channelId) {
-                $aiReply = app(OpenAIService::class)->generateReply($messageText, "Context here...");
-                app(SlackService::class)->sendMessageToChannel($aiReply, $channelId);
-            });
+    {
+        $payload = $request->all();
+    
+        // ✅ 1) Handle Slack URL Verification Challenge
+        if (isset($payload['type']) && $payload['type'] === 'url_verification') {
+            return response($payload['challenge'], 200)
+                    ->header('Content-Type', 'text/plain');
         }
+    
+        // ✅ 2) Prevent Duplicate Processing for Retries
+        $retryCount = $request->header('X-Slack-Retry-Num');
+        if ($retryCount !== null) {
+            return response()->json(['status' => 'duplicate_skipped'], 200);
+        }
+    
+        // ✅ 3) Ensure Idempotency (Prevent Processing the Same Event Twice)
+        $eventId = $payload['event_id'] ?? null;
+        if ($eventId && Cache::has("slack_event_{$eventId}")) {
+            return response()->json(['status' => 'already_processed'], 200);
+        }
+        if ($eventId) {
+            Cache::put("slack_event_{$eventId}", true, now()->addMinutes(5)); // Cache event for 5 mins
+        }
+    
+        // ✅ 4) Send Immediate Acknowledgment to Slack
+        response()->json(['status' => 'ok'])->send();  // Quick 200 OK
+    
+        // ✅ 5) Continue Processing the Event in the Background
+        if (isset($payload['type']) && $payload['type'] === 'event_callback') {
+            $event = $payload['event'] ?? [];
+    
+            if (
+                isset($event['type']) &&
+                $event['type'] === 'message' &&
+                !isset($event['bot_id']) // ✅ Prevent bot reply loops
+            ) {
+                $channelId = $event['channel'];
+                $messageText = $event['text'];
+    
+                // ✅ Process Asynchronously (without multiple triggers)
+                dispatch(function () use ($messageText, $channelId) {
+                    $aiReply = app(OpenAIService::class)->generateReply($messageText);
+                    app(SlackService::class)->sendMessageToChannel($aiReply, $channelId);
+                });
+            }
+        }
+    
+        // ✅ 6) Final Exit (No Duplicate Response)
+        exit;
     }
-
-    // Slack already received a response, no need to return again
-    exit;
-}
+    
 
     
 }
