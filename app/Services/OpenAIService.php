@@ -178,7 +178,7 @@ class OpenAIService
         }
     
         // Optional: Detect if an email address is specified
-        if (preg_match('/\bopen email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
+        if (preg_match('/\bopen email from\s+<mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\|.*?>/i', $query, $matches)) {
             $intent['openEmailFrom'] = $matches[1];
             Log::info('Detected open email from request.', [
                 'query' => $query,
