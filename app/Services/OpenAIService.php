@@ -126,94 +126,83 @@ class OpenAIService
      *     HELPER: DETECT INTENT, EXTRACT ORDER/EMAIL, /HELP, ETC.
      * ======================================================================== */
 
-    private function detectIntent(string $query): array
-{
-    $lowerQuery = strtolower($query);
-
-    $intent = [
-        'helpRequest'       => false,
-        'updateRequest'     => false,
-        'lastRecord'        => false,
-        'specificField'     => null,
-        'removeCache'       => false,
-        'fetchLastOrders'   => 0,
-        'checkNewEmails'    => false,
-        'openLatestEmail'   => false,
-        'openEmailFrom'     => null,
-        'cleanQuery'        => null,
-    ];
-
-    // ✅ Remove Cache
-    if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
-        $intent['removeCache'] = true;
-    }
-
-    // ✅ Help Request
-    if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
-        $intent['helpRequest'] = true;
-    }
-
-    // ✅ Update Request
-    if (preg_match('/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i', $query)) {
-        $intent['updateRequest'] = true;
-    }
-
-    // ✅ Last Record Request
-    if (preg_match('/\b(last record|previous order|recent order|show last|latest order|last details)\b/i', $query)) {
-        $intent['lastRecord'] = true;
-    }
-
-    // ✅ Fetch Last X Orders
-    if (preg_match('/\b(?:last|recent|show|fetch|give|get)\s*(?:me)?\s*(\d+)\s*orders?\b/i', $query, $matches)) {
-        $intent['fetchLastOrders'] = (int) $matches[1];
-    }
-
-    // ✅ Check for New Emails
-    if (preg_match('/\b(check|any|get|show)\s*(?:new|unread)?\s*emails?\b/i', $query)) {
-        $intent['checkNewEmails'] = true;
-    }
-
-    // ✅ Detect "Open Latest Email"
-    if (preg_match('/\bopen (?:the )?latest email\b/i', $query)) {
-        $intent['openLatestEmail'] = true;
-    }
-
-    // ✅ Detect Email Addresses (Standard & Slack Format)
-    if (preg_match('/(?:open email\s*)?(?:<mailto:)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:\|.*?>)?/i', $query, $matches)) {
-        $intent['openEmailFrom'] = $matches[1];  // Extract email address correctly
-    }
-
-    // ✅ Specific Field Requests
-    $specificFieldPatterns = [
-        'email_address' => '/\b(order email|order e-mail|order mail address)\b/i',
-        'customer_name' => '/\b(order name|order first name|order last name|order customer name)\b/i',
-        'phone'         => '/\b(order phone|order contact number|order mobile)\b/i',
-    ];
-    foreach ($specificFieldPatterns as $field => $pattern) {
-        if (preg_match($pattern, $query)) {
-            $intent['specificField'] = $field;
-            break;
+     private function detectIntent(string $query): array
+     {
+         $lowerQuery = strtolower($query);
+     
+         $intent = [
+             'helpRequest'       => false,
+             'updateRequest'     => false,
+             'lastRecord'        => false,
+             'specificField'     => null,
+             'removeCache'       => false,
+             'fetchLastOrders'   => 0,          
+             'checkNewEmails'    => false, 
+             'openLatestEmail' => false,  
+        'openEmailFrom'   => null, 
+        'cleanQuery'        => null   
+         ];
+     
+         // Check for removing cache
+         if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
+             $intent['removeCache'] = true;
+         }
+     
+         // Help request
+         if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
+             $intent['helpRequest'] = true;
+         }
+     
+         // Update request
+         if (preg_match('/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i', $query)) {
+             $intent['updateRequest'] = true;
+         }
+     
+         // Last record
+         if (preg_match('/\b(last record|previous order|recent order|show last|latest order|last details)\b/i', $query)) {
+             $intent['lastRecord'] = true;
+         }
+     
+         // Fetch last X orders
+         if (preg_match('/\b(?:last|recent|show|fetch|give|get)\s*(?:me)?\s*(\d+)\s*orders?\b/i', $query, $matches)) {
+             $intent['fetchLastOrders'] = (int) $matches[1];
+         }
+     
+         // Check for new/unread emails
+         if (preg_match('/\b(check|any|get|show)\s*(?:new|unread)?\s*emails?\b/i', $query)) {
+             $intent['checkNewEmails'] = true;
+         }
+     
+         if (preg_match('/\blatest emails\b/i', $query)) {
+            $intent['openLatestEmail'] = true;
         }
-    }
-
-    // ✅ Fallback to Clean Query if No Intent Detected
-    if (
-        !$intent['helpRequest'] &&
-        !$intent['updateRequest'] &&
-        !$intent['lastRecord'] &&
-        !$intent['specificField'] &&
-        !$intent['removeCache'] &&
-        !$intent['fetchLastOrders'] &&
-        !$intent['checkNewEmails'] &&
-        !$intent['openLatestEmail'] &&
-        !$intent['openEmailFrom']
-    ) {
-        $intent['cleanQuery'] = $query;
-    }
-
-    return $intent;
-}
- 
+    
+        // Optional: Detect if an email address is specified
+        if (preg_match('/\bopen email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
+            $intent['openEmailFrom'] = $matches[1];
+        }
+     
+         // Specific field requests
+         $specificFieldPatterns = [
+             'email_address' => '/\b(order email|order e-mail|order mail address)\b/i',
+             'customer_name' => '/\b(order name|order first name|order last name|order customer name)\b/i',
+             'phone'         => '/\b(order phone|order contact number|order mobile)\b/i',
+         ];
+         foreach ($specificFieldPatterns as $field => $pattern) {
+             if (preg_match($pattern, $query)) {
+                 $intent['specificField'] = $field;
+                 break;
+             }
+         }
+         if (!$intent['helpRequest'] && !$intent['updateRequest'] && !$intent['lastRecord'] &&
+         !$intent['removeCache'] && !$intent['fetchLastOrders'] && !$intent['checkNewEmails'] &&
+         !$intent['openEmailFrom'] && !$intent['specificField']
+     ) {
+         $intent['cleanQuery'] = $query;
+     }
+         return $intent;
+     }
+     
      
 
     /**
@@ -288,7 +277,7 @@ EOT;
         return $matches[0] ?? null;
     }
 
-    private function determineCacheKey( $slackUserId,  $orderNumber,  $email)
+    private function determineCacheKey(?string $slackUserId, ?string $orderNumber, ?string $email): string
     {
         if ($slackUserId) {
             return 'slack_' . $slackUserId;
