@@ -86,15 +86,20 @@ class OpenAIService
         if ($email) {
             $lastConversation = $this->getLastConversationByEmail($email);
             Log::info('Last conversation retrieved:', ['lastConversation' => $lastConversation]);
-
+        
             if ($lastConversation) {
-                $replyContent = $this->generateEmailReply($lastConversation);
+                // ✅ Convert to JSON if it's an array BEFORE passing it to generateEmailReply
+                $conversationData = is_array($lastConversation) ? json_encode($lastConversation, JSON_PRETTY_PRINT) : $lastConversation;
+        
+                $replyContent = $this->generateEmailReply($conversationData);
                 Log::info('Generated reply content:', ['replyContent' => $replyContent]);
+        
                 return "✉️ *Generated Reply:*\n\n" . $replyContent;
             }
             Log::warning('No conversation history found for email:', ['email' => $email]);
             return "❌ No conversation history found for {$email}.";
         }
+        
         Log::warning('No valid email found in customer query:', ['customerQuery' => $customerQuery]);
         return "❌ No valid email found to generate a reply.";
     }
