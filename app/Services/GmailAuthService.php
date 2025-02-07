@@ -19,6 +19,7 @@ class GmailAuthService
         $this->client = new Client();
         $this->client->setAuthConfig(storage_path('app/credentials.json'));
         $this->client->addScope(Gmail::MAIL_GOOGLE_COM);
+        $this->client->addScope('https://www.googleapis.com/auth/pubsub');
         $this->client->setAccessType('offline');
         $this->client->setPrompt('consent');
         $this->client->setRedirectUri('http://localhost'); // Redirect URI

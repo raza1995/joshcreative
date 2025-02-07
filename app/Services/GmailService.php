@@ -24,6 +24,7 @@ class GmailService
         $this->client = new Client();
         $this->client->setAuthConfig(storage_path('app/credentials.json'));
         $this->client->addScope(Gmail::MAIL_GOOGLE_COM);
+        $this->client->addScope('https://www.googleapis.com/auth/pubsub');
         $this->client->setAccessType('offline');
         $this->client->setPrompt('select_account consent');
 
@@ -276,37 +277,35 @@ private function getLabelId($labelName)
 public function startWatch()
 {
     try {
-        $labelIds = ['INBOX']; // Watch only the Inbox
-        $topicName = 'projects/gmail-api-449711/topics/gmail-notification';
-
-        Log::info("Creating WatchRequest with labelIds: " . json_encode($labelIds) . " and topicName: $topicName");
-
-        // Prepare the Watch Request
         $watchRequest = new \Google\Service\Gmail\WatchRequest([
-            'labelIds' => $labelIds,
-            'topicName' => $topicName
+            'labelIds'  => ['INBOX'],
+            'topicName' => 'projects/gmail-api-449711/topics/gmail-notification',
         ]);
 
-        Log::info("Sending watch request to Gmail API for user 'me'...");
-        
-        // Call Gmail API to Start Watching
         $response = $this->service->users->watch('me', $watchRequest);
-
-        // Extract expiration info
-        $expiration = $response->expiration ?? 'UNKNOWN';
-        
-        Log::info("Received response from Gmail API: " . json_encode($response));
-        Log::info("✅ Gmail Watch started successfully. Expiration: $expiration");
+        \Log::info("✅ Gmail Watch started successfully.");
+        return $response;
 
     } catch (\Google\Service\Exception $gException) {
-        Log::error("🚨 Google API Error starting Gmail Watch: " . $gException->getMessage());
-        Log::error("📌 Error Details: " . json_encode($gException->getErrors()));
+        \Log::error("🚨 Google API Error: " . $gException->getMessage());
+        $errorDetails = $gException->getErrors();
+
+        // 🚨 Detect Permission Issue (Forbidden Error)
+        if (isset($errorDetails[0]['reason']) && $errorDetails[0]['reason'] === 'forbidden') {
+            \Log::warning("⚠️ Forbidden error detected. Triggering re-authentication...");
+
+            // Trigger Re-authentication
+            $this->authenticate(true);  // Force re-authentication
+
+            // Retry Watch Request after re-auth
+            return $this->startWatch();
+        }
 
     } catch (\Exception $e) {
-        Log::error("🚨 General Error starting Gmail Watch: " . $e->getMessage());
-        Log::error("📌 Stack Trace: " . $e->getTraceAsString());
+        \Log::error("🚨 General Error starting Gmail Watch: " . $e->getMessage());
     }
 }
+
 
 public function fetchNewEmails()
 {

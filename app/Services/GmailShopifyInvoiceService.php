@@ -25,6 +25,7 @@ class GmailShopifyInvoiceService
         $this->client = new Client();
         $this->client->setAuthConfig(storage_path('app/credentials.json'));
         $this->client->addScope(Gmail::MAIL_GOOGLE_COM);
+        $this->client->addScope('https://www.googleapis.com/auth/pubsub');
         $this->client->setAccessType('offline');
         $this->client->setPrompt('select_account consent');
         $this->shopifyDomain = env('SHOPIFY_STORE_DOMAIN');
