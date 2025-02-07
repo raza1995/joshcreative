@@ -118,8 +118,10 @@ public function generateReply($customerQuery)
     $contextData = $this->getCachedContext($cacheKey);
 
     // Fallback to previous data if no new info is provided
-    $orderNumber = $orderNumber ?? (is_array($contextData) ? $contextData['lastOrderNumber'] ?? null : null);
-    $email = $email ?? (is_array($contextData) ? $contextData['lastEmail'] ?? null : null);
+ // Fallback to previous data if no new info is provided
+$orderNumber = $orderNumber ?? (is_array($contextData) ? $contextData['lastOrderNumber'] ?? null : null);
+$email = $email ?? (is_array($contextData) ? $contextData['lastEmail'] ?? null : null);
+
 
     // Step 1: Fetch data from the local database
     $orders = collect();
@@ -149,10 +151,7 @@ public function generateReply($customerQuery)
         ->orWhere('order_number', $orderNumber)
         ->get();
 
-    // (Ensure you have the most recent conversation object if needed)
-    $conversation = $conversations->last();
-    $conversationLog = $conversation->conversation_data ?? [];
-
+$conversationLog = $conversation->conversation_data ?? [];
     // AI Prompt
     $prompt = "You are an intelligent customer support assistant designed to:
 - Provide concise, helpful responses to customer inquiries.
@@ -179,17 +178,19 @@ Your Task:
 - Draft an email if the user asks for an email.
 - Ignore irrelevant questions unrelated to customer support.";
 
-    $response = Http::withToken($this->apiKey)
-        ->post('https://api.openai.com/v1/chat/completions', [
-            'model' => $this->model,
-            'n' => 1,
-            'messages' => [
-                ['role' => 'system', 'content' => 'You are a highly intelligent customer support assistant. Provide concise responses, answer relevant questions, and draft emails based on order data when requested.'],
-                ['role' => 'user', 'content' => $prompt],
-            ],
-            'temperature' => 0.6,
-            'max_tokens' => 300,  // Increased for more detailed responses when drafting emails
-        ]);
+
+$response = Http::withToken($this->apiKey)
+    ->post('https://api.openai.com/v1/chat/completions', [
+        'model' => $this->model,
+        'n' => 1,
+        'messages' => [
+            ['role' => 'system', 'content' => 'You are a highly intelligent customer support assistant. Provide concise responses, answer relevant questions, and draft emails based on order data when requested.'],
+            ['role' => 'user', 'content' => $prompt],
+        ],
+        'temperature' => 0.6,
+        'max_tokens' => 300,  // Increased for more detailed responses when drafting emails
+    ]);
+
 
     if ($response->successful()) {
         $reply = $response->json()['choices'][0]['message']['content'] ?? 'Hmm, I’m not sure, but I’m here to help!';
@@ -201,7 +202,6 @@ Your Task:
             'ai' => $reply,
         ];
         $this->saveConversation($userIdentifier, $orderNumber, $contextData['conversationLog']);
-
         // Update cached context with new conversation data
         $this->setCachedContext($cacheKey, [
             'previousContext' => "{$contextData['previousContext']}\n{$customerQuery}: {$reply}",
@@ -216,6 +216,7 @@ Your Task:
         return 'Oops, something went wrong. Could you try again?';
     }
 }
+
     
     // Check if the requested information exists in the database
     private function isInformationMissing($customerQuery, $orders)
