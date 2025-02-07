@@ -36,424 +36,90 @@ class OpenAIService
      * - We fetch from DB first for basic info.
      * - If user wants more detail, we fetch from Shopify (no DB update).
      */
-
-     protected array $config = [
-        'max_orders' => 5,
-        'cache_ttl' => 1800, // 30 minutes
-        'min_confidence' => 0.7,
-    ];
-
-    /* ========================================================================
-     *                          MAIN ENTRY POINT
-     * ======================================================================== */
-
     public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
-    {
-        try {
-            // 1. Intent Detection
-            $intentData = $this->detectIntentWithModel($customerQuery);
-            
-            // 2. Log detection results
-            Log::info('Intent detection', [
-                'query' => $customerQuery,
-                'intent' => $intentData,
-                'user' => $slackUserId
-            ]);
+{
+    // 1. Detect overall intent (/help, etc.)
+    $intent = $this->detectIntent($customerQuery);
+    Log::info('Intent detected:', $intent);
 
-            // 3. Handle low confidence scenarios
-            if ($intentData['confidence'] < $this->config['min_confidence']) {
-                return $this->handleLowConfidenceQuery($customerQuery);
+    if ($intent['removeCache']) {
+        Cache::flush(); 
+        return "All conversation caches have been successfully removed.";
+    }
+
+    if ($intent['helpRequest']) {
+        return $this->generateHelpResponse($useSlackBlocks);
+    }
+
+    // ✅ Check for New Emails
+    if ($intent['checkNewEmails']) {
+        $newEmails = app(GmailService::class)->fetchUnreadEmails();
+        return "📬 You have " . count($newEmails) . " new emails.";
+    }
+
+    // ✅ Handle "get last X orders"
+    if ($intent['fetchLastOrders'] > 0) {
+        $lastOrders = $this->fetchShopifyOrders(null, null, false, $intent['fetchLastOrders']);
+        if ($lastOrders->isNotEmpty()) {
+            return $this->formatOrderDetails($lastOrders);
+        }
+        return "No recent orders found.";
+    }
+
+    // ✅ Open Latest Email
+    if ($intent['openLatestEmail']) {
+        $emailContent = app(GmailService::class)->getLatestEmail();
+        return "📬 *Latest Email:*\n\n" . $emailContent;
+    }
+
+    // ✅ Open Specific Email by Sender
+    if ($intent['openEmailFrom']) {
+        $emailContent = app(GmailService::class)->getLatestEmailBySender($intent['openEmailFrom']);
+        return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
+    }
+
+    // ✅ Request Specific Field (Order-Related)
+    if ($intent['specificField']) {
+        $orderNumber = $this->extractOrderNumber($customerQuery);
+        $email       = $this->extractEmail($customerQuery);
+
+        $orders = $this->fetchRelevantOrders($intent, $orderNumber, $email);
+        if ($orders->isNotEmpty()) {
+            $fieldValue = $orders->first()[$intent['specificField']] ?? null;
+            if ($fieldValue) {
+                return "Requested info ({$intent['specificField']}): {$fieldValue}";
+            } else {
+                if ($orders->count() === 1 && $orderNumber) {
+                    $shopifyData = $this->fetchSingleOrderFromShopify($orderNumber);
+                    $fieldValue = $this->extractAdditionalField($shopifyData, $intent['specificField']);
+                    if ($fieldValue) {
+                        return "Requested info ({$intent['specificField']}): {$fieldValue}";
+                    }
+                }
+                return "Information for ({$intent['specificField']}) not available.";
             }
-
-            // 4. Route to appropriate handler
-            return match($intentData['intent']) {
-                // 'remove_cache' => $this->handleCacheRemoval(),
-                'help' => $this->generateHelpResponse($useSlackBlocks),
-                'check_emails' => $this->handleEmailIntent($intentData),
-                'fetch_orders' => $this->handleOrderIntent($intentData, $customerQuery),
-                'draft_email' => $this->handleEmailDrafting($intentData),
-                // 'discount_query' => $this->handleDiscountIntent($intentData),
-                // 'payment_query' => $this->handlePaymentIntent($intentData),
-                // 'refund_query' => $this->handleRefundIntent($intentData),
-                // default => $this->handleGeneralQuery($customerQuery)
-            };
-
-        } catch (\Exception $e) {
-            Log::error('Reply generation failed: ' . $e->getMessage());
-            return "Sorry, I'm having trouble processing your request. Please try again later.";
         }
     }
 
-    /* ========================================================================
-     *                      INTENT DETECTION & PROCESSING
-     * ======================================================================== */
-
-    private function detectIntentWithModel(string $query): array
-    {
-        try {
-            $response = Http::timeout(3)
-                ->retry(3, 100)
-                ->post(config('services.intent_model.endpoint'), [
-                    'query' => $query,
-                    'context' => $this->getConversationContext()
-                ])->throw()->json();
-
-            return [
-                'intent' => $response['intent'] ?? 'general_help',
-                'entities' => $response['entities'] ?? [],
-                'confidence' => $response['confidence'] ?? 0,
-                'fallback_reason' => $response['fallback_reason'] ?? null
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Model request failed: ' . $e->getMessage());
-            return $this->getFallbackIntent($query);
+    // ✅ If user requests the last referenced order
+    if ($intent['lastRecord']) {
+        $cacheKey    = $this->determineCacheKey($slackUserId);
+        $contextData = $this->getCachedContext($cacheKey);
+        $lastOrderResponse = $this->handleLastRecordRequest($contextData, $useSlackBlocks);
+        if ($lastOrderResponse) {
+            return $lastOrderResponse;
         }
     }
 
-    // private function getFallbackIntent(string $query): array
-    // {
-    //     $legacyIntent = $this->detectIntentLegacy($query);
-    //     return $this->mapLegacyIntent($legacyIntent);
-    // }
-
-    private function detectIntentLegacy(string $query): array
-    {
-        // Original regex-based detection implementation
-        $lowerQuery = strtolower($query);
-        $intent = [
-            'helpRequest' => false,
-            'checkNewEmails' => false,
-            // ... other legacy intent flags
-        ];
-
-        // Implement original regex checks here
-        if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
-            $intent['removeCache'] = true;
-        }
-        // ... other regex checks
-
-        return $intent;
+    // ✅ Handle General Queries (Fallback)
+    if ($intent['cleanQuery']) {
+        $prompt = "User asked: {$intent['cleanQuery']}. Provide a concise and helpful response.";
+        return $this->callOpenAI($prompt);
     }
 
-    /* ========================================================================
-     *                          INTENT HANDLERS
-     * ======================================================================== */
-
-    private function handleOrderIntent(array $intentData, string $query): string
-    {
-        $orderNumber = $this->extractOrderNumberFromQuery($query, $intentData);
-        
-        if (!$orderNumber) {
-            return "Please provide an order number so I can help you.";
-        }
-
-        $order = $this->fetchOrderDetails($orderNumber);
-        
-        if (!$order) {
-            return "Order #$orderNumber not found. Please verify the order number.";
-        }
-
-        $this->cacheOrderContext($order, $intentData);
-
-        return match($intentData['intent']) {
-            'FETCH_ORDER_STATUS' => $this->formatOrderStatus($order),
-            // 'FETCH_SHIPPING_STATUS' => $this->formatShippingStatus($order),
-            // 'FETCH_PAYMENT_STATUS' => $this->formatPaymentStatus($order),
-            // 'FETCH_ORDER_ITEMS_COUNT' => $this->formatItemCount($order),
-            // 'FETCH_ORDER_PRODUCTS' => $this->formatOrderProducts($order),
-            'FETCH_TRACKING_INFO' => $this->formatTrackingInfo($order),
-            // 'FETCH_SHIPPING_ADDRESS' => $this->formatShippingAddress($order),
-            default => $this->formatOrderDetails([$order])
-        };
-    }
-
-    private function handleEmailIntent(array $intentData): string
-    {
-        $gmailService = app(GmailService::class);
-
-        return match($intentData['intent']) {
-            'CHECK_NEW_EMAILS' => $this->formatEmailCount($gmailService->fetchUnreadEmails()),
-            // 'OPEN_LATEST_EMAIL' => $this->formatEmailContent($gmailService->getLatestEmail()),
-            // 'OPEN_EMAIL_FROM' => $this->handleSpecificSenderEmail($intentData),
-            default => 'Email handling not implemented yet'
-        };
-    }
-
-    private function handleEmailDrafting(array $intentData): string
-    {
-        $orderNumber = $intentData['entities']['order_number'] ?? null;
-        $order = $orderNumber ? $this->fetchOrderDetails($orderNumber) : null;
-
-        return match($intentData['intent']) {
-            'DRAFT_EMAIL_DELAYED_ORDER' => $this->draftDelayEmail($order),
-            'DRAFT_EMAIL_REFUND_CONFIRMATION' => $this->draftRefundEmail($order),
-            // 'DRAFT_EMAIL_SHIPPING_CONFIRMATION' => $this->draftShippingConfirmation($order),
-            default => 'Email drafting not implemented yet'
-        };
-    }
-
-    /* ========================================================================
-     *                          FORMATTING METHODS
-     * ======================================================================== */
-
-    private function formatOrderStatus(array $order): string
-    {
-        $status = $order['fulfillment_status'] ?? 'processing';
-        $orderNumber = $order['order_number'] ?? 'N/A';
-        
-        $statusMap = [
-            'fulfilled' => "✅ Order #$orderNumber has been shipped",
-            'partial' => "⏳ Order #$orderNumber is partially fulfilled",
-            'unfulfilled' => "📦 Order #$orderNumber is being processed",
-            'cancelled' => "❌ Order #$orderNumber was cancelled",
-        ];
-
-        return $statusMap[strtolower($status)] ?? "ℹ️ Current status: " . ucfirst($status);
-    }
-
-    private function formatTrackingInfo(array $order): string
-    {
-        $tracking = $order['tracking_info'] ?? [];
-        
-        if (empty($tracking)) {
-            return "No tracking information available for order #{$order['order_number']}";
-        }
-
-        return implode("\n", [
-            "📦 Tracking info for order #{$order['order_number']}:",
-            "• Carrier: {$tracking['carrier']}",
-            "• Tracking #: {$tracking['number']}",
-            "• Status: {$tracking['status']}",
-            "• Last update: {$this->formatDate($tracking['updated_at'])}"
-        ]);
-    }
-
-    private function formatEmailCount(array $emails): string
-    {
-        $count = count($emails);
-        return $count > 0 
-            ? "📬 You have $count new emails"
-            : "📭 No new emails in your inbox";
-    }
-
-    /* ========================================================================
-     *                          EMAIL DRAFT TEMPLATES
-     * ======================================================================== */
-
-    private function draftDelayEmail(?array $order): string
-    {
-        if (!$order) {
-            return "Unable to draft email - order information missing";
-        }
-
-        return implode("\n\n", [
-            "✉️ Draft Email for Order #{$order['order_number']}:",
-            "Subject: Update on Your Order #{$order['order_number']}",
-            "Hi {$order['customer']['first_name']},",
-            "We wanted to inform you that your order is experiencing a slight delay. ",
-            "We apologize for the inconvenience and will notify you once it ships.",
-            "Best regards,\nCustomer Support Team"
-        ]);
-    }
-
-    private function draftRefundEmail(?array $order): string
-    {
-        // Similar template structure with refund-specific content
-    }
-
-    /* ========================================================================
-     *                          SHOPIFY INTEGRATION
-     * ======================================================================== */
-
-    private function fetchOrderDetails(string $orderNumber): ?array
-    {
-        try {
-            $response = Http::shopify()
-                ->retry(3, 100)
-                ->get("/orders.json", [
-                    'name' => $orderNumber,
-                    'status' => 'any',
-                    'fields' => implode(',', [
-                        'id,name,created_at,financial_status,fulfillment_status',
-                        'total_price,currency,customer,shipping_address',
-                        'line_items,tracking_info,discount_codes'
-                    ])
-                ]);
-
-            return $response->json('orders.0');
-
-        } catch (\Exception $e) {
-            Log::error("Shopify API failure: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    /* ========================================================================
-     *                          CONTEXT MANAGEMENT
-     * ======================================================================== */
-
-    // private function getConversationContext(): array
-    // {
-    //     return Cache::remember('conversation_context', $this->config['cache_ttl'], function () {
-    //         // return [
-    //         //     'recent_orders' => $this->getRecentOrdersFromCache(),
-    //         //     'common_queries' => $this->getCommonQueryPatterns(),
-    //         //     'customer_preferences' => $this->getCustomerPreferences()
-    //         // ];
-    //     });
-    // }
-
-    private function cacheOrderContext(array $order, array $intentData): void
-    {
-        $context = Cache::get('order_context', []);
-        $context[$order['order_number']] = [
-            'last_accessed' => now(),
-            'intent' => $intentData,
-            'customer' => $order['customer']['email'] ?? null
-        ];
-        Cache::put('order_context', $context, $this->config['cache_ttl']);
-    }
-
-    /* ========================================================================
-     *                          UTILITIES & HELPERS
-     * ======================================================================== */
-
-    // private function extractOrderNumberFromQuery(string $query, array $intentData): ?string
-    // {
-    //     return $intentData['entities']['order_number'] 
-    //         ?? $this->extractOrderNumberLegacy($query)
-    //         ?? $this->getLastOrderNumberFromCache();
-    // }
-
-    private function extractOrderNumberLegacy(string $query): ?string
-    {
-        preg_match('/#?(\d{5,})/i', $query, $matches);
-        return $matches[1] ?? null;
-    }
-
-    private function formatDate(string $dateString): string
-    {
-        try {
-            return now()->parse($dateString)->diffForHumans();
-        } catch (\Exception $e) {
-            return $dateString;
-        }
-    }
-
-    /* ========================================================================
-     *                          FALLBACK HANDLING
-     * ======================================================================== */
-
-    // private function handleLowConfidenceQuery(string $query): string
-    // {
-    //     $logContext = [
-    //         'query' => $query,
-    //         'confidence' => $intentData['confidence'] ?? 0
-    //     ];
-        
-    //     Log::warning('Low confidence intent detection', $logContext);
-        
-    //     return $this->isOrderRelatedQuery($query)
-    //         ? "I'm not sure I understand. Could you please provide the order number?"
-    //         : $this->callOpenAIFallback($query);
-    // }
-
-    // private function callOpenAIFallback(string $query): string
-    // {
-    //     try {
-    //         return app(OpenAIService::class)->generateResponse(
-    //             "User asked: $query. Provide a concise helpful response."
-    //         );
-    //     } catch (\Exception $e) {
-    //         Log::error('OpenAI fallback failed: ' . $e->getMessage());
-    //         return "I'm sorry, I didn't understand that. Could you rephrase your question?";
-    //     }
-    // }
-//     public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
-// {
-//     // 1. Detect overall intent (/help, etc.)
-//     $intent = $this->detectIntent($customerQuery);
-//     Log::info('Intent detected:', $intent);
-
-//     if ($intent['removeCache']) {
-//         Cache::flush(); 
-//         return "All conversation caches have been successfully removed.";
-//     }
-
-//     if ($intent['helpRequest']) {
-//         return $this->generateHelpResponse($useSlackBlocks);
-//     }
-
-//     // ✅ Check for New Emails
-//     if ($intent['checkNewEmails']) {
-//         $newEmails = app(GmailService::class)->fetchUnreadEmails();
-//         return "📬 You have " . count($newEmails) . " new emails.";
-//     }
-
-//     // ✅ Handle "get last X orders"
-//     if ($intent['fetchLastOrders'] > 0) {
-//         $lastOrders = $this->fetchShopifyOrders(null, null, false, $intent['fetchLastOrders']);
-//         if ($lastOrders->isNotEmpty()) {
-//             return $this->formatOrderDetails($lastOrders);
-//         }
-//         return "No recent orders found.";
-//     }
-
-//     // ✅ Open Latest Email
-//     if ($intent['openLatestEmail']) {
-//         $emailContent = app(GmailService::class)->getLatestEmail();
-//         return "📬 *Latest Email:*\n\n" . $emailContent;
-//     }
-
-//     // ✅ Open Specific Email by Sender
-//     if ($intent['openEmailFrom']) {
-//         $emailContent = app(GmailService::class)->getLatestEmailBySender($intent['openEmailFrom']);
-//         return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
-//     }
-
-//     // ✅ Request Specific Field (Order-Related)
-//     if ($intent['specificField']) {
-//         $orderNumber = $this->extractOrderNumber($customerQuery);
-//         $email       = $this->extractEmail($customerQuery);
-
-//         $orders = $this->fetchRelevantOrders($intent, $orderNumber, $email);
-//         if ($orders->isNotEmpty()) {
-//             $fieldValue = $orders->first()[$intent['specificField']] ?? null;
-//             if ($fieldValue) {
-//                 return "Requested info ({$intent['specificField']}): {$fieldValue}";
-//             } else {
-//                 if ($orders->count() === 1 && $orderNumber) {
-//                     $shopifyData = $this->fetchSingleOrderFromShopify($orderNumber);
-//                     $fieldValue = $this->extractAdditionalField($shopifyData, $intent['specificField']);
-//                     if ($fieldValue) {
-//                         return "Requested info ({$intent['specificField']}): {$fieldValue}";
-//                     }
-//                 }
-//                 return "Information for ({$intent['specificField']}) not available.";
-//             }
-//         }
-//     }
-
-//     // ✅ If user requests the last referenced order
-//     if ($intent['lastRecord']) {
-//         $cacheKey    = $this->determineCacheKey($slackUserId);
-//         $contextData = $this->getCachedContext($cacheKey);
-//         $lastOrderResponse = $this->handleLastRecordRequest($contextData, $useSlackBlocks);
-//         if ($lastOrderResponse) {
-//             return $lastOrderResponse;
-//         }
-//     }
-
-//     // ✅ Handle General Queries (Fallback)
-//     if ($intent['cleanQuery']) {
-//         $prompt = "User asked: {$intent['cleanQuery']}. Provide a concise and helpful response.";
-//         return $this->callOpenAI($prompt);
-//     }
-
-//     // Default Fallback Response
-//     return $intent['cleanQuery'];
-// }
+    // Default Fallback Response
+    return $intent['cleanQuery'];
+}
 
 
     /* ========================================================================
@@ -622,7 +288,7 @@ EOT;
         return $matches[0] ?? null;
     }
 
-    private function determineCacheKey(?string $slackUserId, ?string $orderNumber, ?string $email): string
+    private function determineCacheKey( $slackUserId,  $orderNumber,  $email)
     {
         if ($slackUserId) {
             return 'slack_' . $slackUserId;
@@ -946,7 +612,7 @@ PROMPT;
             $response = Http::withToken($this->apiKey)->post(
                 'https://api.openai.com/v1/chat/completions',
                 [
-                    'model'       => 'ft:gpt-3.5-turbo-1106:josh-creative-co::AyNhCTJf',
+                    'model'       => $this->model,
                     'messages'    => [
                         [
                             'role'    => 'system',
