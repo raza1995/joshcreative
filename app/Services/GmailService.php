@@ -641,8 +641,8 @@ public function fetchUnreadEmails()
 {
     $user = 'me';
     $messages = $this->service->users_messages->listUsersMessages($user, [
-        'q' => 'is:unread',
-        'maxResults' => 5,
+        'q' => 'is:unread in:inbox',
+        'maxResults' => 250,
     ])->getMessages();
 
     return $messages ?? [];
