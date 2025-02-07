@@ -36,92 +36,89 @@ class OpenAIService
      * - We fetch from DB first for basic info.
      * - If user wants more detail, we fetch from Shopify (no DB update).
      */
-    private function detectIntent(string $query): array
+    public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
 {
-    $lowerQuery = strtolower($query);
+    // 1. Detect overall intent (/help, etc.)
+    $intent = $this->detectIntent($customerQuery);
+    Log::info('Intent detected:', $intent);
 
-    $intent = [
-        'helpRequest'       => false,
-        'updateRequest'     => false,
-        'lastRecord'        => false,
-        'specificField'     => null,
-        'removeCache'       => false,
-        'fetchLastOrders'   => 0,
-        'checkNewEmails'    => false,
-        'openLatestEmail'   => false,
-        'openEmailFrom'     => null,
-        'cleanQuery'        => null,
-    ];
-
-    // ✅ Remove Cache
-    if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
-        $intent['removeCache'] = true;
+    if ($intent['removeCache']) {
+        Cache::flush(); 
+        return "All conversation caches have been successfully removed.";
     }
 
-    // ✅ Help Request
-    if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
-        $intent['helpRequest'] = true;
-    }
-
-    // ✅ Update Request
-    if (preg_match('/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i', $query)) {
-        $intent['updateRequest'] = true;
-    }
-
-    // ✅ Last Record Request
-    if (preg_match('/\b(last record|previous order|recent order|show last|latest order|last details)\b/i', $query)) {
-        $intent['lastRecord'] = true;
-    }
-
-    // ✅ Fetch Last X Orders
-    if (preg_match('/\b(?:last|recent|show|fetch|give|get)\s*(?:me)?\s*(\d+)\s*orders?\b/i', $query, $matches)) {
-        $intent['fetchLastOrders'] = (int) $matches[1];
+    if ($intent['helpRequest']) {
+        return $this->generateHelpResponse($useSlackBlocks);
     }
 
     // ✅ Check for New Emails
-    if (preg_match('/\b(check|any|get|show)\s*(?:new|unread)?\s*emails?\b/i', $query)) {
-        $intent['checkNewEmails'] = true;
+    if ($intent['checkNewEmails']) {
+        $newEmails = app(GmailService::class)->fetchUnreadEmails();
+        return "📬 You have " . count($newEmails) . " new emails.";
     }
 
-    // ✅ Detect "Open Latest Email"
-    if (preg_match('/\bopen (?:the )?latest email\b/i', $query)) {
-        $intent['openLatestEmail'] = true;
+    // ✅ Handle "get last X orders"
+    if ($intent['fetchLastOrders'] > 0) {
+        $lastOrders = $this->fetchShopifyOrders(null, null, false, $intent['fetchLastOrders']);
+        if ($lastOrders->isNotEmpty()) {
+            return $this->formatOrderDetails($lastOrders);
+        }
+        return "No recent orders found.";
     }
 
-    // ✅ Detect Email Addresses (Standard & Slack Format)
-    if (preg_match('/(?:open email\s*)?(?:<mailto:)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:\|.*?>)?/i', $query, $matches)) {
-        $intent['openEmailFrom'] = $matches[1];  // Extract email address correctly
+    // ✅ Open Latest Email
+    if ($intent['openLatestEmail']) {
+        $emailContent = app(GmailService::class)->getLatestEmail();
+        return "📬 *Latest Email:*\n\n" . $emailContent;
     }
 
-    // ✅ Specific Field Requests
-    $specificFieldPatterns = [
-        'email_address' => '/\b(order email|order e-mail|order mail address)\b/i',
-        'customer_name' => '/\b(order name|order first name|order last name|order customer name)\b/i',
-        'phone'         => '/\b(order phone|order contact number|order mobile)\b/i',
-    ];
-    foreach ($specificFieldPatterns as $field => $pattern) {
-        if (preg_match($pattern, $query)) {
-            $intent['specificField'] = $field;
-            break;
+    // ✅ Open Specific Email by Sender
+    if ($intent['openEmailFrom']) {
+        $emailContent = app(GmailService::class)->getLatestEmailBySender($intent['openEmailFrom']);
+        return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
+    }
+
+    // ✅ Request Specific Field (Order-Related)
+    if ($intent['specificField']) {
+        $orderNumber = $this->extractOrderNumber($customerQuery);
+        $email       = $this->extractEmail($customerQuery);
+
+        $orders = $this->fetchRelevantOrders($intent, $orderNumber, $email);
+        if ($orders->isNotEmpty()) {
+            $fieldValue = $orders->first()[$intent['specificField']] ?? null;
+            if ($fieldValue) {
+                return "Requested info ({$intent['specificField']}): {$fieldValue}";
+            } else {
+                if ($orders->count() === 1 && $orderNumber) {
+                    $shopifyData = $this->fetchSingleOrderFromShopify($orderNumber);
+                    $fieldValue = $this->extractAdditionalField($shopifyData, $intent['specificField']);
+                    if ($fieldValue) {
+                        return "Requested info ({$intent['specificField']}): {$fieldValue}";
+                    }
+                }
+                return "Information for ({$intent['specificField']}) not available.";
+            }
         }
     }
 
-    // ✅ Fallback to Clean Query if No Intent Detected
-    if (
-        !$intent['helpRequest'] &&
-        !$intent['updateRequest'] &&
-        !$intent['lastRecord'] &&
-        !$intent['specificField'] &&
-        !$intent['removeCache'] &&
-        !$intent['fetchLastOrders'] &&
-        !$intent['checkNewEmails'] &&
-        !$intent['openLatestEmail'] &&
-        !$intent['openEmailFrom']
-    ) {
-        $intent['cleanQuery'] = $query;
+    // ✅ If user requests the last referenced order
+    if ($intent['lastRecord']) {
+        $cacheKey    = $this->determineCacheKey($slackUserId);
+        $contextData = $this->getCachedContext($cacheKey);
+        $lastOrderResponse = $this->handleLastRecordRequest($contextData, $useSlackBlocks);
+        if ($lastOrderResponse) {
+            return $lastOrderResponse;
+        }
     }
 
-    return $intent;
+    // ✅ Handle General Queries (Fallback)
+    if ($intent['cleanQuery']) {
+        $prompt = "User asked: {$intent['cleanQuery']}. Provide a concise and helpful response.";
+        return $this->callOpenAI($prompt);
+    }
+
+    // Default Fallback Response
+    return $intent['cleanQuery'];
 }
 
 
@@ -139,53 +136,54 @@ class OpenAIService
              'lastRecord'        => false,
              'specificField'     => null,
              'removeCache'       => false,
-             'fetchLastOrders'   => 0,          
-             'checkNewEmails'    => false, 
-             'openLatestEmail' => false,  
-        'openEmailFrom'   => null, 
-        'cleanQuery'        => null   
+             'fetchLastOrders'   => 0,
+             'checkNewEmails'    => false,
+             'openLatestEmail'   => false,
+             'openEmailFrom'     => null,
+             'cleanQuery'        => null,
          ];
      
-         // Check for removing cache
+         // ✅ Remove Cache
          if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
              $intent['removeCache'] = true;
          }
      
-         // Help request
+         // ✅ Help Request
          if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
              $intent['helpRequest'] = true;
          }
      
-         // Update request
+         // ✅ Update Request
          if (preg_match('/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i', $query)) {
              $intent['updateRequest'] = true;
          }
      
-         // Last record
+         // ✅ Last Record Request
          if (preg_match('/\b(last record|previous order|recent order|show last|latest order|last details)\b/i', $query)) {
              $intent['lastRecord'] = true;
          }
      
-         // Fetch last X orders
+         // ✅ Fetch Last X Orders
          if (preg_match('/\b(?:last|recent|show|fetch|give|get)\s*(?:me)?\s*(\d+)\s*orders?\b/i', $query, $matches)) {
              $intent['fetchLastOrders'] = (int) $matches[1];
          }
      
-         // Check for new/unread emails
+         // ✅ Check for New Emails
          if (preg_match('/\b(check|any|get|show)\s*(?:new|unread)?\s*emails?\b/i', $query)) {
              $intent['checkNewEmails'] = true;
          }
      
-         if (preg_match('/\blatest emails\b/i', $query)) {
-            $intent['openLatestEmail'] = true;
-        }
-    
-        // Optional: Detect if an email address is specified
-        if (preg_match('/\bopen email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
-            $intent['openEmailFrom'] = $matches[1];
-        }
+         // ✅ Detect "Open Latest Email"
+         if (preg_match('/\bopen (?:the )?latest email\b/i', $query)) {
+             $intent['openLatestEmail'] = true;
+         }
      
-         // Specific field requests
+         // ✅ Detect Email Addresses (Standard & Slack Format)
+         if (preg_match('/(?:open email\s*)?(?:<mailto:)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:\|.*?>)?/i', $query, $matches)) {
+             $intent['openEmailFrom'] = $matches[1];  // Extract email address correctly
+         }
+     
+         // ✅ Specific Field Requests
          $specificFieldPatterns = [
              'email_address' => '/\b(order email|order e-mail|order mail address)\b/i',
              'customer_name' => '/\b(order name|order first name|order last name|order customer name)\b/i',
@@ -197,15 +195,25 @@ class OpenAIService
                  break;
              }
          }
-         if (!$intent['helpRequest'] && !$intent['updateRequest'] && !$intent['lastRecord'] &&
-         !$intent['removeCache'] && !$intent['fetchLastOrders'] && !$intent['checkNewEmails'] &&
-         !$intent['openEmailFrom'] && !$intent['specificField']
-     ) {
-         $intent['cleanQuery'] = $query;
-     }
+     
+         // ✅ Fallback to Clean Query if No Intent Detected
+         if (
+             !$intent['helpRequest'] &&
+             !$intent['updateRequest'] &&
+             !$intent['lastRecord'] &&
+             !$intent['specificField'] &&
+             !$intent['removeCache'] &&
+             !$intent['fetchLastOrders'] &&
+             !$intent['checkNewEmails'] &&
+             !$intent['openLatestEmail'] &&
+             !$intent['openEmailFrom']
+         ) {
+             $intent['cleanQuery'] = $query;
+         }
+     
          return $intent;
      }
-     
+      
      
 
     /**
