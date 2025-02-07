@@ -741,24 +741,27 @@ public function fetchUnreadEmailsAndNotify()
 {
     $user = 'me';
 
+    // Keywords to filter emails that require further processing
+    $keywords = ['mycolean', 'order', 'orders', 'refund', 'issue', 'shipping'];
+
     // Get the timestamp of the latest processed email
     $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
     $afterTimestamp = $latestProcessedEmail ? strtotime($latestProcessedEmail->received_at) : null;
     Log::info('Latest processed email timestamp: ' . ($afterTimestamp ? date('Y-m-d H:i:s', $afterTimestamp) : 'None'));
 
     // Build the Gmail search query
-    $query = 'is:unread in:inbox Order mycolean product'; // Focus on primary inbox
+    $query = 'is:unread in:inbox'; // Focus on primary inbox
 
     if ($afterTimestamp) {
         $query .= ' newer_than:1d';  // Fetch emails newer than 1 day if needed
     }
-    
+
     Log::info('Gmail search query: ' . $query);
 
     // Fetch unread emails after the last processed timestamp
     $messages = $this->service->users_messages->listUsersMessages($user, [
         'q' => $query,
-        'maxResults' => 20,
+        'maxResults' => 10,  // Increased limit to get more emails
     ])->getMessages();
 
     if (!$messages) {
@@ -778,24 +781,43 @@ public function fetchUnreadEmailsAndNotify()
             continue;
         }
 
+        // Extract full email data
         $emailData = $this->parseEmail($messageId);
 
         if ($emailData) {
-            Log::info('Notifying Slack for email with subject: ' . $emailData['subject']);
-            $this->notifySlack($emailData);
+            Log::info('Processing email from: ' . $emailData['from'] . ' | Subject: ' . $emailData['subject']);
 
-            // Save the processed email with the received timestamp
-            ProcessedEmail::create([
-                'message_id'   => $messageId,
-                'sender_email' => $emailData['from'],
-                'subject'      => $emailData['subject'],
-                'snippet'      => $emailData['body'],
-                'received_at'  => $emailData['received_at'],
-            ]);
-            Log::info('Email with message ID ' . $messageId . ' has been processed and saved.');
+            // Check if the email contains any relevant keywords
+            $emailContent = strtolower($emailData['subject'] . ' ' . $emailData['body']);
+            $matchesKeyword = false;
+
+            foreach ($keywords as $keyword) {
+                if (strpos($emailContent, strtolower($keyword)) !== false) {
+                    $matchesKeyword = true;
+                    break;
+                }
+            }
+
+            if ($matchesKeyword) {
+                Log::info('✅ Email matches keywords. Passing to next process.');
+                $this->notifySlack($emailData);
+
+                // Save the processed email with the received timestamp
+                ProcessedEmail::create([
+                    'message_id'   => $messageId,
+                    'sender_email' => $emailData['from'],
+                    'subject'      => $emailData['subject'],
+                    'snippet'      => $emailData['body'],
+                    'received_at'  => $emailData['received_at'],
+                ]);
+                Log::info('📨 Email with message ID ' . $messageId . ' has been processed and saved.');
+            } else {
+                Log::info('❌ Email did not match keywords. Ignoring.');
+            }
         }
     }
 }
+
 public function getLatestEmailBySender($emailAddress)
 {
     $messages = $this->service->users_messages->listUsersMessages('me', [
