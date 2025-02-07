@@ -159,6 +159,8 @@ private function getLastConversationByEmail(string $email)
 private function generateEmailReply(string $conversationData): string
 {
     Log::info('Conversation Data:', ['conversationData' => $conversationData]);
+    $conversationData = is_array($conversationData) ? json_encode($conversationData, JSON_PRETTY_PRINT) : $conversationData;
+
     $prompt = <<<EOT
 You are an AI Smart responsible for drafting professional, friendly, and empathetic email replies and also you can understand json data array data coding to craft emails.
 
