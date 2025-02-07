@@ -309,5 +309,29 @@ public function getOrdersByEmail($email)
     return $response->successful() ? $response->json()['orders'] ?? [] : [];
 }
 
+public function getMessagesFromHistory($historyId, $userId = 'me')
+{
+    try {
+        $response = $this->service->users_history->listUsersHistory($userId, [
+            'startHistoryId' => $historyId
+        ]);
+
+        $historyRecords = $response->getHistory();
+        $messages = [];
+
+        foreach ($historyRecords as $record) {
+            if ($record->getMessagesAdded()) {
+                foreach ($record->getMessagesAdded() as $addedMessage) {
+                    $messages[] = $addedMessage->getMessage();
+                }
+            }
+        }
+
+        return $messages;
+    } catch (\Exception $e) {
+        \Log::error("Error fetching history: " . $e->getMessage());
+        return [];
+    }
+}
 
 }

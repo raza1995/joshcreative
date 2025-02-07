@@ -50,6 +50,19 @@ class OpenAIService
         if ($intent['helpRequest']) {
             return $this->generateHelpResponse($useSlackBlocks);
         }
+
+            // ✅ New: Check for New Emails
+    if ($intent['checkNewEmails']) {
+        $newEmails = app(GmailService::class)->fetchUnreadEmails();
+        return "📬 You have " . count($newEmails) . " new emails.";
+    }
+
+    // ✅ New: Open Specific Email
+    if ($intent['openEmailFrom']) {
+        $emailContent = app(GmailService::class)->getEmailBySender($intent['openEmailFrom']);
+        return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
+    }
+    
         // NEW: Handle "get last X orders"
     if ($intent['fetchLastOrders'] > 0) {
         $lastOrders = $this->fetchShopifyOrders(null, null, false, $intent['fetchLastOrders']);
@@ -154,12 +167,14 @@ class OpenAIService
          $lowerQuery = strtolower($query);
      
          $intent = [
-             'helpRequest'     => false,
-             'updateRequest'   => false,
-             'lastRecord'      => false,
-             'specificField'   => null,
-             'removeCache'     => false,
-             'fetchLastOrders' => 0, // New intent
+             'helpRequest'       => false,
+             'updateRequest'     => false,
+             'lastRecord'        => false,
+             'specificField'     => null,
+             'removeCache'       => false,
+             'fetchLastOrders'   => 0,          // Existing intent
+             'checkNewEmails'    => false,      // New intent for checking emails
+             'openEmailFrom'     => null,       // New intent for opening specific emails
          ];
      
          // Check for removing cache
@@ -182,9 +197,19 @@ class OpenAIService
              $intent['lastRecord'] = true;
          }
      
-         // New: Detect "last X orders", "show me X records", "give me X recent orders"
+         // Fetch last X orders
          if (preg_match('/\b(?:last|recent|show|fetch|give|get)\s*(?:me)?\s*(\d+)\s*(?:orders|records)?\b/i', $query, $matches)) {
-             $intent['fetchLastOrders'] = (int) $matches[1]; // Extract number
+             $intent['fetchLastOrders'] = (int) $matches[1];
+         }
+     
+         // Check for new/unread emails
+         if (preg_match('/\b(check|any|get|show)\s*(?:new|unread)?\s*emails?\b/i', $query)) {
+             $intent['checkNewEmails'] = true;
+         }
+     
+         // Open specific email (e.g., "open email from john@example.com")
+         if (preg_match('/\bopen email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
+             $intent['openEmailFrom'] = $matches[1];
          }
      
          // Specific field requests
@@ -202,6 +227,7 @@ class OpenAIService
      
          return $intent;
      }
+     
      
 
     /**

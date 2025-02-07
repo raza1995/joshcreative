@@ -1,6 +1,9 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Services\GmailService;
+use App\Services\OpenAIService;
+use App\Services\SlackService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
@@ -23,4 +26,26 @@ class GmailWebhookController extends Controller
 
         return response()->json(['status' => 'success']);
     }
+
+    public function handle(Request $request)
+    {
+        $historyId = $request->historyId;
+
+        // Fetch new emails since the last history ID
+        $emails = app(GmailService::class)->getMessagesFromHistory($historyId);
+
+        foreach ($emails as $email) {
+            $headers = $email->getPayload()->getHeaders();
+            $from = collect($headers)->firstWhere('name', 'From')->getValue() ?? 'Unknown';
+
+            // Send notification to AI Bot (or Slack)
+            app(SlackService::class)->sendMessage("📩 Email from: $from");
+
+            // Optional: Log the notification
+            \Log::info("📩 New Email Notification: $from");
+        }
+
+        return response()->json(['status' => 'success']);
+    }
+
 }

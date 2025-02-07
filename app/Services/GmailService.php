@@ -277,7 +277,7 @@ public function startWatch()
 {
     try {
         $labelIds = ['INBOX']; // Watch only the Inbox
-        $topicName = 'projects/gmail-api-449711/topics/gmail-webhook-topic';
+        $topicName = 'projects/gmail-api-449711/topics/gmail-notification';
 
         Log::info("Creating WatchRequest with labelIds: " . json_encode($labelIds) . " and topicName: $topicName");
 
@@ -659,6 +659,29 @@ private function notifySlack($emailData)
     $this->slackService->sendMessage($message);
 }
 
+public function fetchUnreadEmails()
+{
+    $user = 'me';
+    $messages = $this->service->users_messages->listUsersMessages($user, [
+        'q' => 'is:unread',
+        'maxResults' => 5,
+    ])->getMessages();
 
+    return $messages ?? [];
+}
+
+public function getEmailBySender($emailAddress)
+{
+    $messages = $this->searchMessages("from:{$emailAddress}");
+
+    if (empty($messages)) {
+        return "❌ No emails found from {$emailAddress}.";
+    }
+
+    $latestMessage = $messages[0];
+    list($subject, $from, $body) = $this->getMimeMessageContent($latestMessage->getId());
+
+    return "📬 *Subject:* $subject\n*From:* $from\n\n$body";
+}
 
 }

@@ -14,7 +14,8 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'shopify/webhook/orders', // Exclude Shopify Webhook from CSRF Protection
         'shopify/webhook/fulfillment',
-        '/slack/events'
+        '/slack/events',
+        '/gmail/webhook'
         // Exclude Shopify Webhook from CSRF Protection
     ];
     
