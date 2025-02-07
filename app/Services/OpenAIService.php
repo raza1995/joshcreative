@@ -40,6 +40,13 @@ class OpenAIService
     {
         // 1. Detect overall intent (/help, etc.)
         $intent = $this->detectIntent($customerQuery);
+
+        if ($intent['removeCache']) {
+            Cache::flush(); // or Cache::clear() in Laravel 10
+            return "All conversation caches have been successfully removed.";
+        }
+
+
         if ($intent['helpRequest']) {
             return $this->generateHelpResponse($useSlackBlocks);
         }
@@ -135,18 +142,31 @@ class OpenAIService
      *     HELPER: DETECT INTENT, EXTRACT ORDER/EMAIL, /HELP, ETC.
      * ======================================================================== */
 
-    private function detectIntent(string $query): array
+     private function detectIntent(string $query): array
     {
         $lowerQuery = strtolower($query);
 
         $intent = [
-            'helpRequest'   => str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query),
+            'helpRequest'   => false,
             'updateRequest' => false,
             'lastRecord'    => false,
             'specificField' => null,
+            'removeCache'   => false,   // <-- new
         ];
 
-        // update patterns
+        // 1. Check for remove cache
+        //    E.g. "remove all cache", "delete all cache", "clear all cache"
+        $removeCachePattern = '/\b(remove|delete|clear)\b.*\bcache\b/i';
+        if (preg_match($removeCachePattern, $query)) {
+            $intent['removeCache'] = true;
+        }
+
+        // 2. Check for help
+        if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
+            $intent['helpRequest'] = true;
+        }
+
+        // 3. Check for update
         $updatePatterns = [
             '/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i'
         ];
@@ -157,7 +177,7 @@ class OpenAIService
             }
         }
 
-        // last record patterns
+        // 4. Check for last record
         $lastRecordPatterns = [
             '/\b(last record|previous order|recent order|show last|latest order|last details)\b/i'
         ];
@@ -168,7 +188,7 @@ class OpenAIService
             }
         }
 
-        // specific field patterns
+        // 5. Check for specific field
         $specificFieldPatterns = [
             'email_address' => '/\b(email|e-mail|mail address)\b/i',
             'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
@@ -182,6 +202,7 @@ class OpenAIService
         }
 
         return $intent;
+    
     }
 
     /**
