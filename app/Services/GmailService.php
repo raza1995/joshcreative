@@ -621,41 +621,6 @@ public function searchMessages($query, $userId = 'me')
 /**
  * Parse email content from Gmail message.
  */
-private function parseEmail($messageId)
-{
-    $message = $this->service->users_messages->get('me', $messageId, ['format' => 'full']);
-    $headers = $message->getPayload()->getHeaders();
-
-    $from = '';
-    $subject = '';
-    foreach ($headers as $header) {
-        if ($header->getName() === 'From') {
-            $from = $header->getValue();
-        }
-        if ($header->getName() === 'Subject') {
-            $subject = $header->getValue();
-        }
-    }
-
-    $body = '';
-    $parts = $message->getPayload()->getParts();
-    if ($parts) {
-        foreach ($parts as $part) {
-            if ($part->getMimeType() === 'text/plain') {
-                $body = base64_decode(strtr($part->getBody()->getData(), '-_', '+/'));
-                break;
-            }
-        }
-    } else {
-        $body = base64_decode(strtr($message->getPayload()->getBody()->getData(), '-_', '+/'));
-    }
-
-    return [
-        'from' => $from,
-        'subject' => $subject,
-        'body' => substr($body, 0, 300) . '...', // Shorten body preview
-    ];
-}
 
 /**
  * Send Slack notification.
@@ -728,5 +693,92 @@ public function getEmailsSinceHistoryId($historyId)
 
     return $emails;
 }
+private function parseEmail($messageId)
+{
+    $message = $this->service->users_messages->get('me', $messageId, ['format' => 'full']);
+    $headers = $message->getPayload()->getHeaders();
+
+    $from = '';
+    $subject = '';
+    foreach ($headers as $header) {
+        if ($header->getName() === 'From') {
+            $from = $header->getValue();
+        }
+        if ($header->getName() === 'Subject') {
+            $subject = $header->getValue();
+        }
+    }
+
+    $body = '';
+    $parts = $message->getPayload()->getParts();
+    if ($parts) {
+        foreach ($parts as $part) {
+            if ($part->getMimeType() === 'text/plain') {
+                $body = base64_decode(strtr($part->getBody()->getData(), '-_', '+/'));
+                break;
+            }
+        }
+    } else {
+        $body = base64_decode(strtr($message->getPayload()->getBody()->getData(), '-_', '+/'));
+    }
+
+    return [
+        'from'        => $from,
+        'subject'     => $subject,
+        'body'        => substr($body, 0, 300) . '...',
+        'received_at' => date('Y-m-d H:i:s', $message->getInternalDate() / 1000), // Convert ms to seconds
+    ];
+}
+
+public function fetchUnreadEmailsAndNotify()
+{
+    $user = 'me';
+
+    // Get the timestamp of the latest processed email
+    $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
+    $afterTimestamp = $latestProcessedEmail ? strtotime($latestProcessedEmail->received_at) : null;
+
+    // Build the Gmail search query
+    $query = 'is:unread';
+    if ($afterTimestamp) {
+        $query .= ' after:' . $afterTimestamp;
+    }
+
+    // Fetch unread emails after the last processed timestamp
+    $messages = $this->service->users_messages->listUsersMessages($user, [
+        'q' => $query,
+        'maxResults' => 20,
+    ])->getMessages();
+
+    if (!$messages) {
+        Log::info('✅ No new unread emails found.');
+        return;
+    }
+
+    foreach ($messages as $message) {
+        $messageId = $message->getId();
+
+        // Check if the email has already been processed
+        if (ProcessedEmail::where('message_id', $messageId)->exists()) {
+            continue;
+        }
+
+        $emailData = $this->parseEmail($messageId);
+
+        if ($emailData) {
+            $this->notifySlack($emailData);
+
+            // Save the processed email with the received timestamp
+            ProcessedEmail::create([
+                'message_id'   => $messageId,
+                'sender_email' => $emailData['from'],
+                'subject'      => $emailData['subject'],
+                'snippet'      => $emailData['body'],
+                'received_at'  => $emailData['received_at'],
+            ]);
+        }
+    }
+}
+
 
 }
