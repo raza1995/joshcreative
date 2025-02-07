@@ -216,9 +216,9 @@ class OpenAIService
      
          // Specific field requests
          $specificFieldPatterns = [
-             'email_address' => '/\b(email|e-mail|mail address)\b/i',
-             'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
-             'phone'         => '/\b(phone|contact number|mobile)\b/i',
+             'email_address' => '/\b(order email|order e-mail|order mail address)\b/i',
+             'customer_name' => '/\b(order name|order first name|order last name|order customer name)\b/i',
+             'phone'         => '/\b(order phone|order contact number|order mobile)\b/i',
          ];
          foreach ($specificFieldPatterns as $field => $pattern) {
              if (preg_match($pattern, $query)) {
