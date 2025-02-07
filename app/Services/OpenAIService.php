@@ -293,16 +293,16 @@ class OpenAIService
      *                          CONTEXT MANAGEMENT
      * ======================================================================== */
 
-    private function getConversationContext(): array
-    {
-        return Cache::remember('conversation_context', $this->config['cache_ttl'], function () {
-            // return [
-            //     'recent_orders' => $this->getRecentOrdersFromCache(),
-            //     'common_queries' => $this->getCommonQueryPatterns(),
-            //     'customer_preferences' => $this->getCustomerPreferences()
-            // ];
-        });
-    }
+    // private function getConversationContext(): array
+    // {
+    //     return Cache::remember('conversation_context', $this->config['cache_ttl'], function () {
+    //         // return [
+    //         //     'recent_orders' => $this->getRecentOrdersFromCache(),
+    //         //     'common_queries' => $this->getCommonQueryPatterns(),
+    //         //     'customer_preferences' => $this->getCustomerPreferences()
+    //         // ];
+    //     });
+    // }
 
     private function cacheOrderContext(array $order, array $intentData): void
     {
