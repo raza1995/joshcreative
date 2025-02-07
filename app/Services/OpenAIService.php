@@ -79,15 +79,23 @@ class OpenAIService
     }
 
     if ($intent['generateReplyEmail']) {
+        Log::info('Generating reply email intent detected.');
         $email = $this->extractEmail($customerQuery);
+        Log::info('Extracted email:', ['email' => $email]);
+
         if ($email) {
             $lastConversation = $this->getLastConversationByEmail($email);
+            Log::info('Last conversation retrieved:', ['lastConversation' => $lastConversation]);
+
             if ($lastConversation) {
                 $replyContent = $this->generateEmailReply($lastConversation);
+                Log::info('Generated reply content:', ['replyContent' => $replyContent]);
                 return "✉️ *Generated Reply:*\n\n" . $replyContent;
             }
+            Log::warning('No conversation history found for email:', ['email' => $email]);
             return "❌ No conversation history found for {$email}.";
         }
+        Log::warning('No valid email found in customer query:', ['customerQuery' => $customerQuery]);
         return "❌ No valid email found to generate a reply.";
     }
 
