@@ -150,58 +150,59 @@ class OpenAIService
      * ======================================================================== */
 
      private function detectIntent(string $query): array
-{
-    $lowerQuery = strtolower($query);
-
-    $intent = [
-        'helpRequest'   => false,
-        'updateRequest' => false,
-        'lastRecord'    => false,
-        'specificField' => null,
-        'removeCache'   => false,
-        'fetchLastOrders' => 0, // New intent
-    ];
-
-    // Check for removing cache
-    if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
-        $intent['removeCache'] = true;
-    }
-
-    // Help request
-    if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
-        $intent['helpRequest'] = true;
-    }
-
-    // Update request
-    if (preg_match('/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i', $query)) {
-        $intent['updateRequest'] = true;
-    }
-
-    // Last record
-    if (preg_match('/\b(last record|previous order|recent order|show last|latest order|last details)\b/i', $query)) {
-        $intent['lastRecord'] = true;
-    }
-
-    // New: Fetch last X orders
-    if (preg_match('/last (\d+)/i', $query, $matches)) {
-        $intent['fetchLastOrders'] = (int) $matches[1]; // Extract number
-    }
-
-    // Specific field requests
-    $specificFieldPatterns = [
-        'email_address' => '/\b(email|e-mail|mail address)\b/i',
-        'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
-        'phone'         => '/\b(phone|contact number|mobile)\b/i',
-    ];
-    foreach ($specificFieldPatterns as $field => $pattern) {
-        if (preg_match($pattern, $query)) {
-            $intent['specificField'] = $field;
-            break;
-        }
-    }
-
-    return $intent;
-}
+     {
+         $lowerQuery = strtolower($query);
+     
+         $intent = [
+             'helpRequest'     => false,
+             'updateRequest'   => false,
+             'lastRecord'      => false,
+             'specificField'   => null,
+             'removeCache'     => false,
+             'fetchLastOrders' => 0, // New intent
+         ];
+     
+         // Check for removing cache
+         if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
+             $intent['removeCache'] = true;
+         }
+     
+         // Help request
+         if (str_contains($lowerQuery, '/help') || preg_match('/\bhelp\b/i', $query)) {
+             $intent['helpRequest'] = true;
+         }
+     
+         // Update request
+         if (preg_match('/\b(updated data|refresh data|latest data|get recent data|fetch latest|update info|refresh info|current status|latest status)\b/i', $query)) {
+             $intent['updateRequest'] = true;
+         }
+     
+         // Last record
+         if (preg_match('/\b(last record|previous order|recent order|show last|latest order|last details)\b/i', $query)) {
+             $intent['lastRecord'] = true;
+         }
+     
+         // New: Detect "last X orders", "show me X records", "give me X recent orders"
+         if (preg_match('/\b(?:last|recent|show|fetch|give|get)\s*(?:me)?\s*(\d+)\s*(?:orders|records)?\b/i', $query, $matches)) {
+             $intent['fetchLastOrders'] = (int) $matches[1]; // Extract number
+         }
+     
+         // Specific field requests
+         $specificFieldPatterns = [
+             'email_address' => '/\b(email|e-mail|mail address)\b/i',
+             'customer_name' => '/\b(name|first name|last name|customer name)\b/i',
+             'phone'         => '/\b(phone|contact number|mobile)\b/i',
+         ];
+         foreach ($specificFieldPatterns as $field => $pattern) {
+             if (preg_match($pattern, $query)) {
+                 $intent['specificField'] = $field;
+                 break;
+             }
+         }
+     
+         return $intent;
+     }
+     
 
     /**
      * If user specifically wants a field that DB doesn't store, 
