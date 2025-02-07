@@ -946,7 +946,7 @@ PROMPT;
             $response = Http::withToken($this->apiKey)->post(
                 'https://api.openai.com/v1/chat/completions',
                 [
-                    'model'       => $this->model,
+                    'model'       => 'ft:gpt-3.5-turbo-1106:josh-creative-co::AyNhCTJf',
                     'messages'    => [
                         [
                             'role'    => 'system',
