@@ -22,7 +22,7 @@ class StartGmailWatch extends Command
     public function handle()
     {
         Log::info("Starting Gmail Watch...");
-        $this->gmailService->startWatch();
+        $this->gmailService->startGmailWatch();
         Log::info("Gmail Watch command executed.");
     }
 }

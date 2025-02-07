@@ -16,7 +16,8 @@ class VerifyCsrfToken extends Middleware
         'shopify/webhook/fulfillment',
         '/slack/events',
         '/gmail/webhook',
-        '/gmail/callback'
+        '/gmail/callback',
+        '/gmail/watch'
         // Exclude Shopify Webhook from CSRF Protection
     ];
     

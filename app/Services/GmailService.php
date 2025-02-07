@@ -10,6 +10,7 @@ use Google\Service\Gmail\Draft;
 use Google\Service\Gmail\ModifyMessageRequest;
 use Illuminate\Support\Facades\Log;
 use App\Services\SlackService;
+
 class GmailService
 {
     protected $client;
@@ -24,6 +25,8 @@ class GmailService
         $this->client = new Client();
         $this->client->setAuthConfig(storage_path('app/credentials.json'));
         $this->client->addScope(Gmail::MAIL_GOOGLE_COM);
+        $this->client->addScope(Gmail::GMAIL_READONLY);
+
         $this->client->setAccessType('offline');
         $this->client->setPrompt('select_account consent');
 
@@ -273,39 +276,47 @@ private function getLabelId($labelName)
 
     return null;
 }
+
 public function startWatch()
 {
     try {
+        // Prepare the watch request with the desired labels and Pub/Sub topic.
         $watchRequest = new \Google\Service\Gmail\WatchRequest([
             'labelIds'  => ['INBOX'],
             'topicName' => 'projects/gmail-api-449711/topics/gmail-notification',
         ]);
 
+        // "me" refers to the authenticated user's mailbox.
         $response = $this->service->users->watch('me', $watchRequest);
-        \Log::info("✅ Gmail Watch started successfully.");
-        return $response;
 
+        Log::info("✅ Gmail Watch started successfully.", ['response' => $response]);
+        return $response;
     } catch (\Google\Service\Exception $gException) {
-        \Log::error("🚨 Google API Error: " . $gException->getMessage());
+        Log::error("🚨 Google API Error: " . $gException->getMessage());
         $errorDetails = $gException->getErrors();
 
-        // 🚨 Detect Permission Issue (Forbidden Error)
+        // Handle forbidden errors or other errors if needed.
         if (isset($errorDetails[0]['reason']) && $errorDetails[0]['reason'] === 'forbidden') {
-            \Log::warning("⚠️ Forbidden error detected. Triggering re-authentication...");
-
-            // Trigger Re-authentication
-            $this->authenticate(true);  // Force re-authentication
-
-            // Stop further processing after re-authentication
-            return response()->json(['error' => 'Re-authentication triggered. Please restart Gmail Watch.']);
+            Log::warning("⚠️ Forbidden error detected. Check permissions or token scopes.");
+            // You might want to trigger a re-authentication or notify someone.
         }
 
+        throw $gException;
     } catch (\Exception $e) {
-        \Log::error("🚨 General Error starting Gmail Watch: " . $e->getMessage());
+        Log::error("🚨 Error starting Gmail Watch: " . $e->getMessage());
+        throw $e;
     }
 }
 
-
+public function startGmailWatch()
+{
+    try {
+        $response = $this->startWatch();
+        return response()->json($response);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+}
 public function fetchNewEmails()
 {
     try {
