@@ -141,6 +141,9 @@ class OpenAIService
 
         // 11. Build ChatGPT prompt
         $prompt = $this->buildPrompt($contextData, $orderContext, $customerQuery);
+
+
+        Log::info('Generated prompt: ' . $prompt);
         $reply  = $this->callOpenAI($prompt);
 
         // 12. Store conversation
