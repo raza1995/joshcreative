@@ -155,7 +155,7 @@ private function generateEmailReply($conversationData)
 You are an AI Smart responsible for drafting professional, friendly, and empathetic email replies and also you can understand json data array data coding to craft emails.
 
 Based on the following conversation history, draft a clear, polite, and helpful response.
-
+Also add the name of the customer 
 ---
 
 **Conversation History:**
