@@ -391,6 +391,9 @@ EOT;
      */
     private function storeBasicOrderData(Collection $shopifyOrders): void
     {
+
+        $orderNumberVal = $order['order_number'] ?? null;  // e.g. 13300
+
         foreach ($shopifyOrders as $order) {
             // build line item names
             $lineItems    = $order['line_items'] ?? [];
@@ -415,7 +418,7 @@ EOT;
             $nameField      = $order['name'] ?? '';
 
             $data = [
-                'order_number'    => $nameField ?: $orderNumberVal,
+                'order_number' => $orderNumberVal,
                 'order_date'      => $order['created_at'] ?? null,
                 'product_name'    => $productNames,
                 'customer_name'   => $this->resolveCustomerName($order),
@@ -428,10 +431,10 @@ EOT;
                 'number_of_items' => $numItems,
             ];
 
-            ShopifyOrder::updateOrCreate(
-                ['order_number' => $data['order_number']],
-                $data
-            );
+             ShopifyOrder::updateOrCreate(
+            ['order_number' => $data['order_number']],
+            $data
+        );
         }
     }
 
@@ -505,7 +508,7 @@ EOT;
         foreach ($orders as $idx => $order) {
             $idxDisplay   = $idx + 1;
             $nameOrNumber = $order['order_number'] ?? 'Unknown #';
-            $summary     .= "$idxDisplay) Order $nameOrNumber\n";
+            $summary .= "$idxDisplay) Order $nameOrNumber\n";
         }
         $summary .= "\nPlease specify which order you want details on (e.g. 'Order #2').";
 
