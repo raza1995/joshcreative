@@ -151,8 +151,9 @@ private function getLastConversationByEmail(string $email)
 private function generateEmailReply(string $conversationData): string
 {
     $prompt = <<<EOT
-You are an AI assistant responsible for drafting professional and polite email replies.
-Based on the following conversation history, draft a clear, empathetic, and helpful response.
+You are an AI customer support assistant responsible for drafting professional, friendly, and empathetic email replies.
+
+Based on the following conversation history, draft a clear, polite, and helpful response.
 
 ---
 
@@ -161,18 +162,25 @@ Based on the following conversation history, draft a clear, empathetic, and help
 
 ---
 
-**Reply Format:**
-- Greet the customer professionally.
-- Address their concern directly and concisely.
-- Close with a friendly sign-off.
+**Reply Instructions:**
+1. Start with a warm, professional greeting.
+2. Acknowledge the customer's message and express gratitude.
+3. Address any questions, concerns, or feedback directly.
+4. Provide clear, concise, and helpful information if needed.
+5. End with a friendly and professional sign-off.
+6. Data is in the json so break the data and see the body key to understand the conversation and according to that generate reply.
+Ensure the tone is empathetic, polite, and concise.
 
 Draft the reply now:
 EOT;
 
+    // Call OpenAI to generate the response
     $response = $this->callOpenAI($prompt);
 
+    // Return the generated response or a fallback message
     return $response ?: "Unable to generate a reply at the moment.";
 }
+
 
 
 
@@ -244,9 +252,10 @@ EOT;
         }
 
 
-        if (preg_match('/\b(generate|draft|write)\s*(reply|email reply)\b/i', $query)) {
+        if (preg_match('/\b(generate|draft|write|create|compose|prepare|formulate|build|craft|send)\s*(reply|email reply|email response|response|follow-up|customer reply|customer response|email draft|message|customer message)\b/i', $query)) {
             $intent['generateReplyEmail'] = true;
         }
+        
          // Specific field requests
          $specificFieldPatterns = [
              'email_address' => '/\b(order email|order e-mail|order mail address)\b/i',
