@@ -737,12 +737,14 @@ public function fetchUnreadEmailsAndNotify()
     // Get the timestamp of the latest processed email
     $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
     $afterTimestamp = $latestProcessedEmail ? strtotime($latestProcessedEmail->received_at) : null;
+    Log::info('Latest processed email timestamp: ' . ($afterTimestamp ? date('Y-m-d H:i:s', $afterTimestamp) : 'None'));
 
     // Build the Gmail search query
     $query = 'is:unread';
     if ($afterTimestamp) {
         $query .= ' after:' . $afterTimestamp;
     }
+    Log::info('Gmail search query: ' . $query);
 
     // Fetch unread emails after the last processed timestamp
     $messages = $this->service->users_messages->listUsersMessages($user, [
@@ -755,17 +757,22 @@ public function fetchUnreadEmailsAndNotify()
         return;
     }
 
+    Log::info('Found ' . count($messages) . ' unread emails.');
+
     foreach ($messages as $message) {
         $messageId = $message->getId();
+        Log::info('Processing email with message ID: ' . $messageId);
 
         // Check if the email has already been processed
         if (ProcessedEmail::where('message_id', $messageId)->exists()) {
+            Log::info('Email with message ID ' . $messageId . ' has already been processed. Skipping.');
             continue;
         }
 
         $emailData = $this->parseEmail($messageId);
 
         if ($emailData) {
+            Log::info('Notifying Slack for email with subject: ' . $emailData['subject']);
             $this->notifySlack($emailData);
 
             // Save the processed email with the received timestamp
@@ -776,6 +783,7 @@ public function fetchUnreadEmailsAndNotify()
                 'snippet'      => $emailData['body'],
                 'received_at'  => $emailData['received_at'],
             ]);
+            Log::info('Email with message ID ' . $messageId . ' has been processed and saved.');
         }
     }
 }
