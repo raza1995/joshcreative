@@ -741,8 +741,11 @@ public function fetchUnreadEmailsAndNotify()
 {
     $user = 'me';
 
-    // Keywords to filter emails that require further processing
+    // Keywords to process emails
     $keywords = ['mycolean', 'order', 'orders', 'refund', 'issue', 'shipping'];
+
+    // Keywords to exclude emails from processing (with higher priority)
+    $excludeKeywords = ['TripleWhale ', 'promotion','shopify'];
 
     // Get the timestamp of the latest processed email
     $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
@@ -790,15 +793,29 @@ public function fetchUnreadEmailsAndNotify()
             // Check if the email contains any relevant keywords
             $emailContent = strtolower($emailData['subject'] . ' ' . $emailData['body']);
             $matchesKeyword = false;
+            $excludedKeyword = false;
 
-            foreach ($keywords as $keyword) {
-                if (strpos($emailContent, strtolower($keyword)) !== false) {
-                    $matchesKeyword = true;
+            // ✅ Check for excluded keywords first (Priority)
+            foreach ($excludeKeywords as $exclude) {
+                if (strpos($emailContent, strtolower($exclude)) !== false) {
+                    $excludedKeyword = true;
+                    Log::info('🚫 Email contains excluded keyword: ' . $exclude . '. Skipping.');
                     break;
                 }
             }
 
-            if ($matchesKeyword) {
+            // If no excluded keywords, check for important keywords
+            if (!$excludedKeyword) {
+                foreach ($keywords as $keyword) {
+                    if (strpos($emailContent, strtolower($keyword)) !== false) {
+                        $matchesKeyword = true;
+                        break;
+                    }
+                }
+            }
+
+            // Process emails that match important keywords and are not excluded
+            if ($matchesKeyword && !$excludedKeyword) {
                 Log::info('✅ Email matches keywords. Passing to next process.');
                 $this->notifySlack($emailData);
 
@@ -811,8 +828,8 @@ public function fetchUnreadEmailsAndNotify()
                     'received_at'  => $emailData['received_at'],
                 ]);
                 Log::info('📨 Email with message ID ' . $messageId . ' has been processed and saved.');
-            } else {
-                Log::info('❌ Email did not match keywords. Ignoring.');
+            } elseif (!$matchesKeyword && !$excludedKeyword) {
+                Log::info('❌ Email did not match any processing keywords. Ignoring.');
             }
         }
     }
