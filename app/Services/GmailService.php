@@ -280,12 +280,11 @@ private function authenticatepub($forceReauth = false)
     if ($forceReauth || !file_exists($this->tokenPath)) {
         \Log::info("🔄 Forcing re-authentication with Google API...");
 
-        // Delete the old token if forcing re-auth
         if (file_exists($this->tokenPath)) {
-            unlink($this->tokenPath);
+            unlink($this->tokenPath);  // Clear old token
         }
 
-        $this->generateNewToken();
+        $this->generateNewTokenForPub();  // Request new token
         return;
     }
 
@@ -306,6 +305,7 @@ private function authenticatepub($forceReauth = false)
         }
     }
 }
+
 public function generateNewTokenForPub()
 {
     $authUrl = $this->client->createAuthUrl();
