@@ -709,8 +709,14 @@ private function parseEmail($messageId)
         }
     }
 
+    // Fetch the latest reply in the thread
+    $threadId = $message->getThreadId();
+    $thread = $this->service->users_threads->get('me', $threadId);
+    $messages = $thread->getMessages();
+    $latestMessage = end($messages); // Get the latest message
+
     $body = '';
-    $parts = $message->getPayload()->getParts();
+    $parts = $latestMessage->getPayload()->getParts();
     if ($parts) {
         foreach ($parts as $part) {
             if ($part->getMimeType() === 'text/plain') {
@@ -719,16 +725,17 @@ private function parseEmail($messageId)
             }
         }
     } else {
-        $body = base64_decode(strtr($message->getPayload()->getBody()->getData(), '-_', '+/'));
+        $body = base64_decode(strtr($latestMessage->getPayload()->getBody()->getData(), '-_', '+/'));
     }
 
     return [
         'from'        => $from,
         'subject'     => $subject,
         'body'        => substr($body, 0, 300) . '...',
-        'received_at' => date('Y-m-d H:i:s', $message->getInternalDate() / 1000), // Convert ms to seconds
+        'received_at' => date('Y-m-d H:i:s', $message->getInternalDate() / 1000),
     ];
 }
+
 
 public function fetchUnreadEmailsAndNotify()
 {
@@ -740,10 +747,12 @@ public function fetchUnreadEmailsAndNotify()
     Log::info('Latest processed email timestamp: ' . ($afterTimestamp ? date('Y-m-d H:i:s', $afterTimestamp) : 'None'));
 
     // Build the Gmail search query
-    $query = 'is:unread';
+    $query = 'is:unread category:primary'; // Focus on primary inbox
+
     if ($afterTimestamp) {
-        $query .= ' after:' . $afterTimestamp;
+        $query .= ' newer_than:1d';  // Fetch emails newer than 1 day if needed
     }
+    
     Log::info('Gmail search query: ' . $query);
 
     // Fetch unread emails after the last processed timestamp
@@ -773,7 +782,12 @@ public function fetchUnreadEmailsAndNotify()
 
         if ($emailData) {
             Log::info('Notifying Slack for email with subject: ' . $emailData['subject']);
-            $this->notifySlack($emailData);
+            $this->notifySlack([
+                'from'    => $emailData['from'],
+                'subject' => $emailData['subject'],
+                'body'    => strip_tags($emailData['body']), // Clean HTML if present
+            ]);
+            
 
             // Save the processed email with the received timestamp
             ProcessedEmail::create([

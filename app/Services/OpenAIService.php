@@ -57,11 +57,6 @@ class OpenAIService
         return "📬 You have " . count($newEmails) . " new emails.";
     }
 
-    // ✅ New: Open Specific Email
-    if ($intent['openEmailFrom']) {
-        $emailContent = app(GmailService::class)->getEmailBySender($intent['openEmailFrom']);
-        return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
-    }
     
         // NEW: Handle "get last X orders"
     if ($intent['fetchLastOrders'] > 0) {
@@ -208,9 +203,9 @@ class OpenAIService
          }
      
          // Open specific email (e.g., "open email from john@example.com")
-         if (preg_match('/\bopen email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
-             $intent['openEmailFrom'] = $matches[1];
-         }
+         if (preg_match('/\bopen (?:the )?last email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
+        $intent['openEmailFrom'] = $matches[1];
+    }
      
          // Specific field requests
          $specificFieldPatterns = [
@@ -775,14 +770,15 @@ PROMPT;
         ?string $email,
         array $contextData
     ): void {
-        $conversationLog   = $contextData['conversationLog'] ?? [];
+        $conversationLog = $contextData['conversationLog'] ?? [];
         $conversationLog[] = [
             'timestamp'    => now()->toDateTimeString(),
             'user'         => $customerQuery,
             'ai'           => $reply,
             'orderDetails' => $firstOrder ?? null,
+            'emailContent' => $email ? $reply : null,  // Store email content if present
         ];
-
+    
         $updatedContext = [
             'previousContext' => ($contextData['previousContext'] ?? '')
                 . "\nUser: {$customerQuery}\nAI: {$reply}",
@@ -790,10 +786,10 @@ PROMPT;
             'lastEmail'       => $email,
             'conversationLog' => $conversationLog,
         ];
-
-        $this->saveConversation($cacheKey, $orderNumber, $updatedContext);
+    
         $this->setCachedContext($cacheKey, $updatedContext);
     }
+    
 
     private function getCachedContext(string $key): array
     {
@@ -915,6 +911,28 @@ EOT;
         Log::error('Shopify Exception (Last Orders): ' . $e->getMessage());
         return collect();
     }
+}
+private function fetchAndSaveEmailFromSender(string $emailAddress, string $cacheKey): string
+{
+    $gmailService = app(GmailService::class);
+    $emailContent = $gmailService->getEmailBySender($emailAddress);
+
+    if ($emailContent) {
+        // Save in conversation log
+        $this->storeInCache(
+            $cacheKey,
+            "Opened email from {$emailAddress}",
+            $emailContent,
+            null,
+            null,
+            $emailAddress,
+            $this->getCachedContext($cacheKey)
+        );
+
+        return "📩 *Email from:* {$emailAddress}\n\n" . $emailContent;
+    }
+
+    return "❌ No recent emails found from {$emailAddress}.";
 }
 
  
