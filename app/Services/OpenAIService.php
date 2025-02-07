@@ -16,13 +16,16 @@ class OpenAIService
     protected string $shopifyDomain;
     protected string $accessToken;
 
-    public function __construct($apiKey, $model, $accessToken, $shopifyDomain)
+    public function __construct(ShopifyService $shopifyService)
     {
-        $this->apiKey = $apiKey;
-        $this->model = $model;
-        $this->accessToken = $accessToken;
-        $this->shopifyDomain = $shopifyDomain;
+        $this->shopifyDomain = env('SHOPIFY_STORE_DOMAIN');
+        $this->accessToken = env('SHOPIFY_ACCESS_TOKEN');
+        $this->apiKey = config('services.openai.api_key');
+        $this->model = 'gpt-3.5-turbo'; // Using GPT-3.5 Turbo for faster, cost-effective responses
+        $this->shopifyService = $shopifyService;
     }
+    
+    
         /**
          * Main entry point to generate a reply for a given user query.
          * @param  string $customerQuery
@@ -391,12 +394,12 @@ class OpenAIService
         }
     
         // Additional utility methods if needed
-        public function getAccessToken()
+        public function getAccessToken(): ?string
         {
             return $this->accessToken;
         }
     
-        public function getShopifyDomain()
+        public function getShopifyDomain(): ?string
         {
             return $this->shopifyDomain;
         }
