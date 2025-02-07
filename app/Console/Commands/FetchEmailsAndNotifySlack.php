@@ -21,7 +21,7 @@ class FetchEmailsAndNotifySlack extends Command
     public function handle()
     {
         $this->info('📥 Fetching unread emails...');
-        // $this->gmailService->fetchUnreadEmailsAndNotify();
+        $this->gmailService->fetchUnreadEmailsAndNotify();
         $this->info('✅ Email fetch and Slack notifications completed.');
     }
 }
