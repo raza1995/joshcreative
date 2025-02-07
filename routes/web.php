@@ -33,7 +33,7 @@ Route::get('/', function () {
     return view('home');
 });
 
-Route::post('/gmail/webhook', [GmailWebhookController::class, 'handleWebhook']);
+Route::post('/gmail/webhook', [GmailWebhookController::class, 'handle']);
 Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);
 Route::post('/slack/events', [SlackController::class, 'handleSlackEvent']);
 
@@ -42,7 +42,7 @@ Route::middleware(['public.urls'])->group(function () {
     Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback'])->name('slack.oauth.callback');
     Route::post('/slack/webhook', [SlackController::class, 'handleWebhook']);
     Route::post('/slack/ai-reply', [SlackController::class, 'generateAIReply']);
-
+    
 Route::post('/slack/send-test', [SlackController::class, 'sendTestMessage']);
 
 
