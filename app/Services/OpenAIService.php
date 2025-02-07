@@ -148,8 +148,9 @@ private function getLastConversationByEmail(string $email)
     return null;
 }
 
-private function generateEmailReply(string $conversationData): string
+private function generateEmailReply($conversationData)
 {
+    Log::info('Conversation Data:', ['conversationData' => $conversationData]);
     $prompt = <<<EOT
 You are an AI Smart responsible for drafting professional, friendly, and empathetic email replies and also you can understand json data array data coding to craft emails.
 
