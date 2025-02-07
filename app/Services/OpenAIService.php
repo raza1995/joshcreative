@@ -21,7 +21,7 @@ class OpenAIService
         $this->shopifyDomain = env('SHOPIFY_STORE_DOMAIN');
         $this->accessToken = env('SHOPIFY_ACCESS_TOKEN');
         $this->apiKey = config('services.openai.api_key');
-        $this->model = 'ft:gpt-4o-mini-2024-07-18:josh-creative-co::AyD3kyTh'; // Using GPT-3.5 Turbo for faster, cost-effective responses
+        $this->model = 'gpt-4o-mini-2024-07-18'; // Using GPT-3.5 Turbo for faster, cost-effective responses
         $this->shopifyService = $shopifyService;
     }
 
@@ -187,7 +187,7 @@ $response = Http::withToken($this->apiKey)
             ['role' => 'system', 'content' => 'You are a highly intelligent customer support assistant. Provide concise responses, answer relevant questions, and draft emails based on order data when requested.'],
             ['role' => 'user', 'content' => $prompt],
         ],
-        'temperature' => 0.6,
+        'temperature' => 0.8,
         'max_tokens' => 300,  // Increased for more detailed responses when drafting emails
     ]);
 
