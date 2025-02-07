@@ -157,21 +157,23 @@ public function generateReply($customerQuery)
 
     if ($isLastRecordRequest) {
         // Fetch the last order from conversation log
-        $lastOrder = collect($contextData['conversationLog'])->lastWhere('orderDetails', '!=', null);
+        $lastOrder = collect($contextData['conversationLog'])->last(function ($entry) {
+            return isset($entry['orderDetails']);
+        });
 
         if ($lastOrder) {
+            $orderDetails = $lastOrder['orderDetails'];
             return "The last order details associated with your account are as follows:
-- **Order #{$lastOrder['orderDetails']['order_number']}**
-- **Name:** {$lastOrder['orderDetails']['customer_name'] ?? 'Not available'}
-- **Email:** {$lastOrder['orderDetails']['email'] ?? 'Not available'}
-- **Paid:** {$lastOrder['orderDetails']['paid_amount'] ?? 'Not available'}
-- **Tracking:** {$lastOrder['orderDetails']['tracking_number'] ?? 'Not available'} | [Track]({$lastOrder['orderDetails']['tracking_url'] ?? '#'})
-- **Date:** {$lastOrder['orderDetails']['order_date'] ?? 'Not available'}";
+- **Order #{$orderDetails['order_number']}**
+- **Name:** " . ($orderDetails['customer_name'] ?? 'Not available') . "
+- **Email:** " . ($orderDetails['email'] ?? 'Not available') . "
+- **Paid:** " . ($orderDetails['paid_amount'] ?? 'Not available') . "
+- **Tracking:** " . ($orderDetails['tracking_number'] ?? 'Not available') . " | [Track](" . ($orderDetails['tracking_url'] ?? '#') . ")
+- **Date:** " . ($orderDetails['order_date'] ?? 'Not available');
         } else {
             return "I couldn't find any previous order records in the conversation.";
         }
     }
-
     if ($isUpdateRequest) {
         $orders = $this->fetchFromShopify($orderNumber, $email);
     } else {
