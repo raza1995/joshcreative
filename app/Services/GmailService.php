@@ -839,7 +839,7 @@ public function getLatestEmail()
 {
     $messages = $this->service->users_messages->listUsersMessages('me', [
         'q' => 'is:inbox', // Fetch emails from inbox
-        'maxResults' => 1,  // Only the latest email
+        'maxResults' => 5,  // Only the latest email
     ])->getMessages();
 
     if (empty($messages)) {

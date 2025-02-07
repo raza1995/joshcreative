@@ -214,7 +214,7 @@ class OpenAIService
              $intent['checkNewEmails'] = true;
          }
      
-         if (preg_match('/\bopen email\b/i', $query)) {
+         if (preg_match('/\blatest emails\b/i', $query)) {
             $intent['openLatestEmail'] = true;
         }
     
