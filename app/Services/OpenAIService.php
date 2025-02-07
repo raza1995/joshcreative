@@ -37,28 +37,27 @@ class OpenAIService
      * - If user wants more detail, we fetch from Shopify (no DB update).
      */
     public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
-    {
-        // 1. Detect overall intent (/help, etc.)
-        $intent = $this->detectIntent($customerQuery);
-        Log::info('Intent detected:', $intent);
-        if ($intent['removeCache']) {
-            Cache::flush(); // or Cache::clear() in Laravel 10
-            return "All conversation caches have been successfully removed.";
-        }
+{
+    // 1. Detect overall intent (/help, etc.)
+    $intent = $this->detectIntent($customerQuery);
+    Log::info('Intent detected:', $intent);
 
+    if ($intent['removeCache']) {
+        Cache::flush(); 
+        return "All conversation caches have been successfully removed.";
+    }
 
-        if ($intent['helpRequest']) {
-            return $this->generateHelpResponse($useSlackBlocks);
-        }
+    if ($intent['helpRequest']) {
+        return $this->generateHelpResponse($useSlackBlocks);
+    }
 
-            // ✅ New: Check for New Emails
+    // ✅ Check for New Emails
     if ($intent['checkNewEmails']) {
         $newEmails = app(GmailService::class)->fetchUnreadEmails();
         return "📬 You have " . count($newEmails) . " new emails.";
     }
 
-    
-        // NEW: Handle "get last X orders"
+    // ✅ Handle "get last X orders"
     if ($intent['fetchLastOrders'] > 0) {
         $lastOrders = $this->fetchShopifyOrders(null, null, false, $intent['fetchLastOrders']);
         if ($lastOrders->isNotEmpty()) {
@@ -66,102 +65,62 @@ class OpenAIService
         }
         return "No recent orders found.";
     }
-        // 2. Extract order number / email
+
+    // ✅ Open Latest Email
+    if ($intent['openLatestEmail']) {
+        $emailContent = app(GmailService::class)->getLatestEmail();
+        return "📬 *Latest Email:*\n\n" . $emailContent;
+    }
+
+    // ✅ Open Specific Email by Sender
+    if ($intent['openEmailFrom']) {
+        $emailContent = app(GmailService::class)->getLatestEmailBySender($intent['openEmailFrom']);
+        return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
+    }
+
+    // ✅ Request Specific Field (Order-Related)
+    if ($intent['specificField']) {
         $orderNumber = $this->extractOrderNumber($customerQuery);
         $email       = $this->extractEmail($customerQuery);
 
-        // 3. Determine cache key & load context
-        $cacheKey   = $this->determineCacheKey($slackUserId, $orderNumber, $email);
-        $contextData = $this->getCachedContext($cacheKey);
-        $contextData = $this->checkConversationLengthAndSummarize($contextData);
-
-        // 4. Fallback to last known if none provided
-        $orderNumber = $orderNumber ?: $contextData['lastOrderNumber'];
-        $email       = $email       ?: $contextData['lastEmail'];
-
-        // 5. If user says "show me last record"
-        if ($intent['lastRecord']) {
-            $lastOrderResponse = $this->handleLastRecordRequest($contextData, $useSlackBlocks);
-            if ($lastOrderResponse) {
-                return $lastOrderResponse;
-            }
-        }
-        if ($intent['openLatestEmail']) {
-            $emailContent = app(GmailService::class)->getLatestEmail();
-            return "📬 *Latest Email:*\n\n" . $emailContent;
-        }
-        if ($intent['openEmailFrom']) {
-            $emailContent = app(GmailService::class)->getLatestEmailBySender($intent['openEmailFrom']);
-            return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
-        }
-        
-
-        // 6. Fetch basic data from DB or Shopify
-        //    (DB is always minimal info: order_number, date, name, email, etc.)
         $orders = $this->fetchRelevantOrders($intent, $orderNumber, $email);
-
-        // 7. If user specifically wants one field (like email or phone) and we have it in DB:
-        if ($intent['specificField'] && $orders->isNotEmpty()) {
-            // Check if the DB has that field:
+        if ($orders->isNotEmpty()) {
             $fieldValue = $orders->first()[$intent['specificField']] ?? null;
             if ($fieldValue) {
                 return "Requested info ({$intent['specificField']}): {$fieldValue}";
             } else {
-                // If DB doesn't have it, fetch from Shopify for that single order
                 if ($orders->count() === 1 && $orderNumber) {
                     $shopifyData = $this->fetchSingleOrderFromShopify($orderNumber);
-                    if ($shopifyData) {
-                        // Attempt to retrieve the requested field from the Shopify JSON
-                        $fieldValue = $this->extractAdditionalField($shopifyData, $intent['specificField']);
-                        if ($fieldValue) {
-                            return "Requested info ({$intent['specificField']}): {$fieldValue}";
-                        }
+                    $fieldValue = $this->extractAdditionalField($shopifyData, $intent['specificField']);
+                    if ($fieldValue) {
+                        return "Requested info ({$intent['specificField']}): {$fieldValue}";
                     }
                 }
-                // fallback message
                 return "Information for ({$intent['specificField']}) not available.";
             }
         }
-
-        // 8. If multiple orders but no specific order # given, show summary
-    
-
-        // 9. Format basic details from DB
-        $orderContext = $this->formatOrderDetails($orders);
-
-        // 10. If user wants more data than the DB can store (like financial_status, shipping cost),
-        //     or you want to always show expanded info:
-        //     We can fetch the single order from Shopify and enrich the response in memory.
-        $shopifyExtra = [];
-        if ($orders->count() === 1 && $orderNumber) {
-            $shopifyData = $this->fetchSingleOrderFromShopify($orderNumber);
-            if ($shopifyData) {
-                // Build a text snippet with additional data
-                $shopifyExtra = $this->formatAdditionalShopifyInfo($shopifyData);
-            }
-        }
-
-        // Merge the "extra" text block into orderContext for final display
-        if (!empty($shopifyExtra)) {
-            $orderContext .= "\n\nAdditional real-time Shopify data:\n" . $shopifyExtra;
-        }
-
-        // 11. Build ChatGPT prompt
-        $prompt = $this->buildPrompt($contextData, $orderContext, $customerQuery);
-        Log::info('Generated prompt: ' . $prompt);
-
-
-        $reply  = $this->callOpenAI($prompt);
-
-        // 12. Store conversation
-        $this->storeInCache($cacheKey, $customerQuery, $reply, $orders->first(), $orderNumber, $email, $contextData);
-
-        // 13. Return final response
-        if ($useSlackBlocks) {
-            return $this->buildSlackBlockResponse($reply, $orders, $shopifyExtra);
-        }
-        return $reply;
     }
+
+    // ✅ If user requests the last referenced order
+    if ($intent['lastRecord']) {
+        $cacheKey    = $this->determineCacheKey($slackUserId);
+        $contextData = $this->getCachedContext($cacheKey);
+        $lastOrderResponse = $this->handleLastRecordRequest($contextData, $useSlackBlocks);
+        if ($lastOrderResponse) {
+            return $lastOrderResponse;
+        }
+    }
+
+    // ✅ Handle General Queries (Fallback)
+    if ($intent['cleanQuery']) {
+        $prompt = "User asked: {$intent['cleanQuery']}. Provide a concise and helpful response.";
+        return $this->callOpenAI($prompt);
+    }
+
+    // Default Fallback Response
+    return $intent['cleanQuery'];
+}
+
 
     /* ========================================================================
      *     HELPER: DETECT INTENT, EXTRACT ORDER/EMAIL, /HELP, ETC.
