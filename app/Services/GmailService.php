@@ -835,6 +835,35 @@ private function saveToConversationLog($emailAddress, $emailData)
         ],
     ]);
 }
+public function getLatestEmail()
+{
+    $messages = $this->service->users_messages->listUsersMessages('me', [
+        'q' => 'is:inbox', // Fetch emails from inbox
+        'maxResults' => 1,  // Only the latest email
+    ])->getMessages();
+
+    if (empty($messages)) {
+        return "❌ No emails found in the inbox.";
+    }
+
+    $latestMessage = $messages[0];
+    $emailData = $this->parseEmail($latestMessage->getId());
+
+    if ($emailData) {
+        // Save to conversation log
+        $this->saveToConversationLog($emailData['from'], $emailData);
+
+        // Send to Slack
+        app(SlackService::class)->sendMessage(
+            "📧 *New Email*\n*From:* {$emailData['from']}\n*Subject:* {$emailData['subject']}\n\n{$emailData['body']}"
+        );
+
+        return $emailData['body'];
+    }
+
+    return "⚠️ Failed to retrieve the latest email.";
+}
+
 
 
 }

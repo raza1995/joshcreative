@@ -86,7 +86,10 @@ class OpenAIService
                 return $lastOrderResponse;
             }
         }
-
+        if ($intent['openLatestEmail']) {
+            $emailContent = app(GmailService::class)->getLatestEmail();
+            return "📬 *Latest Email:*\n\n" . $emailContent;
+        }
         if ($intent['openEmailFrom']) {
             $emailContent = app(GmailService::class)->getLatestEmailBySender($intent['openEmailFrom']);
             return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
@@ -174,9 +177,11 @@ class OpenAIService
              'lastRecord'        => false,
              'specificField'     => null,
              'removeCache'       => false,
-             'fetchLastOrders'   => 0,          // Existing intent
-             'checkNewEmails'    => false,      // New intent for checking emails
-             'openEmailFrom'     => null,       // New intent for opening specific emails
+             'fetchLastOrders'   => 0,          
+             'checkNewEmails'    => false, 
+             'openLatestEmail' => false,  
+        'openEmailFrom'   => null, 
+        'cleanQuery'        => null   
          ];
      
          // Check for removing cache
@@ -209,10 +214,14 @@ class OpenAIService
              $intent['checkNewEmails'] = true;
          }
      
-         // Open specific email (e.g., "open email from john@example.com")
-         if (preg_match('/\bopen (?:the )?last email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
-        $intent['openEmailFrom'] = $matches[1];
-    }
+         if (preg_match('/\bopen email\b/i', $query)) {
+            $intent['openLatestEmail'] = true;
+        }
+    
+        // Optional: Detect if an email address is specified
+        if (preg_match('/\bopen email from\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i', $query, $matches)) {
+            $intent['openEmailFrom'] = $matches[1];
+        }
      
          // Specific field requests
          $specificFieldPatterns = [
@@ -226,7 +235,12 @@ class OpenAIService
                  break;
              }
          }
-     
+         if (!$intent['helpRequest'] && !$intent['updateRequest'] && !$intent['lastRecord'] &&
+         !$intent['removeCache'] && !$intent['fetchLastOrders'] && !$intent['checkNewEmails'] &&
+         !$intent['openEmailFrom'] && !$intent['specificField']
+     ) {
+         $intent['cleanQuery'] = $query;
+     }
          return $intent;
      }
      
