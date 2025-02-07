@@ -170,7 +170,7 @@ EOT;
         return $matches[0] ?? null;
     }
 
-    private function determineCacheKey(?string $orderNumber, ?string $email): string
+    private function determineCacheKey(?string $orderNumber, ?string $email)
     {
         if ($email) {
             return $email;
@@ -180,7 +180,7 @@ EOT;
         }
         return 'general';
     }
-
+    
     private function detectUpdateRequest(string $query): bool
     {
         $patterns = [
@@ -587,6 +587,7 @@ PROMPT;
         ?string $email,
         array $contextData
     ): void {
+        // 1. Build the updated conversation log
         $conversationLog = $contextData['conversationLog'] ?? [];
         $conversationLog[] = [
             'timestamp'    => now()->toDateTimeString(),
@@ -594,17 +595,23 @@ PROMPT;
             'ai'           => $reply,
             'orderDetails' => $firstOrder ?? null,
         ];
-
+    
         $updatedContext = [
             'previousContext' => $contextData['previousContext']."\nUser: {$customerQuery}\nAI: {$reply}",
             'lastOrderNumber' => $orderNumber,
             'lastEmail'       => $email,
             'conversationLog' => $conversationLog,
         ];
-
+    
+        // 2. Save to database (Conversation model).
+        //    - Decide how you want to handle 'user_identifier' vs. $cacheKey
+        //    - For demonstration, pass $cacheKey as user_identifier:
+        $this->saveConversation($cacheKey, $orderNumber, $updatedContext);
+    
+        // 3. Also store in Cache for quick retrieval
         $this->setCachedContext($cacheKey, $updatedContext);
     }
-
+    
     /**
      * Retrieve context from cache or provide defaults.
      */
@@ -642,11 +649,21 @@ PROMPT;
 
 
  
-private function saveConversation($userIdentifier, $orderNumber, $conversationLog)
-{
-    Conversation::updateOrCreate(
-        ['user_identifier' => $userIdentifier, 'order_number' => $orderNumber],
-        ['conversation_data' => $conversationLog]
-    );
-}
+    private function saveConversation($userIdentifier, $orderNumber, $conversationData)
+    {
+        // If you prefer to store only the conversation log, do
+        //    ['conversation_data' => $conversationData['conversationLog']]
+        // But if you want everything, store $conversationData directly:
+        Conversation::updateOrCreate(
+            [
+                'user_identifier' => $userIdentifier,
+                'order_number'    => $orderNumber ?? null,  // handle null safely
+            ],
+            [
+                // You can store entire $conversationData
+                'conversation_data' => $conversationData 
+            ]
+        );
+    }
+    
 }
