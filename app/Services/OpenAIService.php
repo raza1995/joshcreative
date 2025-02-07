@@ -115,9 +115,7 @@ class OpenAIService
         }
 
         // 8. If multiple orders but no specific order # given, show summary
-        if ($orders->count() > 1 && !$orderNumber) {
-            return $this->handleMultipleOrders($orders, $useSlackBlocks);
-        }
+    
 
         // 9. Format basic details from DB
         $orderContext = $this->formatOrderDetails($orders);
