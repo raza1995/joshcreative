@@ -36,6 +36,340 @@ class OpenAIService
      * - We fetch from DB first for basic info.
      * - If user wants more detail, we fetch from Shopify (no DB update).
      */
+
+     protected array $config = [
+        'max_orders' => 5,
+        'cache_ttl' => 1800, // 30 minutes
+        'min_confidence' => 0.7,
+    ];
+
+    /* ========================================================================
+     *                          MAIN ENTRY POINT
+     * ======================================================================== */
+
+    public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
+    {
+        try {
+            // 1. Intent Detection
+            $intentData = $this->detectIntentWithModel($customerQuery);
+            
+            // 2. Log detection results
+            Log::info('Intent detection', [
+                'query' => $customerQuery,
+                'intent' => $intentData,
+                'user' => $slackUserId
+            ]);
+
+            // 3. Handle low confidence scenarios
+            if ($intentData['confidence'] < $this->config['min_confidence']) {
+                return $this->handleLowConfidenceQuery($customerQuery);
+            }
+
+            // 4. Route to appropriate handler
+            return match($intentData['intent']) {
+                'remove_cache' => $this->handleCacheRemoval(),
+                'help' => $this->generateHelpResponse($useSlackBlocks),
+                'check_emails' => $this->handleEmailIntent($intentData),
+                'fetch_orders' => $this->handleOrderIntent($intentData, $customerQuery),
+                'draft_email' => $this->handleEmailDrafting($intentData),
+                'discount_query' => $this->handleDiscountIntent($intentData),
+                'payment_query' => $this->handlePaymentIntent($intentData),
+                'refund_query' => $this->handleRefundIntent($intentData),
+                default => $this->handleGeneralQuery($customerQuery)
+            };
+
+        } catch (\Exception $e) {
+            Log::error('Reply generation failed: ' . $e->getMessage());
+            return "Sorry, I'm having trouble processing your request. Please try again later.";
+        }
+    }
+
+    /* ========================================================================
+     *                      INTENT DETECTION & PROCESSING
+     * ======================================================================== */
+
+    private function detectIntentWithModel(string $query): array
+    {
+        try {
+            $response = Http::timeout(3)
+                ->retry(3, 100)
+                ->post(config('services.intent_model.endpoint'), [
+                    'query' => $query,
+                    'context' => $this->getConversationContext()
+                ])->throw()->json();
+
+            return [
+                'intent' => $response['intent'] ?? 'general_help',
+                'entities' => $response['entities'] ?? [],
+                'confidence' => $response['confidence'] ?? 0,
+                'fallback_reason' => $response['fallback_reason'] ?? null
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Model request failed: ' . $e->getMessage());
+            return $this->getFallbackIntent($query);
+        }
+    }
+
+    private function getFallbackIntent(string $query): array
+    {
+        $legacyIntent = $this->detectIntentLegacy($query);
+        return $this->mapLegacyIntent($legacyIntent);
+    }
+
+    private function detectIntentLegacy(string $query): array
+    {
+        // Original regex-based detection implementation
+        $lowerQuery = strtolower($query);
+        $intent = [
+            'helpRequest' => false,
+            'checkNewEmails' => false,
+            // ... other legacy intent flags
+        ];
+
+        // Implement original regex checks here
+        if (preg_match('/\b(remove|delete|clear)\b.*\bcache\b/i', $query)) {
+            $intent['removeCache'] = true;
+        }
+        // ... other regex checks
+
+        return $intent;
+    }
+
+    /* ========================================================================
+     *                          INTENT HANDLERS
+     * ======================================================================== */
+
+    private function handleOrderIntent(array $intentData, string $query): string
+    {
+        $orderNumber = $this->extractOrderNumberFromQuery($query, $intentData);
+        
+        if (!$orderNumber) {
+            return "Please provide an order number so I can help you.";
+        }
+
+        $order = $this->fetchOrderDetails($orderNumber);
+        
+        if (!$order) {
+            return "Order #$orderNumber not found. Please verify the order number.";
+        }
+
+        $this->cacheOrderContext($order, $intentData);
+
+        return match($intentData['intent']) {
+            'FETCH_ORDER_STATUS' => $this->formatOrderStatus($order),
+            'FETCH_SHIPPING_STATUS' => $this->formatShippingStatus($order),
+            'FETCH_PAYMENT_STATUS' => $this->formatPaymentStatus($order),
+            'FETCH_ORDER_ITEMS_COUNT' => $this->formatItemCount($order),
+            'FETCH_ORDER_PRODUCTS' => $this->formatOrderProducts($order),
+            'FETCH_TRACKING_INFO' => $this->formatTrackingInfo($order),
+            'FETCH_SHIPPING_ADDRESS' => $this->formatShippingAddress($order),
+            default => $this->formatOrderDetails([$order])
+        };
+    }
+
+    private function handleEmailIntent(array $intentData): string
+    {
+        $gmailService = app(GmailService::class);
+
+        return match($intentData['intent']) {
+            'CHECK_NEW_EMAILS' => $this->formatEmailCount($gmailService->fetchUnreadEmails()),
+            'OPEN_LATEST_EMAIL' => $this->formatEmailContent($gmailService->getLatestEmail()),
+            'OPEN_EMAIL_FROM' => $this->handleSpecificSenderEmail($intentData),
+            default => 'Email handling not implemented yet'
+        };
+    }
+
+    private function handleEmailDrafting(array $intentData): string
+    {
+        $orderNumber = $intentData['entities']['order_number'] ?? null;
+        $order = $orderNumber ? $this->fetchOrderDetails($orderNumber) : null;
+
+        return match($intentData['intent']) {
+            'DRAFT_EMAIL_DELAYED_ORDER' => $this->draftDelayEmail($order),
+            'DRAFT_EMAIL_REFUND_CONFIRMATION' => $this->draftRefundEmail($order),
+            'DRAFT_EMAIL_SHIPPING_CONFIRMATION' => $this->draftShippingConfirmation($order),
+            default => 'Email drafting not implemented yet'
+        };
+    }
+
+    /* ========================================================================
+     *                          FORMATTING METHODS
+     * ======================================================================== */
+
+    private function formatOrderStatus(array $order): string
+    {
+        $status = $order['fulfillment_status'] ?? 'processing';
+        $orderNumber = $order['order_number'] ?? 'N/A';
+        
+        $statusMap = [
+            'fulfilled' => "✅ Order #$orderNumber has been shipped",
+            'partial' => "⏳ Order #$orderNumber is partially fulfilled",
+            'unfulfilled' => "📦 Order #$orderNumber is being processed",
+            'cancelled' => "❌ Order #$orderNumber was cancelled",
+        ];
+
+        return $statusMap[strtolower($status)] ?? "ℹ️ Current status: " . ucfirst($status);
+    }
+
+    private function formatTrackingInfo(array $order): string
+    {
+        $tracking = $order['tracking_info'] ?? [];
+        
+        if (empty($tracking)) {
+            return "No tracking information available for order #{$order['order_number']}";
+        }
+
+        return implode("\n", [
+            "📦 Tracking info for order #{$order['order_number']}:",
+            "• Carrier: {$tracking['carrier']}",
+            "• Tracking #: {$tracking['number']}",
+            "• Status: {$tracking['status']}",
+            "• Last update: {$this->formatDate($tracking['updated_at'])}"
+        ]);
+    }
+
+    private function formatEmailCount(array $emails): string
+    {
+        $count = count($emails);
+        return $count > 0 
+            ? "📬 You have $count new emails"
+            : "📭 No new emails in your inbox";
+    }
+
+    /* ========================================================================
+     *                          EMAIL DRAFT TEMPLATES
+     * ======================================================================== */
+
+    private function draftDelayEmail(?array $order): string
+    {
+        if (!$order) {
+            return "Unable to draft email - order information missing";
+        }
+
+        return implode("\n\n", [
+            "✉️ Draft Email for Order #{$order['order_number']}:",
+            "Subject: Update on Your Order #{$order['order_number']}",
+            "Hi {$order['customer']['first_name']},",
+            "We wanted to inform you that your order is experiencing a slight delay. ",
+            "We apologize for the inconvenience and will notify you once it ships.",
+            "Best regards,\nCustomer Support Team"
+        ]);
+    }
+
+    private function draftRefundEmail(?array $order): string
+    {
+        // Similar template structure with refund-specific content
+    }
+
+    /* ========================================================================
+     *                          SHOPIFY INTEGRATION
+     * ======================================================================== */
+
+    private function fetchOrderDetails(string $orderNumber): ?array
+    {
+        try {
+            $response = Http::shopify()
+                ->retry(3, 100)
+                ->get("/orders.json", [
+                    'name' => $orderNumber,
+                    'status' => 'any',
+                    'fields' => implode(',', [
+                        'id,name,created_at,financial_status,fulfillment_status',
+                        'total_price,currency,customer,shipping_address',
+                        'line_items,tracking_info,discount_codes'
+                    ])
+                ]);
+
+            return $response->json('orders.0');
+
+        } catch (\Exception $e) {
+            Log::error("Shopify API failure: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /* ========================================================================
+     *                          CONTEXT MANAGEMENT
+     * ======================================================================== */
+
+    private function getConversationContext(): array
+    {
+        return Cache::remember('conversation_context', $this->config['cache_ttl'], function () {
+            return [
+                'recent_orders' => $this->getRecentOrdersFromCache(),
+                'common_queries' => $this->getCommonQueryPatterns(),
+                'customer_preferences' => $this->getCustomerPreferences()
+            ];
+        });
+    }
+
+    private function cacheOrderContext(array $order, array $intentData): void
+    {
+        $context = Cache::get('order_context', []);
+        $context[$order['order_number']] = [
+            'last_accessed' => now(),
+            'intent' => $intentData,
+            'customer' => $order['customer']['email'] ?? null
+        ];
+        Cache::put('order_context', $context, $this->config['cache_ttl']);
+    }
+
+    /* ========================================================================
+     *                          UTILITIES & HELPERS
+     * ======================================================================== */
+
+    private function extractOrderNumberFromQuery(string $query, array $intentData): ?string
+    {
+        return $intentData['entities']['order_number'] 
+            ?? $this->extractOrderNumberLegacy($query)
+            ?? $this->getLastOrderNumberFromCache();
+    }
+
+    private function extractOrderNumberLegacy(string $query): ?string
+    {
+        preg_match('/#?(\d{5,})/i', $query, $matches);
+        return $matches[1] ?? null;
+    }
+
+    private function formatDate(string $dateString): string
+    {
+        try {
+            return now()->parse($dateString)->diffForHumans();
+        } catch (\Exception $e) {
+            return $dateString;
+        }
+    }
+
+    /* ========================================================================
+     *                          FALLBACK HANDLING
+     * ======================================================================== */
+
+    private function handleLowConfidenceQuery(string $query): string
+    {
+        $logContext = [
+            'query' => $query,
+            'confidence' => $intentData['confidence'] ?? 0
+        ];
+        
+        Log::warning('Low confidence intent detection', $logContext);
+        
+        return $this->isOrderRelatedQuery($query)
+            ? "I'm not sure I understand. Could you please provide the order number?"
+            : $this->callOpenAIFallback($query);
+    }
+
+    private function callOpenAIFallback(string $query): string
+    {
+        try {
+            return app(OpenAIService::class)->generateResponse(
+                "User asked: $query. Provide a concise helpful response."
+            );
+        } catch (\Exception $e) {
+            Log::error('OpenAI fallback failed: ' . $e->getMessage());
+            return "I'm sorry, I didn't understand that. Could you rephrase your question?";
+        }
+    }
 //     public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
 // {
 //     // 1. Detect overall intent (/help, etc.)
@@ -120,226 +454,6 @@ class OpenAIService
 //     // Default Fallback Response
 //     return $intent['cleanQuery'];
 // }
-
-    /* ========================================================================
-     *             MAIN REPLY GENERATION FLOW (Updated)
-     * ======================================================================== */
-
-    public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
-    {
-        // ... [Previous implementation as you provided] ...
-        // (Keep your existing security checks and initial logic here)
-    }
-
-    /* ========================================================================
-     *                     MACHINE LEARNING INTEGRATION
-     * ======================================================================== */
-
-    private function detectIntentWithModel(string $query): array
-    {
-        try {
-            $response = Http::timeout(3)
-                ->retry(2, 100)
-                ->post(config('services.intent_model.endpoint'), [
-                    'query' => $query,
-                    'context' => $this->getConversationContext()
-                ]);
-
-            return $this->parseModelResponse($response->json());
-
-        } catch (Exception $e) {
-            Log::error('Intent detection failed: ' . $e->getMessage());
-            return $this->getFallbackIntent($query);
-        }
-    }
-
-    private function parseModelResponse(array $response): array
-    {
-        return [
-            'intent' => $response['intent'] ?? 'general_help',
-            'entities' => $response['entities'] ?? [],
-            'confidence' => $response['confidence'] ?? 0,
-            'fallback_reason' => $response['fallback_reason'] ?? null
-        ];
-    }
-
-    /* ========================================================================
-     *                     INTENT HANDLERS IMPLEMENTATION
-     * ======================================================================== */
-
-    private function handleOrderIntent(array $intentData, string $query): string
-    {
-        $orderNumber = $intentData['entities']['order_number'] ?? $this->extractOrderNumber($query);
-        
-        if (!$orderNumber) {
-            return "Please provide an order number so I can help you.";
-        }
-
-        $order = $this->fetchSingleOrderFromShopify($orderNumber);
-        
-        if (!$order) {
-            return "Order #$orderNumber not found. Please verify the order number.";
-        }
-
-        return match($intentData['intent']) {
-            'FETCH_ORDER_STATUS' => $this->formatOrderStatus($order),
-            'FETCH_SHIPPING_STATUS' => $this->formatShippingStatus($order),
-            'FETCH_PAYMENT_STATUS' => $this->formatPaymentStatus($order),
-            'FETCH_ORDER_ITEMS_COUNT' => $this->formatItemCount($order),
-            'FETCH_ORDER_PRODUCTS' => $this->formatOrderProducts($order),
-            'FETCH_TRACKING_INFO' => $this->formatTrackingInfo($order),
-            'FETCH_SHIPPING_ADDRESS' => $this->formatShippingAddress($order),
-            default => $this->formatOrderDetails([$order])
-        };
-    }
-
-    private function handleEmailIntent(array $intentData): string
-    {
-        $gmailService = app(GmailService::class);
-
-        return match($intentData['intent']) {
-            'CHECK_NEW_EMAILS' => $this->formatEmailCount($gmailService->fetchUnreadEmails()),
-            'OPEN_LATEST_EMAIL' => $this->formatEmailContent($gmailService->getLatestEmail()),
-            'DRAFT_EMAIL_DELAYED_ORDER' => $this->draftDelayEmail($intentData),
-            'DRAFT_EMAIL_REFUND_CONFIRMATION' => $this->draftRefundEmail($intentData),
-            'DRAFT_EMAIL_SHIPPING_CONFIRMATION' => $this->draftShippingConfirmation($intentData),
-            default => 'Email handling not implemented yet'
-        };
-    }
-
-    private function handleDiscountIntent(array $intentData): string
-    {
-        $orderNumber = $intentData['entities']['order_number'] ?? null;
-        $order = $orderNumber ? $this->fetchSingleOrderFromShopify($orderNumber) : null;
-
-        return match($intentData['intent']) {
-            'FETCH_DISCOUNT_STATUS' => $this->formatDiscountStatus($order),
-            'FETCH_COUPON_CODE' => $this->formatCouponInfo($order),
-            'FETCH_DISCOUNT_POLICY' => $this->getDiscountPolicy(),
-            default => 'Discount handling not implemented yet'
-        };
-    }
-
-    /* ========================================================================
-     *                      FORMATTING IMPLEMENTATIONS
-     * ======================================================================== */
-
-    private function formatOrderStatus(array $order): string
-    {
-        $status = $order['fulfillment_status'] ?? 'processing';
-        $orderNumber = $order['order_number'] ?? 'N/A';
-        
-        return match(strtolower($status)) {
-            'fulfilled' => "✅ Order #$orderNumber has been shipped",
-            'partial' => "⏳ Order #$orderNumber is partially fulfilled",
-            'unfulfilled' => "📦 Order #$orderNumber is being processed",
-            default => "ℹ️ Current status for order #$orderNumber: " . ucfirst($status)
-        };
-    }
-
-    private function formatPaymentStatus(array $order): string
-    {
-        $status = $order['financial_status'] ?? 'pending';
-        $amount = $order['total_price'] ?? 0;
-        $currency = $order['currency'] ?? 'USD';
-
-        return "Payment status for order #{$order['order_number']}: " . match(strtolower($status)) {
-            'paid' => "✅ Paid " . number_format($amount, 2) . " $currency",
-            'pending' => "⏳ Payment pending",
-            'refunded' => "↩️ Fully refunded",
-            'partially_refunded' => "↩️ Partially refunded",
-            default => ucfirst($status)
-        };
-    }
-
-    private function formatTrackingInfo(array $order): string
-    {
-        $tracking = $order['tracking_info'] ?? [];
-        
-        if (empty($tracking)) {
-            return "No tracking information available for order #{$order['order_number']}";
-        }
-
-        return "📦 Tracking info for order #{$order['order_number']}:\n" .
-               "• Carrier: {$tracking['carrier']}\n" .
-               "• Tracking #: {$tracking['number']}\n" .
-               "• Status: {$tracking['status']}\n" .
-               "• Last update: {$tracking['updated_at']}";
-    }
-
-    private function draftDelayEmail(array $intentData): string
-    {
-        $orderNumber = $intentData['entities']['order_number'];
-        $order = $this->fetchSingleOrderFromShopify($orderNumber);
-
-        return "✉️ Draft Email for Order #$orderNumber:\n\n" .
-               "Subject: Update on Your Order #$orderNumber\n\n" .
-               "Hi {$order['customer']['first_name']},\n\n" .
-               "We wanted to inform you that your order is experiencing a slight delay. " .
-               "We apologize for the inconvenience and will notify you once it ships.\n\n" .
-               "Best regards,\nCustomer Support";
-    }
-
-    /* ========================================================================
-     *                      SHOPIFY INTEGRATION HELPERS
-     * ======================================================================== */
-
-    private function fetchSingleOrderFromShopify(string $orderNumber): ?array
-    {
-        try {
-            $response = Http::shopify()
-                ->get("/orders.json?name=$orderNumber&status=any");
-
-            return $response->json('orders.0');
-
-        } catch (Exception $e) {
-            Log::error("Shopify order fetch failed: " . $e->getMessage());
-            return null;
-        }
-    }
-
-  
-
-    /* ========================================================================
-     *                      FALLBACK & SAFETY CHECKS
-     * ======================================================================== */
-
-    private function getFallbackIntent(string $query): array
-    {
-        // Maintain your original regex-based detection as fallback
-        $originalIntent = $this->detectIntent($query);
-        return $this->mapLegacyIntent($originalIntent);
-    }
-
-    private function mapLegacyIntent(array $legacyIntent): array
-    {
-        // Map old intent structure to new format
-        return [
-            'intent' => match(true) {
-                $legacyIntent['removeCache'] => 'remove_cache',
-                $legacyIntent['helpRequest'] => 'help',
-                $legacyIntent['checkNewEmails'] => 'CHECK_NEW_EMAILS',
-                // ... other mappings
-                default => 'general_help'
-            },
-            'entities' => []
-        ];
-    }
-
-    /* ========================================================================
-     *                      ADDITIONAL HELPERS
-     * ======================================================================== */
-
-    private function getConversationContext(): array
-    {
-        return [
-            'recent_orders' => $this->getCachedRecentOrders(),
-            'customer_tier' => $this->getCustomerTier(),
-            'last_interaction' => $this->getLastInteraction()
-        ];
-    }
-
-  
 
 
     /* ========================================================================
