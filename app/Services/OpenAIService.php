@@ -50,7 +50,13 @@ class OpenAIService
         if ($intent['helpRequest']) {
             return $this->generateHelpResponse($useSlackBlocks);
         }
-
+        if ($intent['fetchLastOrders'] > 0) {
+            $lastOrders = $this->fetchLastOrdersFromShopify($intent['fetchLastOrders']);
+            if ($lastOrders->isNotEmpty()) {
+                return $this->formatOrderDetails($lastOrders);
+            }
+            return "No recent orders found.";
+        }
         // 2. Extract order number / email
         $orderNumber = $this->extractOrderNumber($customerQuery);
         $email       = $this->extractEmail($customerQuery);
