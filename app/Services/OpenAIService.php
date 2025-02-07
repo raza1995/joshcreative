@@ -40,7 +40,7 @@ class OpenAIService
     {
         // 1. Detect overall intent (/help, etc.)
         $intent = $this->detectIntent($customerQuery);
-
+        Log::info('Intent detected:', $intent);
         if ($intent['removeCache']) {
             Cache::flush(); // or Cache::clear() in Laravel 10
             return "All conversation caches have been successfully removed.";
@@ -200,7 +200,7 @@ class OpenAIService
                 break;
             }
         }
-
+        
         return $intent;
     
     }
