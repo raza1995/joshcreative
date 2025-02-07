@@ -346,7 +346,7 @@ EOT;
 
             $params = [
                 'status' => 'any',
-                'limit'  => 5,
+                'limit'  => 10,
             ];
             if (!$orderNumber && $email) {
                 $params['email'] = $email;
