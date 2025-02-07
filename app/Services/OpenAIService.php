@@ -385,12 +385,12 @@ class OpenAIService
         }
     
         // Additional utility methods if needed
-        public function getAccessToken(): ?string
+        public function getAccessToken()
         {
             return $this->accessToken;
         }
     
-        public function getShopifyDomain(): ?string
+        public function getShopifyDomain()
         {
             return $this->shopifyDomain;
         }
