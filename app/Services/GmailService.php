@@ -348,6 +348,7 @@ public function startWatch()
     }
 }
 
+
 public function fetchNewEmails()
 {
     try {
