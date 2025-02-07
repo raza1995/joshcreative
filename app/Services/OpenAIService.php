@@ -431,10 +431,7 @@ EOT;
                 'number_of_items' => $numItems,
             ];
 
-             ShopifyOrder::updateOrCreate(
-            ['order_number' => $data['order_number']],
-            $data
-        );
+          
         }
     }
 
