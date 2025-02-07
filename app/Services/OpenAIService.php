@@ -776,4 +776,69 @@ PROMPT;
             ]
         );
     }
+    public function generateSummary($textContent): string
+    {
+        try {
+            $prompt = <<<EOT
+Please summarize the following text in a concise, professional tone, highlighting only key points:
+
+"$textContent"
+EOT;
+
+            $response = Http::withToken($this->apiKey)->post(
+                'https://api.openai.com/v1/chat/completions',
+                [
+                    'model' => $this->model,
+                    'messages' => [
+                        [
+                            'role'    => 'system',
+                            'content' => 'You are a concise summarizer. Keep important details, omit fluff.'
+                        ],
+                        [
+                            'role'    => 'user',
+                            'content' => $prompt
+                        ],
+                    ],
+                    'temperature' => 0.3,
+                    'max_tokens'  => 150,
+                ]
+            );
+
+            if ($response->successful()) {
+                return $response->json()['choices'][0]['message']['content'] ?? 'Summary not available.';
+            }
+
+            Log::error('OpenAI API Summary Error: ' . $response->body());
+            return 'Error generating summary.';
+        } catch (\Exception $e) {
+            Log::error('Exception in OpenAIService (Summary): ' . $e->getMessage());
+            return 'Error communicating with AI for summary.';
+        }
+    }
+
+
+
+        /* ========================================================================
+     *               SUMMARIZATION AND CONTEXT MANAGEMENT
+     * ======================================================================== */
+
+     private function checkConversationLengthAndSummarize(array $contextData): array
+     {
+         $previousContext = $contextData['previousContext'] ?? '';
+         if (strlen($previousContext) <= self::MAX_CONTEXT_LENGTH) {
+             return $contextData; 
+         }
+ 
+         // Summarize older portion in chunks
+         $chunks = str_split($previousContext, self::CONTEXT_SUMMARY_CHUNK_SIZE);
+         $summary = '';
+ 
+         foreach ($chunks as $chunk) {
+             $summary .= $this->generateSummary($chunk) . "\n";
+         }
+ 
+         $contextData['previousContext'] = "[CONTEXT WAS SUMMARIZED]\n" . $summary;
+         return $contextData;
+     }
+ 
 }
