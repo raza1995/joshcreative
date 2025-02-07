@@ -276,37 +276,35 @@ private function getLabelId($labelName)
 public function startWatch()
 {
     try {
-        $labelIds = ['INBOX']; // Watch only the Inbox
-        $topicName = 'projects/gmail-api-449711/topics/gmail-notification';
-
-        Log::info("Creating WatchRequest with labelIds: " . json_encode($labelIds) . " and topicName: $topicName");
-
-        // Prepare the Watch Request
         $watchRequest = new \Google\Service\Gmail\WatchRequest([
-            'labelIds' => $labelIds,
-            'topicName' => $topicName
+            'labelIds'  => ['INBOX'],
+            'topicName' => 'projects/gmail-api-449711/topics/gmail-notification',
         ]);
 
-        Log::info("Sending watch request to Gmail API for user 'me'...");
-        
-        // Call Gmail API to Start Watching
         $response = $this->service->users->watch('me', $watchRequest);
-
-        // Extract expiration info
-        $expiration = $response->expiration ?? 'UNKNOWN';
-        
-        Log::info("Received response from Gmail API: " . json_encode($response));
-        Log::info("✅ Gmail Watch started successfully. Expiration: $expiration");
+        \Log::info("✅ Gmail Watch started successfully.");
+        return $response;
 
     } catch (\Google\Service\Exception $gException) {
-        Log::error("🚨 Google API Error starting Gmail Watch: " . $gException->getMessage());
-        Log::error("📌 Error Details: " . json_encode($gException->getErrors()));
+        \Log::error("🚨 Google API Error: " . $gException->getMessage());
+        $errorDetails = $gException->getErrors();
+
+        // 🚨 Detect Permission Issue (Forbidden Error)
+        if (isset($errorDetails[0]['reason']) && $errorDetails[0]['reason'] === 'forbidden') {
+            \Log::warning("⚠️ Forbidden error detected. Triggering re-authentication...");
+
+            // Trigger Re-authentication
+            $this->authenticate(true);  // Force re-authentication
+
+            // Stop further processing after re-authentication
+            return response()->json(['error' => 'Re-authentication triggered. Please restart Gmail Watch.']);
+        }
 
     } catch (\Exception $e) {
-        Log::error("🚨 General Error starting Gmail Watch: " . $e->getMessage());
-        Log::error("📌 Stack Trace: " . $e->getTraceAsString());
+        \Log::error("🚨 General Error starting Gmail Watch: " . $e->getMessage());
     }
 }
+
 
 public function fetchNewEmails()
 {
