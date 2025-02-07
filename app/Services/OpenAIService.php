@@ -50,13 +50,14 @@ class OpenAIService
         if ($intent['helpRequest']) {
             return $this->generateHelpResponse($useSlackBlocks);
         }
-        if ($intent['fetchLastOrders'] > 0) {
-            $lastOrders = $this->fetchLastOrdersFromShopify($intent['fetchLastOrders']);
-            if ($lastOrders->isNotEmpty()) {
-                return $this->formatOrderDetails($lastOrders);
-            }
-            return "No recent orders found.";
+        // NEW: Handle "get last X orders"
+    if ($intent['fetchLastOrders'] > 0) {
+        $lastOrders = $this->fetchShopifyOrders(null, null, false, $intent['fetchLastOrders']);
+        if ($lastOrders->isNotEmpty()) {
+            return $this->formatOrderDetails($lastOrders);
         }
+        return "No recent orders found.";
+    }
         // 2. Extract order number / email
         $orderNumber = $this->extractOrderNumber($customerQuery);
         $email       = $this->extractEmail($customerQuery);
@@ -331,7 +332,7 @@ EOT;
      * @param bool $storeInDb If true, we store basic columns in DB. 
      *                        If false, we skip DB update entirely.
      */
-    private function fetchShopifyOrders(?string $orderNumber, ?string $email, bool $storeInDb = true): Collection
+    private function fetchShopifyOrders(?string $orderNumber, ?string $email, bool $storeInDb = true,int $limit = 5): Collection
     {
         try {
             // Single or multiple
@@ -343,7 +344,9 @@ EOT;
 
             $params = [
                 'status' => 'any',
-                'limit'  => 10,
+                'limit'  => $limit,
+                'order'     => 'created_at desc',  // Ensure latest orders
+
             ];
             if (!$orderNumber && $email) {
                 $params['email'] = $email;
