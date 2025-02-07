@@ -247,42 +247,57 @@ class OpenAIService
          * Fetch data from Shopify if not available or if refresh is requested.
          */
         private function fetchFromShopify(?string $orderNumber = null, ?string $email = null)
-        {
-            try {
-                $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
-                $params   = [
-                    'status' => 'any',   // Include all orders
-                    'limit'  => 5        // fetch up to 5 for demonstration
-                ];
-    
-                if ($orderNumber) {
-                    // NOTE: Actual Shopify typically uses "name" to query by # or "id" for the internal ID
-                    // For demonstration, we just pass 'id' param, but you might need to revise
-                    $params['name'] = $orderNumber;
-                } elseif ($email) {
-                    $params['email'] = $email;
-                }
-    
-                $response = Http::withHeaders([
-                    'X-Shopify-Access-Token' => $this->accessToken,
-                    'Content-Type'           => 'application/json',
-                ])->get($endpoint, $params);
-    
-                if ($response->successful()) {
-                    $orders = collect($response->json()['orders'] ?? []);
-                    if ($orders->isEmpty()) {
-                        Log::info("No orders found from Shopify for number={$orderNumber}, email={$email}");
-                    }
-                    return $orders;
-                } else {
-                    Log::error('Shopify API Error: ' . $response->body());
-                    return collect();
-                }
-            } catch (\Exception $e) {
-                Log::error('Shopify API Exception: ' . $e->getMessage());
-                return collect();
-            }
+{
+    try {
+        // 1) If we have a numeric ID for an order, call the single-order endpoint
+        if ($orderNumber) {
+            $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/{$orderNumber}.json";
+        } else {
+            // Otherwise, we use the list endpoint
+            $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
         }
+
+        $params = [
+            'status' => 'any',
+            'limit'  => 5
+        ];
+
+        // 2) If we're listing by email
+        if (!$orderNumber && $email) {
+            $params['email'] = $email;
+        }
+
+        // 3) Make the request
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $this->accessToken,
+            'Content-Type'           => 'application/json',
+        ])->get($endpoint, $params);
+
+        // 4) Check response
+        if ($response->successful()) {
+            $json = $response->json();
+
+            // Single-order endpoint returns { "order": { ... } }
+            if ($orderNumber && isset($json['order'])) {
+                return collect([$json['order']]);
+            }
+
+            // Otherwise, the list endpoint returns { "orders": [ ... ] }
+            $orders = collect($json['orders'] ?? []);
+            if ($orders->isEmpty()) {
+                Log::info("No orders found on Shopify for orderNumber={$orderNumber}, email={$email}");
+            }
+            return $orders;
+        } else {
+            Log::error('Shopify API Error: ' . $response->body());
+            return collect();
+        }
+    } catch (\Exception $e) {
+        Log::error('Shopify API Exception: ' . $e->getMessage());
+        return collect();
+    }
+}
+
     
         /**
          * Format multiple orders into a concise string.
