@@ -34,6 +34,7 @@ Route::get('/', function () {
     return view('home');
 });
 Route::get('/gmail/callback', [GmailService::class, 'handleOAuthCallback']);
+Route::get('/gmail/watch', [GmailService::class, 'startGmailWatch']);
 
 Route::post('/gmail/webhook', [GmailWebhookController::class, 'handle']);
 Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);

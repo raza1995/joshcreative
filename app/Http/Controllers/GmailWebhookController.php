@@ -27,27 +27,39 @@ class GmailWebhookController extends Controller
     //     return response()->json(['status' => 'success']);
     // }
 
+    // public function handle(Request $request)
+    // {
+    //     \Log::info('Gmail Webhook Request:', $request->all());
+    //     $historyId = $request->historyId;
+    //     \Log::info("Received Gmail webhook with historyId: $historyId");
+
+    //     // Fetch new emails since the last history ID
+    //     $emails = app(GmailService::class)->getMessagesFromHistory($historyId);
+    //     \Log::info("Fetched " . count($emails) . " new emails from historyId: $historyId");
+
+    //     foreach ($emails as $email) {
+    //         $headers = $email->getPayload()->getHeaders();
+    //         $from = collect($headers)->firstWhere('name', 'From')->getValue() ?? 'Unknown';
+
+    //         // Send notification to AI Bot (or Slack)
+    //         app(SlackService::class)->sendMessage("📩 Email from: $from");
+    //         \Log::info("Sent Slack notification for email from: $from");
+    //     }
+
+    //     \Log::info("Completed processing of emails for historyId: $historyId");
+    //     return response()->json(['status' => 'success']);
+    // }
     public function handle(Request $request)
     {
-        \Log::info('Gmail Webhook Request:', $request->all());
-        $historyId = $request->historyId;
-        \Log::info("Received Gmail webhook with historyId: $historyId");
+        $data = json_decode(base64_decode($request->input('message.data')), true);
+        $historyId = $data['historyId'];
 
-        // Fetch new emails since the last history ID
-        $emails = app(GmailService::class)->getMessagesFromHistory($historyId);
-        \Log::info("Fetched " . count($emails) . " new emails from historyId: $historyId");
+        \Log::info("📥 New Gmail Notification Received", $data);
 
-        foreach ($emails as $email) {
-            $headers = $email->getPayload()->getHeaders();
-            $from = collect($headers)->firstWhere('name', 'From')->getValue() ?? 'Unknown';
+        // Fetch the new email using the historyId
+        $gmailService = app()->make(\App\Services\GmailService::class);
+        $newEmails = $gmailService->getEmailsSinceHistoryId($historyId);
 
-            // Send notification to AI Bot (or Slack)
-            app(SlackService::class)->sendMessage("📩 Email from: $from");
-            \Log::info("Sent Slack notification for email from: $from");
-        }
-
-        \Log::info("Completed processing of emails for historyId: $historyId");
-        return response()->json(['status' => 'success']);
+        return response()->json(['status' => 'received', 'emails' => $newEmails]);
     }
-
 }

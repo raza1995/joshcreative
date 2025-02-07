@@ -29,7 +29,11 @@ class GmailService
 
         $this->client->setAccessType('offline');
         $this->client->setPrompt('select_account consent');
-
+        $this->client->addScope(Gmail::GMAIL_READONLY);
+        // OR for full access:
+        $this->client->addScope(Gmail::GMAIL_READONLY);  // Read-only access
+        $this->client->addScope(Gmail::GMAIL_MODIFY);    // If you want to mark emails as read, etc.
+        
         $this->authenticate();
         $this->service = new Gmail($this->client);
     }
@@ -691,6 +695,38 @@ public function getEmailBySender($emailAddress)
     list($subject, $from, $body) = $this->getMimeMessageContent($latestMessage->getId());
 
     return "📬 *Subject:* $subject\n*From:* $from\n\n$body";
+}
+private function getHeader($headers, $name)
+{
+    foreach ($headers as $header) {
+        if ($header->getName() === $name) {
+            return $header->getValue();
+        }
+    }
+    return null;
+}
+public function getEmailsSinceHistoryId($historyId)
+{
+    $history = $this->service->users_history->listUsersHistory('me', [
+        'startHistoryId' => $historyId,
+        'historyTypes'   => ['messageAdded'],
+    ]);
+
+    $emails = [];
+
+    foreach ($history->getHistory() as $h) {
+        foreach ($h->getMessages() as $message) {
+            $msg = $this->service->users_messages->get('me', $message->getId(), ['format' => 'full']);
+            $emails[] = [
+                'id'      => $message->getId(),
+                'snippet' => $msg->getSnippet(),
+                'from'    => $this->getHeader($msg->getPayload()->getHeaders(), 'From'),
+                'subject' => $this->getHeader($msg->getPayload()->getHeaders(), 'Subject'),
+            ];
+        }
+    }
+
+    return $emails;
 }
 
 }
