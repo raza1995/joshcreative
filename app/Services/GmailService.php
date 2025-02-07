@@ -339,15 +339,14 @@ public function startWatch()
             // Trigger Re-authentication
             $this->authenticatepub(true);  // Force re-authentication
 
-            // Retry Watch Request after re-auth
-            return $this->startWatch();
+            // Stop further processing after re-authentication
+            return response()->json(['error' => 'Re-authentication triggered. Please restart Gmail Watch.']);
         }
 
     } catch (\Exception $e) {
         \Log::error("🚨 General Error starting Gmail Watch: " . $e->getMessage());
     }
 }
-
 
 public function fetchNewEmails()
 {
