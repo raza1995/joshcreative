@@ -67,15 +67,15 @@ class OpenAIService
 
             // 4. Route to appropriate handler
             return match($intentData['intent']) {
-                'remove_cache' => $this->handleCacheRemoval(),
+                // 'remove_cache' => $this->handleCacheRemoval(),
                 'help' => $this->generateHelpResponse($useSlackBlocks),
                 'check_emails' => $this->handleEmailIntent($intentData),
                 'fetch_orders' => $this->handleOrderIntent($intentData, $customerQuery),
                 'draft_email' => $this->handleEmailDrafting($intentData),
-                'discount_query' => $this->handleDiscountIntent($intentData),
-                'payment_query' => $this->handlePaymentIntent($intentData),
-                'refund_query' => $this->handleRefundIntent($intentData),
-                default => $this->handleGeneralQuery($customerQuery)
+                // 'discount_query' => $this->handleDiscountIntent($intentData),
+                // 'payment_query' => $this->handlePaymentIntent($intentData),
+                // 'refund_query' => $this->handleRefundIntent($intentData),
+                // default => $this->handleGeneralQuery($customerQuery)
             };
 
         } catch (\Exception $e) {
@@ -111,11 +111,11 @@ class OpenAIService
         }
     }
 
-    private function getFallbackIntent(string $query): array
-    {
-        $legacyIntent = $this->detectIntentLegacy($query);
-        return $this->mapLegacyIntent($legacyIntent);
-    }
+    // private function getFallbackIntent(string $query): array
+    // {
+    //     $legacyIntent = $this->detectIntentLegacy($query);
+    //     return $this->mapLegacyIntent($legacyIntent);
+    // }
 
     private function detectIntentLegacy(string $query): array
     {
@@ -158,12 +158,12 @@ class OpenAIService
 
         return match($intentData['intent']) {
             'FETCH_ORDER_STATUS' => $this->formatOrderStatus($order),
-            'FETCH_SHIPPING_STATUS' => $this->formatShippingStatus($order),
-            'FETCH_PAYMENT_STATUS' => $this->formatPaymentStatus($order),
-            'FETCH_ORDER_ITEMS_COUNT' => $this->formatItemCount($order),
-            'FETCH_ORDER_PRODUCTS' => $this->formatOrderProducts($order),
+            // 'FETCH_SHIPPING_STATUS' => $this->formatShippingStatus($order),
+            // 'FETCH_PAYMENT_STATUS' => $this->formatPaymentStatus($order),
+            // 'FETCH_ORDER_ITEMS_COUNT' => $this->formatItemCount($order),
+            // 'FETCH_ORDER_PRODUCTS' => $this->formatOrderProducts($order),
             'FETCH_TRACKING_INFO' => $this->formatTrackingInfo($order),
-            'FETCH_SHIPPING_ADDRESS' => $this->formatShippingAddress($order),
+            // 'FETCH_SHIPPING_ADDRESS' => $this->formatShippingAddress($order),
             default => $this->formatOrderDetails([$order])
         };
     }
@@ -174,8 +174,8 @@ class OpenAIService
 
         return match($intentData['intent']) {
             'CHECK_NEW_EMAILS' => $this->formatEmailCount($gmailService->fetchUnreadEmails()),
-            'OPEN_LATEST_EMAIL' => $this->formatEmailContent($gmailService->getLatestEmail()),
-            'OPEN_EMAIL_FROM' => $this->handleSpecificSenderEmail($intentData),
+            // 'OPEN_LATEST_EMAIL' => $this->formatEmailContent($gmailService->getLatestEmail()),
+            // 'OPEN_EMAIL_FROM' => $this->handleSpecificSenderEmail($intentData),
             default => 'Email handling not implemented yet'
         };
     }
@@ -188,7 +188,7 @@ class OpenAIService
         return match($intentData['intent']) {
             'DRAFT_EMAIL_DELAYED_ORDER' => $this->draftDelayEmail($order),
             'DRAFT_EMAIL_REFUND_CONFIRMATION' => $this->draftRefundEmail($order),
-            'DRAFT_EMAIL_SHIPPING_CONFIRMATION' => $this->draftShippingConfirmation($order),
+            // 'DRAFT_EMAIL_SHIPPING_CONFIRMATION' => $this->draftShippingConfirmation($order),
             default => 'Email drafting not implemented yet'
         };
     }
@@ -296,11 +296,11 @@ class OpenAIService
     private function getConversationContext(): array
     {
         return Cache::remember('conversation_context', $this->config['cache_ttl'], function () {
-            return [
-                'recent_orders' => $this->getRecentOrdersFromCache(),
-                'common_queries' => $this->getCommonQueryPatterns(),
-                'customer_preferences' => $this->getCustomerPreferences()
-            ];
+            // return [
+            //     'recent_orders' => $this->getRecentOrdersFromCache(),
+            //     'common_queries' => $this->getCommonQueryPatterns(),
+            //     'customer_preferences' => $this->getCustomerPreferences()
+            // ];
         });
     }
 
@@ -319,12 +319,12 @@ class OpenAIService
      *                          UTILITIES & HELPERS
      * ======================================================================== */
 
-    private function extractOrderNumberFromQuery(string $query, array $intentData): ?string
-    {
-        return $intentData['entities']['order_number'] 
-            ?? $this->extractOrderNumberLegacy($query)
-            ?? $this->getLastOrderNumberFromCache();
-    }
+    // private function extractOrderNumberFromQuery(string $query, array $intentData): ?string
+    // {
+    //     return $intentData['entities']['order_number'] 
+    //         ?? $this->extractOrderNumberLegacy($query)
+    //         ?? $this->getLastOrderNumberFromCache();
+    // }
 
     private function extractOrderNumberLegacy(string $query): ?string
     {
@@ -345,31 +345,31 @@ class OpenAIService
      *                          FALLBACK HANDLING
      * ======================================================================== */
 
-    private function handleLowConfidenceQuery(string $query): string
-    {
-        $logContext = [
-            'query' => $query,
-            'confidence' => $intentData['confidence'] ?? 0
-        ];
+    // private function handleLowConfidenceQuery(string $query): string
+    // {
+    //     $logContext = [
+    //         'query' => $query,
+    //         'confidence' => $intentData['confidence'] ?? 0
+    //     ];
         
-        Log::warning('Low confidence intent detection', $logContext);
+    //     Log::warning('Low confidence intent detection', $logContext);
         
-        return $this->isOrderRelatedQuery($query)
-            ? "I'm not sure I understand. Could you please provide the order number?"
-            : $this->callOpenAIFallback($query);
-    }
+    //     return $this->isOrderRelatedQuery($query)
+    //         ? "I'm not sure I understand. Could you please provide the order number?"
+    //         : $this->callOpenAIFallback($query);
+    // }
 
-    private function callOpenAIFallback(string $query): string
-    {
-        try {
-            return app(OpenAIService::class)->generateResponse(
-                "User asked: $query. Provide a concise helpful response."
-            );
-        } catch (\Exception $e) {
-            Log::error('OpenAI fallback failed: ' . $e->getMessage());
-            return "I'm sorry, I didn't understand that. Could you rephrase your question?";
-        }
-    }
+    // private function callOpenAIFallback(string $query): string
+    // {
+    //     try {
+    //         return app(OpenAIService::class)->generateResponse(
+    //             "User asked: $query. Provide a concise helpful response."
+    //         );
+    //     } catch (\Exception $e) {
+    //         Log::error('OpenAI fallback failed: ' . $e->getMessage());
+    //         return "I'm sorry, I didn't understand that. Could you rephrase your question?";
+    //     }
+    // }
 //     public function generateReply(string $customerQuery, bool $useSlackBlocks = false, ?string $slackUserId = null): string|array
 // {
 //     // 1. Detect overall intent (/help, etc.)
