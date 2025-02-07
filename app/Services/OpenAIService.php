@@ -38,8 +38,7 @@ class OpenAIService
     }
 
     // Format order details compactly
-    class CustomerSupportAI
-    {
+
         private function formatOrderDetails($orders)
         {
             $formattedDetails = '';
@@ -199,7 +198,7 @@ class OpenAIService
                 return 'Oops, something went wrong. Could you try again?';
             }
         }
-    }
+    
     
 
     
