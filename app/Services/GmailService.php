@@ -782,12 +782,7 @@ public function fetchUnreadEmailsAndNotify()
 
         if ($emailData) {
             Log::info('Notifying Slack for email with subject: ' . $emailData['subject']);
-            $this->notifySlack([
-                'from'    => $emailData['from'],
-                'subject' => $emailData['subject'],
-                'body'    => strip_tags($emailData['body']), // Clean HTML if present
-            ]);
-            
+            $this->notifySlack($emailData);
 
             // Save the processed email with the received timestamp
             ProcessedEmail::create([
