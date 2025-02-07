@@ -78,6 +78,19 @@ class OpenAIService
         return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
     }
 
+    if ($intent['generateReplyEmail']) {
+        $email = $this->extractEmail($customerQuery);
+        if ($email) {
+            $lastConversation = $this->getLastConversationByEmail($email);
+            if ($lastConversation) {
+                $replyContent = $this->generateEmailReply($lastConversation);
+                return "✉️ *Generated Reply:*\n\n" . $replyContent;
+            }
+            return "❌ No conversation history found for {$email}.";
+        }
+        return "❌ No valid email found to generate a reply.";
+    }
+
     // ✅ Request Specific Field (Order-Related)
     if ($intent['specificField']) {
         $orderNumber = $this->extractOrderNumber($customerQuery);
@@ -101,6 +114,8 @@ class OpenAIService
         }
     }
 
+
+
     // ✅ If user requests the last referenced order
     if ($intent['lastRecord']) {
         $cacheKey    = $this->determineCacheKey($slackUserId);
@@ -120,6 +135,45 @@ class OpenAIService
     // Default Fallback Response
     return $intent['cleanQuery'];
 }
+private function getLastConversationByEmail(string $email)
+{
+    $conversation = Conversation::where('user_identifier', $email)
+                                ->latest('updated_at')
+                                ->first();
+
+    if ($conversation) {
+        return $conversation->conversation_data; // Assuming it's JSON or text
+    }
+
+    return null;
+}
+
+private function generateEmailReply(string $conversationData): string
+{
+    $prompt = <<<EOT
+You are an AI assistant responsible for drafting professional and polite email replies.
+Based on the following conversation history, draft a clear, empathetic, and helpful response.
+
+---
+
+**Conversation History:**
+{$conversationData}
+
+---
+
+**Reply Format:**
+- Greet the customer professionally.
+- Address their concern directly and concisely.
+- Close with a friendly sign-off.
+
+Draft the reply now:
+EOT;
+
+    $response = $this->callOpenAI($prompt);
+
+    return $response ?: "Unable to generate a reply at the moment.";
+}
+
 
 
     /* ========================================================================
@@ -136,11 +190,13 @@ class OpenAIService
              'lastRecord'        => false,
              'specificField'     => null,
              'removeCache'       => false,
+             'generateReplyEmail'       => false,
              'fetchLastOrders'   => 0,          
              'checkNewEmails'    => false, 
              'openLatestEmail' => false,  
         'openEmailFrom'   => null, 
-        'cleanQuery'        => null   
+        'cleanQuery'        => null,
+           
          ];
      
          // Check for removing cache
@@ -186,7 +242,11 @@ class OpenAIService
                 'intent' => $intent['openEmailFrom']
             ]);
         }
-     
+
+
+        if (preg_match('/\b(generate|draft|write)\s*(reply|email reply)\b/i', $query)) {
+            $intent['generateReplyEmail'] = true;
+        }
          // Specific field requests
          $specificFieldPatterns = [
              'email_address' => '/\b(order email|order e-mail|order mail address)\b/i',
@@ -201,7 +261,7 @@ class OpenAIService
          }
          if (!$intent['helpRequest'] && !$intent['updateRequest'] && !$intent['lastRecord'] &&
          !$intent['removeCache'] && !$intent['fetchLastOrders'] && !$intent['checkNewEmails'] &&
-         !$intent['openEmailFrom'] && !$intent['specificField']
+         !$intent['openEmailFrom'] && !$intent['specificField'] && !$intent['generateReplyEmail']
      ) {
          $intent['cleanQuery'] = $query;
      }
