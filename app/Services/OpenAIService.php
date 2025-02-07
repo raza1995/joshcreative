@@ -114,9 +114,10 @@ class OpenAIService
     // ✅ Handle General Queries (Fallback)
     if ($intent['cleanQuery']) {
         $prompt = "User asked: {$intent['cleanQuery']}. Provide a concise and helpful response.";
+        Log::info('Handling general query with OpenAI:', ['query' => $prompt]);
         return $this->callOpenAI($prompt);
     }
-
+    Log::info('Handling general query with OpenAI:', ['query' => $intent['cleanQuery']]);
     // Default Fallback Response
     return $intent['cleanQuery'];
 }
