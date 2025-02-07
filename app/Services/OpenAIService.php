@@ -321,41 +321,70 @@ EOT;
     }
 
     private function generateHelpResponse(bool $useSlackBlocks = false): string|array
-    {
-        $helpText = <<<'EOT'
-*Here are some commands/prompts you can use:*
+{
+    $helpText = <<<'EOT'
+*🆘 Here are some commands you can use:*
 
-• **Order lookup by number**  
-  - Example: "Show me order #1234" or "Find status of order 1002"
-• **Lookup by email**  
-  - Example: "Any orders for example@example.com?"
-• **Show the last record**  
-  - Example: "Show me the last record" or "What was the previous order we discussed?"
-• **Refresh or update data**  
-  - Example: "Refresh data for order #1234"
-• **Request specific information**  
-  - Example: "What's the email address on that order?" or "Give me the customer's phone"
-• **Help**  
-  - Type "/help" or "help" to see this message again.
+**📦 Order Management:**
+- *Lookup by Order Number:* 
+  - "Show me order #1234" or "Find status of order 1002"
+- *Lookup by Email:* 
+  - "Any orders for example@example.com?"
+- *Fetch Last Orders:* 
+  - "Get the last 5 orders" or "Show me recent orders"
+- *Specific Order Info:* 
+  - "What's the email address on that order?" 
+  - "Give me the customer's phone number"
+
+**📧 Email Handling:**
+- *Check New Emails:* 
+  - "Check new emails" or "Show unread emails"
+- *Open Latest Email:* 
+  - "Open the latest email"
+- *Open Email from Sender:* 
+  - "Open email from example@gmail.com"
+
+**✍️ Generate Replies:**
+- *Draft Email Replies:* 
+  - "Generate a reply for john.doe@example.com"
+  - "Draft an email response for jane@example.com"
+- *Compose Follow-ups:* 
+  - "Write a follow-up email" 
+  - "Create a customer response"
+
+**🔄 Data Updates & Cache:**
+- *Refresh Data:* 
+  - "Refresh data for order #1234" or "Get the latest data"
+- *Clear Cache:* 
+  - "Remove cache" or "Clear all cached data"
+
+**🗂️ Conversation History:**
+- *Show Last Record:* 
+  - "Show me the last record" or "What was the previous order we discussed?"
+
+**ℹ️ General Help:**
+- Type "/help" or "help" to see this message again.
+
 EOT;
 
-        if ($useSlackBlocks) {
-            return [
-                "response_type" => "ephemeral",
-                "blocks" => [
-                    [
-                        "type" => "section",
-                        "text" => [
-                            "type" => "mrkdwn",
-                            "text" => $helpText
-                        ]
+    if ($useSlackBlocks) {
+        return [
+            "response_type" => "ephemeral",
+            "blocks" => [
+                [
+                    "type" => "section",
+                    "text" => [
+                        "type" => "mrkdwn",
+                        "text" => $helpText
                     ]
                 ]
-            ];
-        }
-
-        return $helpText;
+            ]
+        ];
     }
+
+    return $helpText;
+}
+
 
     private function extractOrderNumber(string $query): ?string
     {
