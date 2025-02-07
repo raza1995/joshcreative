@@ -796,6 +796,45 @@ public function fetchUnreadEmailsAndNotify()
         }
     }
 }
+public function getLatestEmailBySender($emailAddress)
+{
+    $messages = $this->service->users_messages->listUsersMessages('me', [
+        'q' => 'from:' . $emailAddress,
+        'maxResults' => 1, // Get the latest email
+    ])->getMessages();
+
+    if (empty($messages)) {
+        return "❌ No emails found from {$emailAddress}.";
+    }
+
+    $latestMessage = $messages[0];
+    $emailData = $this->parseEmail($latestMessage->getId());
+
+    if ($emailData) {
+        // Save in conversation log
+        $this->saveToConversationLog($emailAddress, $emailData);
+
+        // Send to Slack
+        app(SlackService::class)->sendMessage("📧 *Email from:* {$emailAddress}\n*Subject:* {$emailData['subject']}\n\n{$emailData['body']}");
+
+        return $emailData['body'];
+    }
+
+    return "⚠️ Failed to retrieve email content.";
+}
+
+private function saveToConversationLog($emailAddress, $emailData)
+{
+    \App\Models\Conversation::create([
+        'user_identifier' => $emailAddress,
+        'conversation_data' => [
+            'from' => $emailData['from'],
+            'subject' => $emailData['subject'],
+            'body' => $emailData['body'],
+            'received_at' => $emailData['received_at'],
+        ],
+    ]);
+}
 
 
 }

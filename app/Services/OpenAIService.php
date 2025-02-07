@@ -87,6 +87,12 @@ class OpenAIService
             }
         }
 
+        if ($intent['openEmailFrom']) {
+            $emailContent = app(GmailService::class)->getLatestEmailBySender($intent['openEmailFrom']);
+            return "📩 *Email from:* {$intent['openEmailFrom']}\n\n" . $emailContent;
+        }
+        
+
         // 6. Fetch basic data from DB or Shopify
         //    (DB is always minimal info: order_number, date, name, email, etc.)
         $orders = $this->fetchRelevantOrders($intent, $orderNumber, $email);
