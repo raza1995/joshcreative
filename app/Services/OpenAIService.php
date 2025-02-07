@@ -15,7 +15,13 @@ class OpenAIService
     protected $shopifyService;
     protected string $shopifyDomain;
     protected string $accessToken;
-
+    public function __construct($apiKey, $model, $accessToken, $shopifyDomain)
+    {
+        $this->apiKey = $apiKey;
+        $this->model = $model;
+        $this->accessToken = $accessToken;
+        $this->shopifyDomain = $shopifyDomain;
+    }
     
         /**
          * Main entry point to generate a reply for a given user query.
