@@ -120,111 +120,132 @@ class OpenAIService
     }
     return false; // No update request
 }
+private function detectLastRecordRequest($query)
+{
+    $patterns = [
+        '/\b(last record|previous order|recent order|show last|latest order|last details)\b/i'
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $query)) {
+            return true; // Request for last record detected
+        }
+    }
+    return false;
+}
 
     
-        public function generateReply($customerQuery)
-        {
-            preg_match('/\d+/', $customerQuery, $orderMatches);
-            preg_match('/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\b/', $customerQuery, $emailMatches);
-            
-            $orderNumber = $orderMatches[0] ?? null;
-            $email = $emailMatches[0] ?? null;
-    
-            // Retrieve cached context
-            $cacheKey = $email ?: ($orderNumber ? "order_{$orderNumber}" : 'general');
-            $contextData = $this->getCachedContext($cacheKey);
-    
-            // Auto-fill missing order number or email
-            $orderNumber = $orderNumber ?? $contextData['lastOrderNumber'];
-            $email = $email ?? $contextData['lastEmail'];
+public function generateReply($customerQuery)
+{
+    preg_match('/\d+/', $customerQuery, $orderMatches);
+    preg_match('/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\b/', $customerQuery, $emailMatches);
 
+    $orderNumber = $orderMatches[0] ?? null;
+    $email = $emailMatches[0] ?? null;
 
-            $isUpdateRequest = $this->detectUpdateRequest($customerQuery);
+    $cacheKey = $email ?: ($orderNumber ? "order_{$orderNumber}" : 'general');
+    $contextData = $this->getCachedContext($cacheKey);
 
-            // Detect if the user is requesting specific details (name, email, etc.)
-            $requestType = $this->detectSpecificRequest($customerQuery);
-    
-            // Fetch orders from local database or Shopify
-            $orders = collect();
-            if ($isUpdateRequest) {
-                $orders = $this->fetchFromShopify($orderNumber, $email); // Fetch fresh data
-            } else {
-                if ($email) {
-                    $orders = $this->getOrdersByEmail($email);
-                } elseif ($orderNumber) {
-                    $order = $this->getOrderByOrderNumber($orderNumber);
-                    if ($order) {
-                        $orders = collect([$order]);
-                    }
-                }
-        
-                if ($orders->isEmpty()) {
-                    $shopifyData = $this->fetchFromShopify($orderNumber, $email);
-                    $orders = $orders->merge($shopifyData);
-                }
-            }
-    
-            // Fetch missing details if necessary
-            if ($orders->isEmpty()) {
-                $shopifyData = $this->fetchFromShopify($orderNumber, $email);
-                $orders = $orders->merge($shopifyData);
-            }
-    
-            // Respond to specific requests
-            if ($requestType && $orders->isNotEmpty()) {
-                $order = $orders->first();
-                $specificDetail = $order[$requestType] ?? 'Information not available.';
-                return "The customer's {$requestType} is: {$specificDetail}";
-            }
-    
-            // Generate AI response
-            $orderContext = $this->formatOrderDetails($orders);
-            $userIdentifier = $email ?: 'guest';
-    
-            $prompt = "You are a smart customer support assistant.
-            - Provide concise responses.
-            - Retrieve requested details (order status, tracking, name, email).
-            - Draft emails if asked.
-            
-            Previous Conversation: {$contextData['previousContext']}
-            Order Info: {$orderContext}
-            Customer Query: \"$customerQuery\"
-    
-            Answer accordingly.";
-    
-            $response = Http::withToken($this->apiKey)
-                ->post('https://api.openai.com/v1/chat/completions', [
-                    'model' => $this->model,
-                    'messages' => [
-                        ['role' => 'system', 'content' => 'You are a smart AI assistant. Answer relevant queries based on the available order data.'],
-                        ['role' => 'user', 'content' => $prompt],
-                    ],
-                    'temperature' => 0.8,
-                    'max_tokens' => 300,
-                ]);
-    
-            if ($response->successful()) {
-                $reply = $response->json()['choices'][0]['message']['content'] ?? 'I’m not sure, but I’m here to help!';
-    
-                // Save conversation log
-                $contextData['conversationLog'][] = [
-                    'timestamp' => now()->toDateTimeString(),
-                    'user' => $customerQuery,
-                    'ai' => $reply,
-                ];
-                $this->setCachedContext($cacheKey, [
-                    'previousContext' => "{$contextData['previousContext']}\n{$customerQuery}: {$reply}",
-                    'lastOrderNumber' => $orderNumber,
-                    'lastEmail' => $email,
-                    'conversationLog' => $contextData['conversationLog'],
-                ]);
-    
-                return $reply;
-            } else {
-                Log::error('OpenAI API Error: ' . $response->body());
-                return 'Oops, something went wrong. Could you try again?';
+    $orderNumber = $orderNumber ?? $contextData['lastOrderNumber'];
+    $email = $email ?? $contextData['lastEmail'];
+
+    $isUpdateRequest = $this->detectUpdateRequest($customerQuery);
+    $isLastRecordRequest = $this->detectLastRecordRequest($customerQuery); // Detect last record request
+    $requestType = $this->detectSpecificRequest($customerQuery);
+
+    $orders = collect();
+
+    if ($isLastRecordRequest) {
+        // Fetch the last order from conversation log
+        $lastOrder = collect($contextData['conversationLog'])->lastWhere('orderDetails', '!=', null);
+
+        if ($lastOrder) {
+            return "The last order details associated with your account are as follows:
+- **Order #{$lastOrder['orderDetails']['order_number']}**
+- **Name:** {$lastOrder['orderDetails']['customer_name'] ?? 'Not available'}
+- **Email:** {$lastOrder['orderDetails']['email'] ?? 'Not available'}
+- **Paid:** {$lastOrder['orderDetails']['paid_amount'] ?? 'Not available'}
+- **Tracking:** {$lastOrder['orderDetails']['tracking_number'] ?? 'Not available'} | [Track]({$lastOrder['orderDetails']['tracking_url'] ?? '#'})
+- **Date:** {$lastOrder['orderDetails']['order_date'] ?? 'Not available'}";
+        } else {
+            return "I couldn't find any previous order records in the conversation.";
+        }
+    }
+
+    if ($isUpdateRequest) {
+        $orders = $this->fetchFromShopify($orderNumber, $email);
+    } else {
+        if ($email) {
+            $orders = $this->getOrdersByEmail($email);
+        } elseif ($orderNumber) {
+            $order = $this->getOrderByOrderNumber($orderNumber);
+            if ($order) {
+                $orders = collect([$order]);
             }
         }
+
+        if ($orders->isEmpty()) {
+            $shopifyData = $this->fetchFromShopify($orderNumber, $email);
+            $orders = $orders->merge($shopifyData);
+        }
+    }
+
+    if ($requestType && $orders->isNotEmpty()) {
+        $order = $orders->first();
+        $specificDetail = $order[$requestType] ?? 'Information not available.';
+        return "The customer's {$requestType} is: {$specificDetail}";
+    }
+
+    $orderContext = $this->formatOrderDetails($orders);
+    $userIdentifier = $email ?: 'guest';
+
+    $prompt = "You are a smart customer support assistant:
+    - Provide concise responses.
+    - Retrieve requested details (order status, tracking, name, email).
+    - Fetch fresh data if the user asks for updates.
+
+    Previous Conversation: {$contextData['previousContext']}
+    Order Info: {$orderContext}
+    Customer Query: \"$customerQuery\"
+
+    Answer accordingly.";
+
+    $response = Http::withToken($this->apiKey)
+        ->post('https://api.openai.com/v1/chat/completions', [
+            'model' => $this->model,
+            'messages' => [
+                ['role' => 'system', 'content' => 'You are an AI assistant. Answer based on the provided data.'],
+                ['role' => 'user', 'content' => $prompt],
+            ],
+            'temperature' => 0.8,
+            'max_tokens' => 300,
+        ]);
+
+    if ($response->successful()) {
+        $reply = $response->json()['choices'][0]['message']['content'] ?? 'I’m not sure, but I’m here to help!';
+
+        // Save conversation log with order details
+        $contextData['conversationLog'][] = [
+            'timestamp' => now()->toDateTimeString(),
+            'user' => $customerQuery,
+            'ai' => $reply,
+            'orderDetails' => $orders->first() ?? null, // Save the order details
+        ];
+
+        $this->setCachedContext($cacheKey, [
+            'previousContext' => "{$contextData['previousContext']}\n{$customerQuery}: {$reply}",
+            'lastOrderNumber' => $orderNumber,
+            'lastEmail' => $email,
+            'conversationLog' => $contextData['conversationLog'],
+        ]);
+
+        return $reply;
+    } else {
+        Log::error('OpenAI API Error: ' . $response->body());
+        return 'Oops, something went wrong. Try again!';
+    }
+}
+
     
     
 
