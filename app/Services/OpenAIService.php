@@ -366,6 +366,8 @@ EOT;
      */
     private function fetchSingleOrderFromShopify(string $orderNumber): ?array
     {
+
+        Log::info('Order Number IN fetchSingleOrderFromShopify:', ['order_number' => $orderNumber]);
         try {
             $endpoint = "https://{$this->shopifyDomain}/admin/api/2024-01/orders/{$orderNumber}.json";
             $response = Http::withHeaders([
