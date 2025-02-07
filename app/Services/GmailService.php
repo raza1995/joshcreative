@@ -747,7 +747,7 @@ public function fetchUnreadEmailsAndNotify()
     Log::info('Latest processed email timestamp: ' . ($afterTimestamp ? date('Y-m-d H:i:s', $afterTimestamp) : 'None'));
 
     // Build the Gmail search query
-    $query = 'is:unread category:primary'; // Focus on primary inbox
+    $query = 'in:inbox Order mycolean product'; // Focus on primary inbox
 
     if ($afterTimestamp) {
         $query .= ' newer_than:1d';  // Fetch emails newer than 1 day if needed
