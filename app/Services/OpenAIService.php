@@ -183,7 +183,7 @@ class OpenAIService
     }
 
     // New: Fetch last X orders
-    if (preg_match('/get last (\d+) orders/i', $query, $matches)) {
+    if (preg_match('/last (\d+)/i', $query, $matches)) {
         $intent['fetchLastOrders'] = (int) $matches[1]; // Extract number
     }
 
