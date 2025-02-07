@@ -156,7 +156,7 @@ private function getLastConversationByEmail(string $email)
     return null;
 }
 
-private function generateEmailReply($conversationData)
+private function generateEmailReply(string $conversationData): string
 {
     Log::info('Conversation Data:', ['conversationData' => $conversationData]);
     $prompt = <<<EOT
