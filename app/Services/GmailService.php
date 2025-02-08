@@ -40,28 +40,39 @@ class GmailService
     private function authenticate()
     {
         if (file_exists($this->tokenPath)) {
-            // Load existing token
             $accessToken = json_decode(file_get_contents($this->tokenPath), true);
-            $this->client->setAccessToken($accessToken);
-    
-            // Refresh token if expired
-            if ($this->client->isAccessTokenExpired()) {
-                Log::warning("🔄 Google API token expired. Attempting refresh...");
-    
-                if ($this->client->getRefreshToken()) {
-                    $newAccessToken = $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
-                    $this->client->setAccessToken($newAccessToken);
-                    file_put_contents($this->tokenPath, json_encode($newAccessToken));
-                    Log::info("✅ Google API token refreshed successfully.");
-                } else {
-                    Log::warning("⚠️ No refresh token available. Re-authenticating...");
-                    $this->generateNewToken(); // Auto-generate a new token
-                }
+        
+            if (json_last_error() !== JSON_ERROR_NONE || !isset($accessToken['access_token'])) {
+                Log::error("❌ Invalid token format detected. Re-authenticating...");
+                $this->generateNewToken();
+                return;
             }
+        
+            $this->client->setAccessToken($accessToken);
+            try {
+                $newAccessToken = $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
+            
+                if (isset($newAccessToken['error'])) {
+                    throw new \Exception($newAccessToken['error_description']);
+                }
+            
+                if (!isset($newAccessToken['refresh_token'])) {
+                    $newAccessToken['refresh_token'] = $this->client->getRefreshToken();
+                }
+            
+                $this->client->setAccessToken($newAccessToken);
+                file_put_contents($this->tokenPath, json_encode($newAccessToken));
+                Log::info("✅ Google API token refreshed successfully.");
+            } catch (\Exception $e) {
+                Log::error("❌ Token refresh failed: " . $e->getMessage());
+                $this->generateNewToken();
+            }
+            
         } else {
             Log::warning("⚠️ Google API token file not found. Generating a new token...");
             $this->generateNewToken();
         }
+        
     }
     
     /**
