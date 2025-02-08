@@ -86,19 +86,22 @@ class GmailService
     
         $authCode = trim(fgets(STDIN));
     
-        // Exchange the auth code for an access token
+        if (empty($authCode)) {
+            throw new \InvalidArgumentException("❌ Invalid code: The authentication code cannot be empty.");
+        }
+    
         $accessToken = $this->client->fetchAccessTokenWithAuthCode($authCode);
     
         if (isset($accessToken['error'])) {
             throw new \Exception("❌ Google OAuth authentication failed: " . $accessToken['error']);
         }
     
-        // Save the token
         file_put_contents($this->tokenPath, json_encode($accessToken));
         $this->client->setAccessToken($accessToken);
     
         Log::info("✅ Google API authentication successful. Token stored.");
     }
+    
     
     public function fetchEmails()
 {
