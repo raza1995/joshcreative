@@ -10,16 +10,22 @@ class ShopifyOrder extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_number', 
-        'order_date', 
-        'product_name', 
-        'customer_name', 
-        'email_address', 
-        'tracking_number', 
+        'order_number',
+        'order_date',
+        'product_name',
+        'customer_name',
+        'email_address',
+        'tracking_number',
         'tracking_url',
         'coupon',
         'paid_amount',
         'discount',
         'number_of_items',
+        'email_draft_id',
     ];
+
+    public function emailDraft()
+    {
+        return $this->hasOne(EmailDraft::class);
+    }
 }

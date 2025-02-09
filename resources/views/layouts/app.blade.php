@@ -16,6 +16,7 @@
     <link href="{{asset('assets/plugins/global/plugins.bundle.css')}}" rel="stylesheet">
     <link href="{{asset('assets/css/style.bundle.css')}}" rel="stylesheet">
     <link href="{{asset('assets/css/custom.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
 
     @vite('resources/js/app.js')
     <!-- Scripts -->
@@ -69,6 +70,11 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('journey') }}">{{ __('Analytics') }}</a>
                         </li>
+                        <ul class="navbar-nav">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ route('email-draft.index') }}">{{ __('Email Drafts') }}</a>
+    </li>
+</ul>
 
 
                         

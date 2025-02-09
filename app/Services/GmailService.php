@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Models\EmailDraft;
 use App\Models\ProcessedEmail;
 use Google\Client;
 use Google\Service\Gmail;
@@ -17,8 +18,9 @@ class GmailService
     protected $tokenPath;
     protected $slackService;
     protected $service;
+    protected $openAIService;
 
-    public function __construct(SlackService $slackService)
+    public function __construct(SlackService $slackService, OpenAIService $openAIService)
     {
         $this->tokenPath = storage_path('app/token.json');
         $this->slackService = $slackService;
@@ -33,7 +35,8 @@ class GmailService
         // OR for full access:
         $this->client->addScope(Gmail::GMAIL_READONLY);  // Read-only access
         $this->client->addScope(Gmail::GMAIL_MODIFY);    // If you want to mark emails as read, etc.
-        
+        $this->openAIService = $openAIService;
+
         $this->authenticate();
         $this->service = new Gmail($this->client);
     }
@@ -753,29 +756,33 @@ private function parseEmail($messageId)
 
 public function fetchUnreadEmailsAndNotify()
 {
+    Log::info('Starting fetchUnreadEmailsAndNotify process.');
     $user = 'me';
 
     // Keywords to process emails
     $keywords = ['mycolean', 'order', 'orders', 'refund', 'issue', 'shipping'];
+    Log::info('Keywords for processing: ' . implode(', ', $keywords));
 
     // Keywords to exclude emails from processing (with higher priority)
-    $excludeKeywords = ['TripleWhale ', 'promotion','shopify'];
+    $excludeKeywords = ['TripleWhale', 'promotion', 'shopify'];
+    Log::info('Keywords for exclusion: ' . implode(', ', $excludeKeywords));
 
     // Get the timestamp of the latest processed email
     $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
-    $afterTimestamp = $latestProcessedEmail ? strtotime($latestProcessedEmail->received_at) : null;
+    $afterTimestamp = $latestProcessedEmail ? strtotime($latestProcessedEmail->received_at) : 0;
     Log::info('Latest processed email timestamp: ' . ($afterTimestamp ? date('Y-m-d H:i:s', $afterTimestamp) : 'None'));
 
     // Build the Gmail search query
     $query = 'is:unread in:inbox'; // Focus on primary inbox
+    Log::info('Initial Gmail search query: ' . $query);
 
     if ($afterTimestamp) {
         $query .= ' newer_than:1d';  // Fetch emails newer than 1 day if needed
+        Log::info('Updated Gmail search query with timestamp: ' . $query);
     }
 
-    Log::info('Gmail search query: ' . $query);
-
     // Fetch unread emails after the last processed timestamp
+    Log::info('Fetching unread emails with query: ' . $query);
     $messages = $this->service->users_messages->listUsersMessages($user, [
         'q' => $query,
         'maxResults' => 10,  // Increased limit to get more emails
@@ -823,6 +830,7 @@ public function fetchUnreadEmailsAndNotify()
                 foreach ($keywords as $keyword) {
                     if (strpos($emailContent, strtolower($keyword)) !== false) {
                         $matchesKeyword = true;
+                        Log::info('Email contains keyword: ' . $keyword);
                         break;
                     }
                 }
@@ -847,6 +855,7 @@ public function fetchUnreadEmailsAndNotify()
             }
         }
     }
+    Log::info('Completed fetchUnreadEmailsAndNotify process.');
 }
 
 public function getLatestEmailBySender($emailAddress)
@@ -917,6 +926,226 @@ public function getLatestEmail()
     return "⚠️ Failed to retrieve the latest email.";
 }
 
+public function processIncomingEmails()
+{
+    $messages = $this->service->users_messages->listUsersMessages('me', [
+        'labelIds' => ['INBOX'],
+        'maxResults' => 20,
+    ])->getMessages();
 
+    foreach ($messages as $message) {
+        $this->handleEmail($message->getId());
+    }
+}
+
+private function handleEmail($messageId)
+{
+    $message = $this->service->users_messages->get('me', $messageId, ['format' => 'full']);
+    $headers = $message->getPayload()->getHeaders();
+
+    $subject = $this->getHeader($headers, 'Subject');
+    $fromEmail = $this->getHeader($headers, 'From');
+    $body = $this->extractEmailBody($message);
+
+    // Check for specific conditions (e.g., tracking inquiry)
+    if ($this->isTrackingInquiry($subject, $body)) {
+        $shopifyOrder = ShopifyOrder::where('email_address', $fromEmail)->first();
+        $aiDraft = $this->openAIService->generateEmailDraft($body, $shopifyOrder);
+
+        EmailDraft::create([
+            'email_id' => $messageId,
+            'subject' => $subject,
+            'body' => $aiDraft,
+            'status' => 'pending',
+            'shopify_order_id' => $shopifyOrder->id ?? null,
+        ]);
+
+        Log::info("✅ Draft created for email: $fromEmail");
+    }
+}
+
+private function extractEmailBody(Message $message)
+{
+    $body = '';
+    $parts = $message->getPayload()->getParts();
+
+    foreach ($parts as $part) {
+        if ($part->getMimeType() === 'text/plain') {
+            $body = base64_decode(strtr($part->getBody()->getData(), '-_', '+/'));
+            break;
+        }
+    }
+    return $body;
+}
+
+private function isTrackingInquiry($subject, $body)
+{
+    $keywords = ['where is my order', 'tracking number', 'order status', 'shipment', 'delivery'];
+    foreach ($keywords as $keyword) {
+        if (stripos($subject, $keyword) !== false || stripos($body, $keyword) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+public function fetchUnreadEmailsAndProcess()
+{
+    Log::info('🔍 Starting fetchUnreadEmailsAndProcess method.');
+
+    $user = 'me';
+    $keywords = ['order', 'refund', 'issue', 'shipping'];
+    $excludeKeywords = ['promotion', 'TripleWhale'];
+
+    $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
+    $afterTimestamp = $latestProcessedEmail ? strtotime($latestProcessedEmail->received_at) : null;
+
+    Log::info('📅 Latest processed email timestamp: ' . ($afterTimestamp ? date('Y-m-d H:i:s', $afterTimestamp) : 'None'));
+
+    $query = 'is:unread in:inbox';
+    if ($afterTimestamp) {
+        $query .= ' newer_than:1d';
+        Log::info('🔍 Updated Gmail search query with timestamp: ' . $query);
+    }
+
+    Log::info('📧 Fetching unread emails with query: ' . $query);
+    $messages = $this->service->users_messages->listUsersMessages($user, [
+        'q' => $query,
+        'maxResults' => 10,
+    ])->getMessages();
+
+    if (!$messages) {
+        Log::info('✅ No new unread emails found.');
+        return;
+    }
+
+    Log::info('📨 Found ' . count($messages) . ' unread emails.');
+    foreach ($messages as $message) {
+        $messageId = $message->getId();
+        Log::info('🔍 Processing email with message ID: ' . $messageId);
+
+        if (ProcessedEmail::where('message_id', $messageId)->exists()) {
+            Log::info('⏩ Email with message ID ' . $messageId . ' has already been processed. Skipping.');
+            continue;
+        }
+
+        Log::info('🔍 Parsing email with message ID: ' . $messageId);
+        $emailData = $this->parseEmail($messageId);
+        Log::info('🔍 Parsed email data: ' . json_encode($emailData));
+
+        if ($emailData) {
+            $emailContent = strtolower($emailData['subject'] . ' ' . $emailData['body']);
+            Log::info('🔍 Checking keywords for email content.');
+            $matchesKeyword = $this->checkKeywords($emailContent, $keywords, $excludeKeywords);
+            Log::info('🔍 Keyword check result: ' . ($matchesKeyword ? 'Matched' : 'Not Matched'));
+
+            if ($matchesKeyword) {
+                Log::info('🔑 Email matches keywords. Generating and saving draft.');
+                $draft = $this->generateAndSaveDraft($emailData, $messageId);
+
+                // ✅ Notify Slack
+                $this->notifySlackForReview($emailData, $draft);
+
+                // ✅ Save Processed Email
+                ProcessedEmail::create([
+                    'message_id' => $messageId,
+                    'sender_email' => $emailData['from'],
+                    'subject' => $emailData['subject'],
+                    'snippet' => $emailData['body'],
+                    'received_at' => $emailData['received_at'],
+                ]);
+                Log::info('✅ Email with message ID ' . $messageId . ' processed and saved.');
+            } else {
+                Log::info('❌ Email does not match any keywords. Skipping.');
+            }
+        } else {
+            Log::error('🚨 Failed to parse email with message ID: ' . $messageId);
+        }
+    }
+
+    Log::info('🏁 Completed fetchUnreadEmailsAndProcess method.');
+}
+
+private function notifySlackForReview($emailData, $draft)
+{
+    try {
+        $message = "📬 *New Email Draft Created!*\n"
+            . "*From:* {$emailData['from']}\n"
+            . "*Subject:* {$emailData['subject']}\n"
+            . "📝 *Draft Status:* Pending Review\n"
+            . "🔗 *[Review on Dashboard](https://yourapp.com/drafts/{$draft->id})*";
+
+        app(SlackService::class)->sendMessage($message);
+        Log::info("✅ Slack notified for draft review of email from: {$emailData['from']}");
+    } catch (\Exception $e) {
+        Log::error("🚨 Failed to notify Slack: " . $e->getMessage());
+    }
+}
+
+
+
+
+
+
+private function checkKeywords($content, $keywords, $excludeKeywords)
+{
+    foreach ($excludeKeywords as $exclude) {
+        if (strpos($content, strtolower($exclude)) !== false) {
+            return false;
+        }
+    }
+
+    foreach ($keywords as $keyword) {
+        if (strpos($content, strtolower($keyword)) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+private function generateAndSaveDraft($emailData, $messageId)
+{
+    try {
+        Log::info("🔍 Raw sender info: {$emailData['from']}");
+
+        // ✅ Extract email address from the "From" field
+        preg_match('/<(.+)>/', $emailData['from'], $matches);
+        $email = $matches[1] ?? $emailData['from']; // Fallback if no angle brackets
+
+        Log::info("📧 Extracted email address: {$email}");
+
+        // ✅ Search for the Shopify order using the extracted email
+        $shopifyOrder = ShopifyOrder::where('email_address', $email)->first();
+
+        if ($shopifyOrder) {
+            Log::info("✅ Shopify order found:", ['order_id' => $shopifyOrder->id, 'email' => $email]);
+        } else {
+            Log::warning("❌ No Shopify order found for email: {$email}");
+        }
+
+        // ✅ Generate the AI-powered draft
+        Log::info("📝 Generating AI draft for email from: {$email}");
+        $aiDraft = $this->openAIService->generateEmailDraft($emailData['body'], $shopifyOrder);
+
+        // ✅ Save the draft to the database
+        Log::info("💾 Saving draft for email: {$email}");
+
+        EmailDraft::create([
+            'email_id'         => $messageId,
+            'subject'          => $emailData['subject'],
+            'body'             => $aiDraft,
+            'status'           => 'pending',
+            'shopify_order_id' => $shopifyOrder->id ?? null, // Link to Shopify order if exists
+        ]);
+
+        Log::info("✅ Draft created and saved successfully for email: {$email}");
+
+    } catch (\Exception $e) {
+        Log::error("🚨 Error while generating draft: " . $e->getMessage(), [
+            'email' => $emailData['from'],
+            'message_id' => $messageId
+        ]);
+    }
+}
 
 }

@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\AdsController;
+use App\Http\Controllers\EmailDraftController;
 use App\Http\Controllers\ExcludedIpController;
 use App\Http\Controllers\GmailWebhookController;
 use App\Http\Controllers\KlaviyoController;
+use App\Http\Controllers\ManualReviewController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ShopifyOrderController;
 use App\Http\Controllers\SlackController;
@@ -40,6 +43,16 @@ Route::post('/gmail/webhook', [GmailWebhookController::class, 'handle']);
 Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback']);
 Route::post('/slack/events', [SlackController::class, 'handleSlackEvent']);
 
+
+// Reviews
+Route::post('/reviews/approve/{draftId}', [ReviewController::class, 'approve']);
+Route::post('/reviews/disapprove/{draftId}', [ReviewController::class, 'disapprove']);
+Route::get('/reviews', [ReviewController::class, 'index']);
+
+// Manual Reviews
+Route::post('/manual-reviews/assign', [ManualReviewController::class, 'assign']);
+Route::post('/manual-reviews/resolve/{id}', [ManualReviewController::class, 'resolve']);
+Route::get('/manual-reviews', [ManualReviewController::class, 'index']);
 // routes/web.php
 Route::middleware(['public.urls'])->group(function () {
     Route::get('/slack/oauth/callback', [SlackController::class, 'handleOAuthCallback'])->name('slack.oauth.callback');
@@ -84,4 +97,15 @@ Route::middleware(['auth'])->group(function () {
     // Route::get('/segments', [SalesController::class, 'getSegments']);
     Route::get('/fetch-shopify-orders', [ShopifyOrderController::class, 'fetchOrders']);
 
+
+    Route::get('/email-draft', [EmailDraftController::class, 'index'])->name('email-draft.index');
+    Route::post('/email-draft/data', [EmailDraftController::class, 'getData'])->name('email-draft.data');
+    Route::post('/email-draft/approve', [EmailDraftController::class, 'bulkApprove'])->name('email-draft.approve');
+    Route::post('/email-draft/disapprove', [EmailDraftController::class, 'bulkDisapprove'])->name('email-draft.disapprove');
+    Route::post('/email-draft/send', [EmailDraftController::class, 'sendEmail'])->name('email-draft.send');
+    Route::get('/email-draft/{id}/edit', [EmailDraftController::class, 'edit'])->name('email-draft.edit');
+Route::post('/email-draft/{id}/update', [EmailDraftController::class, 'update'])->name('email-draft.update');
+
 });
+
+

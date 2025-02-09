@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProcessedEmail extends Model
 {
-    use HasFactory;
-    protected $fillable = ['message_id'];
-
+    protected $fillable = [
+        'message_id',
+        'sender_email',
+        'subject',
+        'snippet',
+        'received_at',
+    ];
 }

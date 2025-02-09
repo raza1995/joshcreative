@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('processed_emails', function (Blueprint $table) {
-            $table->id();
-            $table->string('message_id')->unique();
-            $table->string('sender_email')->nullable();;
-            $table->string('subject')->nullable();;
-            $table->text('snippet')->nullable();
-            $table->text('received_at')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('processed_emails')) {
+            Schema::create('processed_emails', function (Blueprint $table) {
+                $table->id();
+                $table->string('message_id')->unique();
+                $table->string('sender_email')->nullable();
+                $table->string('subject')->nullable();
+                $table->text('snippet')->nullable();
+                $table->text('received_at')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

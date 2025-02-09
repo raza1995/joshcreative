@@ -1039,6 +1039,70 @@ private function fetchAndSaveEmailFromSender(string $emailAddress, string $cache
 
     return "❌ No recent emails found from {$emailAddress}.";
 }
+public function generateEmailDraft($emailContent, $shopifyOrder = null)
+{
+    // Dynamic Signature Details
+    $supportAgentName = "Justine";
+    $companyName = "Mycolean";
+    $contactInfo = "support@mycolean.com"; // Add phone if needed
+
+    // Base Prompt for OpenAI
+    $prompt = "You are an AI customer service assistant. Craft a warm, professional, and beautifully formatted reply to the following customer inquiry:\n\n";
+    $prompt .= "📩 *Customer Inquiry:*\n\"$emailContent\"\n\n";
+
+    if ($shopifyOrder) {
+        $orderDetails = json_encode($shopifyOrder, JSON_PRETTY_PRINT);
+
+        $prompt .= <<<EOT
+🗂️ *Shopify Order Details (JSON):*
+$orderDetails
+
+✍️ **Instructions for the Email:**
+1. **Greeting:** Start with a friendly, polite greeting using the customer's name if available (e.g., "Dear [Customer Name]" or "Hi [Customer Name],").
+2. **Acknowledgment:** Acknowledge the customer's inquiry empathetically, showing you understand their concern.
+3. **Order Summary:** Clearly summarize the key order details:
+   - 📦 *Order Number:* [Order Number]
+   - 🚚 *Tracking Number:* [Tracking Number]
+   - 🔗 *Tracking Link:* [Insert clickable tracking link]
+   - 🛍️ *Product Details:* [Product names or descriptions]
+4. **Shipping Update:** If shipped, mention the delivery status with an estimated delivery date if available.
+5. **Bullet Points:** Use bullet points for clarity when listing multiple items or steps.
+6. **Tone:** Keep the tone friendly, professional, and reassuring. Use short paragraphs for easy readability.
+7. **Closing:** End with a warm thank you message, expressing appreciation for choosing {$companyName}.
+
+✨ **Signature Format:**
+---
+Thank you for giving {$companyName} a try.
+
+Best regards,
+
+{$supportAgentName}  
+Customer Support Team  
+{$companyName}  
+{$contactInfo}
+---
+
+Please ensure the reply is concise, clear, and customer-centric. Format beautifully with appropriate line breaks and bullet points where needed.
+
+Generate the email reply below:
+EOT;
+    }
+
+    // OpenAI API Request
+    $response = Http::withToken($this->apiKey)->post('https://api.openai.com/v1/chat/completions', [
+        'model' => 'gpt-4o',
+        'messages' => [
+            ["role" => "system", "content" => "You are an AI customer service assistant."],
+            ["role" => "user", "content" => $prompt],
+        ],
+        'temperature' => 0.7,
+        'max_tokens' => 500,  // Increased for detailed responses
+    ]);
+
+    return $response->json()['choices'][0]['message']['content']
+        ?? "Thank you for reaching out. We'll get back to you shortly.";
+}
+
 
  
 }
