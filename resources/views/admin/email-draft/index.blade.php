@@ -129,6 +129,18 @@
     {{ $dataTable->scripts(attributes: ['type' => 'module']) }}
     <script>
    // ✅ Send Individual Email
+
+   function showToast(type, message) {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: type, // 'success', 'error', 'warning', 'info'
+            title: message,
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+        });
+    }
 function sendEmail(draftId) {
     fetch(`/email-draft/send/${draftId}`, {
         method: "POST",
