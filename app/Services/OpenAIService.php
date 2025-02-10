@@ -1117,22 +1117,26 @@ public function analyzeDraft($emailContent, $shopifyOrder)
     Log::info('Starting analyzeDraft method.', ['emailContent' => $emailContent, 'shopifyOrder' => $shopifyOrder]);
 
     $prompt = "
-    📝 **AI Email Quality Analysis Request**
+    📝 **AI Email Quality Assurance (QA) Evaluation**
 
-    Analyze the following **customer service email draft** for quality assurance:
+    Analyze the following **customer service email draft** to determine if it qualifies for auto-sending without human review.
 
-    📩 **Email Content:**
+    ⚠️ **Note:** The email content is in **HTML format**, which is acceptable. Focus on the content's tone, clarity, and policy compliance, not the HTML tags.
+
+    📩 **Email Draft (HTML):**
     \"$emailContent\"
 
-    🛒 **Shopify Order Details:**
+    🛒 **Order Details:**
     " . json_encode($shopifyOrder, JSON_PRETTY_PRINT) . "
 
-    🚀 **Analysis Criteria:**
-    1. **Tone Check:** Is the tone friendly, professional, and empathetic? (Pass/Fail)
-    2. **Content Completeness:** Does the email fully address the customer's inquiry? (Pass/Fail)
-    3. **Risk Assessment:** Identify any potential risks (Low/Medium/High) related to tone, content, or sensitive topics.
-    4. **Policy Compliance:** Does the draft comply with standard company policies? (Pass/Fail)
-    5. **Confidence Score:** Provide an overall confidence score for the email (0-100) based on clarity, tone, and completeness.
+    🚀 **Evaluation Criteria:**
+    1. **Tone Check:** The tone should be friendly, professional, and empathetic. *(Pass if polite and respectful, Fail if overly blunt or robotic.)*
+    2. **Content Completeness:** The email must fully address the customer's inquiry with relevant information. *(Pass if all customer concerns are covered, Fail if any are missing.)*
+    3. **Risk Assessment:** Identify potential risks:
+       - **Low:** No sensitive issues, suitable for auto-send.
+       - **Medium/High:** Sensitive issues like refunds, legal matters, or escalations (requires human review).
+    4. **Policy Compliance:** Ensure the email aligns with company policies (e.g., no unauthorized refunds or false information).
+    5. **Confidence Score:** Rate the email from 0-100 based on clarity, tone, and completeness. *(90+ = suitable for auto-send.)*
 
     ✅ **Output Format (JSON):**
     {
@@ -1144,7 +1148,12 @@ public function analyzeDraft($emailContent, $shopifyOrder)
         \"suggestions\": \"Optional improvements if needed.\"
     }
 
-    Provide concise, accurate feedback for quality assurance.
+    ⚡ **Auto-Send Guidelines:**
+    - Only mark emails as suitable for auto-sending if all criteria pass AND the confidence score is **90 or above**.
+    - Ignore HTML formatting when analyzing content quality.
+    - Provide constructive suggestions ONLY if necessary.
+
+    Respond concisely in JSON format only.
     ";
 
     Log::info('Generated prompt for AI analysis.', ['prompt' => $prompt]);
@@ -1152,10 +1161,10 @@ public function analyzeDraft($emailContent, $shopifyOrder)
     $response = Http::withToken($this->apiKey)->post('https://api.openai.com/v1/chat/completions', [
         'model' => 'gpt-4o',
         'messages' => [
-            ["role" => "system", "content" => "You are an AI quality assurance bot specializing in email content analysis."],
+            ["role" => "system", "content" => "You are an AI quality assurance bot specializing in customer service email analysis."],
             ["role" => "user", "content" => $prompt],
         ],
-        'temperature' => 0.3,
+        'temperature' => 0.2,
         'max_tokens' => 400,
     ]);
 
@@ -1167,6 +1176,7 @@ public function analyzeDraft($emailContent, $shopifyOrder)
 
     return $analysisResult;
 }
+
 
  
 }
