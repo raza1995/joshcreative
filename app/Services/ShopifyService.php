@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ShopifyOrder;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -333,5 +334,7 @@ public function getMessagesFromHistory($historyId, $userId = 'me')
         return [];
     }
 }
+
+
 
 }

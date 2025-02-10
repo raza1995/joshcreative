@@ -15,6 +15,14 @@ class EmailDraft extends Model
         'body',
         'status',
         'shopify_order_id',
+        'sent_at',
+        'auto_sent',
+        'ai_confidence',
+        'ai_decision_reason',
+        'tone_check',
+        'content_check',
+        'risk_assessment',
+        'policy_compliance',
     ];
 
     public function shopifyOrder()

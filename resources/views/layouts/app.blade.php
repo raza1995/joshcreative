@@ -16,7 +16,12 @@
     <link href="{{asset('assets/plugins/global/plugins.bundle.css')}}" rel="stylesheet">
     <link href="{{asset('assets/css/style.bundle.css')}}" rel="stylesheet">
     <link href="{{asset('assets/css/custom.css')}}" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    <script src="{{ asset('js/jquery/jquery.min.js') }}"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     @vite('resources/js/app.js')
     <!-- Scripts -->
@@ -70,11 +75,15 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('journey') }}">{{ __('Analytics') }}</a>
                         </li>
-                        <ul class="navbar-nav">
-    <li class="nav-item">
-        <a class="nav-link" href="{{ route('email-draft.index') }}">{{ __('Email Drafts') }}</a>
-    </li>
-</ul>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('journey') }}">{{ __('Analytics') }}</a>
+                        </li>
+
+                        
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('email-draft.index') }}">{{ __('Email Drafts') }}</a>
+                        </li>
 
 
                         

@@ -72,10 +72,7 @@ class SalesDataDataTable extends DataTable
                     ->orderBy(1, 'desc')
                     ->selectStyleSingle()
                     ->buttons([
-                        Button::make('export'),
-                        Button::make('print'),
-                        Button::make('reset'),
-                        Button::make('reload'),
+              
                         Button::make('collection')
                             ->text('Upload Sales Data')
                             ->action('function ( e, dt, node, config ) {

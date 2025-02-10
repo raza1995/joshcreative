@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('email_drafts', function (Blueprint $table) {
             $table->id();
-            $table->string('email_id'); // Gmail message ID
+            $table->string('email_id')->nullable(); // Gmail message ID
             $table->string('subject')->nullable();
             $table->text('body')->nullable();
-            $table->enum('status', ['pending', 'approved', 'disapproved'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'disapproved','draft'])->default('pending');
             $table->foreignId('shopify_order_id')->nullable()->constrained()->onDelete('cascade');
             $table->timestamps();
         });

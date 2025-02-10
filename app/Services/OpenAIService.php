@@ -1041,68 +1041,132 @@ private function fetchAndSaveEmailFromSender(string $emailAddress, string $cache
 }
 public function generateEmailDraft($emailContent, $shopifyOrder = null)
 {
-    // Dynamic Signature Details
     $supportAgentName = "Justine";
     $companyName = "Mycolean";
-    $contactInfo = "support@mycolean.com"; // Add phone if needed
+    $contactInfo = "support@mycolean.com";
 
-    // Base Prompt for OpenAI
-    $prompt = "You are an AI customer service assistant. Craft a warm, professional, and beautifully formatted reply to the following customer inquiry:\n\n";
-    $prompt .= "📩 *Customer Inquiry:*\n\"$emailContent\"\n\n";
+    $prompt = "You are an AI customer service assistant. Your task is to generate a professional, friendly, and empathetic **HTML-formatted email** in response to the customer's inquiry below.\n\n";
+    $prompt .= "📩 **Customer Inquiry:**\n\"$emailContent\"\n\n";
 
     if ($shopifyOrder) {
         $orderDetails = json_encode($shopifyOrder, JSON_PRETTY_PRINT);
 
         $prompt .= <<<EOT
-🗂️ *Shopify Order Details (JSON):*
+🛒 **Order Details (JSON Format):**
 $orderDetails
 
-✍️ **Instructions for the Email:**
-1. **Greeting:** Start with a friendly, polite greeting using the customer's name if available (e.g., "Dear [Customer Name]" or "Hi [Customer Name],").
-2. **Acknowledgment:** Acknowledge the customer's inquiry empathetically, showing you understand their concern.
-3. **Order Summary:** Clearly summarize the key order details:
-   - 📦 *Order Number:* [Order Number]
-   - 🚚 *Tracking Number:* [Tracking Number]
-   - 🔗 *Tracking Link:* [Insert clickable tracking link]
-   - 🛍️ *Product Details:* [Product names or descriptions]
-4. **Shipping Update:** If shipped, mention the delivery status with an estimated delivery date if available.
-5. **Bullet Points:** Use bullet points for clarity when listing multiple items or steps.
-6. **Tone:** Keep the tone friendly, professional, and reassuring. Use short paragraphs for easy readability.
-7. **Closing:** End with a warm thank you message, expressing appreciation for choosing {$companyName}.
+✅ **Strict Instructions for Drafting the Email:**
+1. **Use valid HTML format only** (no markdown, plain text, or extra code blocks).
+2. **Do NOT include** `<html>`, `<head>`, `<body>`, or `<!DOCTYPE>` tags. Only return the content within the `<body>`.
+3. Structure the email using appropriate HTML tags:
+   - Paragraphs (`<p>`) for readability.
+   - Bold (`<strong>`) and italic (`<em>`) for emphasis.
+   - Bullet points (`<ul><li>`) for listing items clearly.
+   - Line breaks (`<br>`) where necessary for better formatting.
+4. **Greeting:** Start with "Dear [Customer Name]," if available, or use "Hi [Customer Name],".
+5. **Order Information:** Include:
+   - **Order Number:** [Insert Order Number]
+   - **Tracking Number:** [Insert Tracking Number]
+   - **Tracking Link:** [Insert Clickable Tracking Link]
+   - **Product Details:** [Product Name/Details]
+6. **Shipping Update:** Clearly mention the shipping status or estimated delivery date.
+7. **Closing:** Use the following signature format.
 
-✨ **Signature Format:**
----
-Thank you for giving {$companyName} a try.
+📬 **Email Signature (HTML Format):**
+<p>Thank you for choosing {$companyName}.</p>
+<p>Best regards,<br>
+<strong>{$supportAgentName}</strong><br>
+Customer Support Team<br>
+{$companyName}<br>
+<a href="mailto:{$contactInfo}">{$contactInfo}</a></p>
 
-Best regards,
+⚠️ **Important Notes:**
+- Ensure the email is well-structured in HTML, without markdown or plain text formatting.
+- Maintain a polite, professional, and empathetic tone.
+- **Return ONLY the HTML body content, without any `<html>`, `<head>`, or `<!DOCTYPE>` tags.**
 
-{$supportAgentName}  
-Customer Support Team  
-{$companyName}  
-{$contactInfo}
----
-
-Please ensure the reply is concise, clear, and customer-centric. Format beautifully with appropriate line breaks and bullet points where needed.
-
-Generate the email reply below:
+Generate the HTML-formatted email below:
 EOT;
     }
 
-    // OpenAI API Request
     $response = Http::withToken($this->apiKey)->post('https://api.openai.com/v1/chat/completions', [
         'model' => 'gpt-4o',
         'messages' => [
-            ["role" => "system", "content" => "You are an AI customer service assistant."],
+            ["role" => "system", "content" => "You are an AI customer service assistant specializing in professional email drafting."],
             ["role" => "user", "content" => $prompt],
         ],
-        'temperature' => 0.7,
-        'max_tokens' => 500,  // Increased for detailed responses
+        'temperature' => 0.6,
+        'max_tokens' => 800,
     ]);
 
-    return $response->json()['choices'][0]['message']['content']
-        ?? "Thank you for reaching out. We'll get back to you shortly.";
+    $content = $response->json()['choices'][0]['message']['content'] ?? "Thank you for reaching out. We'll get back to you shortly.";
+
+    $content = preg_replace([
+        '/<\/?(html|head|body|!DOCTYPE)[^>]*>/i',   // Remove HTML structural tags
+        '/```html|```/i'                           // Remove markdown code blocks like ```html and ```
+    ], '', $content);
+
+    return trim($content);
 }
 
+
+
+
+public function analyzeDraft($emailContent, $shopifyOrder)
+{
+    Log::info('Starting analyzeDraft method.', ['emailContent' => $emailContent, 'shopifyOrder' => $shopifyOrder]);
+
+    $prompt = "
+    📝 **AI Email Quality Analysis Request**
+
+    Analyze the following **customer service email draft** for quality assurance:
+
+    📩 **Email Content:**
+    \"$emailContent\"
+
+    🛒 **Shopify Order Details:**
+    " . json_encode($shopifyOrder, JSON_PRETTY_PRINT) . "
+
+    🚀 **Analysis Criteria:**
+    1. **Tone Check:** Is the tone friendly, professional, and empathetic? (Pass/Fail)
+    2. **Content Completeness:** Does the email fully address the customer's inquiry? (Pass/Fail)
+    3. **Risk Assessment:** Identify any potential risks (Low/Medium/High) related to tone, content, or sensitive topics.
+    4. **Policy Compliance:** Does the draft comply with standard company policies? (Pass/Fail)
+    5. **Confidence Score:** Provide an overall confidence score for the email (0-100) based on clarity, tone, and completeness.
+
+    ✅ **Output Format (JSON):**
+    {
+        \"tone_check\": \"Pass/Fail\",
+        \"content_check\": \"Pass/Fail\",
+        \"risk_assessment\": \"Low/Medium/High\",
+        \"policy_compliance\": \"Pass/Fail\",
+        \"confidence_score\": \"0-100 (percentage)\",
+        \"suggestions\": \"Optional improvements if needed.\"
+    }
+
+    Provide concise, accurate feedback for quality assurance.
+    ";
+
+    Log::info('Generated prompt for AI analysis.', ['prompt' => $prompt]);
+
+    $response = Http::withToken($this->apiKey)->post('https://api.openai.com/v1/chat/completions', [
+        'model' => 'gpt-4o',
+        'messages' => [
+            ["role" => "system", "content" => "You are an AI quality assurance bot specializing in email content analysis."],
+            ["role" => "user", "content" => $prompt],
+        ],
+        'temperature' => 0.3,
+        'max_tokens' => 400,
+    ]);
+
+    Log::info('Received response from OpenAI.', ['response' => $response->json()]);
+
+    $analysisResult = json_decode($response->json()['choices'][0]['message']['content'], true);
+
+    Log::info('Parsed analysis result.', ['analysisResult' => $analysisResult]);
+
+    return $analysisResult;
+}
 
  
 }

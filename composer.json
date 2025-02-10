@@ -16,6 +16,7 @@
         "maatwebsite/excel": "^3.1",
         "mixpanel/mixpanel-php": "^2.11",
         "openai-php/client": "^0.10.3",
+        "tinymce/tinymce": "^7.6",
         "yajra/laravel-datatables-buttons": "^9.1",
         "yajra/laravel-datatables-oracle": "10.3.1"
     },

@@ -433,3 +433,9 @@ table.dataTable>tbody>tr.selected>* {
 table.dataTable.table-striped>tbody>tr.odd>* {
     box-shadow: inset 0 0 0 9999px var(--bs-table-striped-bg);
 }
+
+.select2-container .select2-selection--single {
+    
+    height: 42px!important;
+
+}

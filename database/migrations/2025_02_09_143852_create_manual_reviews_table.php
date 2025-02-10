@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->string('email_id');
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
             $table->text('response')->nullable();
-            $table->enum('status', ['pending', 'resolved'])->default('pending');
+            $table->enum('status', ['pending', 'resolved', 'sent'])->default('pending');
             $table->timestamps();
         });
     }

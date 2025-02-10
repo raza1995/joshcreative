@@ -9,6 +9,7 @@ use Google\Service\Gmail\Message;
 use App\Models\ShopifyOrder;
 use Google\Service\Gmail\Draft;
 use Google\Service\Gmail\ModifyMessageRequest;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\SlackService;
 
@@ -994,7 +995,7 @@ public function fetchUnreadEmailsAndProcess()
     Log::info('🔍 Starting fetchUnreadEmailsAndProcess method.');
 
     $user = 'me';
-    $keywords = ['order', 'refund', 'issue', 'shipping'];
+    $keywords = ['order', 'refund', 'issue', 'shipping', 'mycolean', 'where my order is', 'taking so long', 'ETA for my order'];
     $excludeKeywords = ['promotion', 'TripleWhale'];
 
     $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
@@ -1073,7 +1074,7 @@ private function notifySlackForReview($emailData, $draft)
             . "*From:* {$emailData['from']}\n"
             . "*Subject:* {$emailData['subject']}\n"
             . "📝 *Draft Status:* Pending Review\n"
-            . "🔗 *[Review on Dashboard](https://yourapp.com/drafts/{$draft->id})*";
+            . "🔗 *[Edit Draft](https://joshcreative.co/email-draft/{$draft->id}/edit)*";
 
         app(SlackService::class)->sendMessage($message);
         Log::info("✅ Slack notified for draft review of email from: {$emailData['from']}");
@@ -1106,46 +1107,149 @@ private function checkKeywords($content, $keywords, $excludeKeywords)
 private function generateAndSaveDraft($emailData, $messageId)
 {
     try {
-        Log::info("🔍 Raw sender info: {$emailData['from']}");
-
-        // ✅ Extract email address from the "From" field
         preg_match('/<(.+)>/', $emailData['from'], $matches);
-        $email = $matches[1] ?? $emailData['from']; // Fallback if no angle brackets
+        $email = $matches[1] ?? $emailData['from'];
 
-        Log::info("📧 Extracted email address: {$email}");
-
-        // ✅ Search for the Shopify order using the extracted email
         $shopifyOrder = ShopifyOrder::where('email_address', $email)->first();
-
-        if ($shopifyOrder) {
-            Log::info("✅ Shopify order found:", ['order_id' => $shopifyOrder->id, 'email' => $email]);
-        } else {
-            Log::warning("❌ No Shopify order found for email: {$email}");
-        }
-
-        // ✅ Generate the AI-powered draft
-        Log::info("📝 Generating AI draft for email from: {$email}");
         $aiDraft = $this->openAIService->generateEmailDraft($emailData['body'], $shopifyOrder);
 
-        // ✅ Save the draft to the database
-        Log::info("💾 Saving draft for email: {$email}");
+        // ✅ AI Multi-Layer Analysis
+        $aiAnalysis = $this->openAIService->analyzeDraft($emailData['body'], $shopifyOrder);
 
-        EmailDraft::create([
-            'email_id'         => $messageId,
-            'subject'          => $emailData['subject'],
-            'body'             => $aiDraft,
-            'status'           => 'pending',
-            'shopify_order_id' => $shopifyOrder->id ?? null, // Link to Shopify order if exists
+        // 🔍 Check if AI analysis returned valid data
+        if (!$aiAnalysis || !is_array($aiAnalysis)) {
+            Log::error('🚨 AI Analysis failed or returned null.', ['email' => $emailData, 'response' => $aiAnalysis]);
+
+            // Handle the case when analysis fails (default to pending)
+            $aiAnalysis = [
+                'tone_check' => 'Fail',
+                'content_check' => 'Fail',
+                'risk_assessment' => 'High',
+                'policy_compliance' => 'Fail',
+                'confidence_score' => 0,
+                'ai_decision_reason' => 'AI analysis failed, requires human review.'
+            ];
+        }
+
+        // ✅ Auto-send Logic
+        $autoSend = (
+            $aiAnalysis['tone_check'] === 'Pass' &&
+            $aiAnalysis['content_check'] === 'Pass' &&
+            $aiAnalysis['risk_assessment'] === 'Low' &&
+            $aiAnalysis['policy_compliance'] === 'Pass' &&
+            $aiAnalysis['confidence_score'] >= 90
+        );
+
+        $draft = EmailDraft::create([
+            'email_id'           => $messageId,
+            'subject'            => $emailData['subject'],
+            'body'               => $aiDraft,
+            'status'             => $autoSend ? 'approved' : 'pending',
+            'shopify_order_id'   => $shopifyOrder->id ?? null,
+            'auto_sent'          => $autoSend,
+            'ai_confidence'      => $aiAnalysis['confidence_score'] ?? 0,
+            'ai_decision_reason' => $autoSend 
+                                    ? 'Auto-sent based on high AI confidence' 
+                                    : ($aiAnalysis['ai_decision_reason'] ?? 'Requires human review'),
+            'tone_check'         => $aiAnalysis['tone_check'] ?? 'Fail',
+            'content_check'      => $aiAnalysis['content_check'] ?? 'Fail',
+            'risk_assessment'    => $aiAnalysis['risk_assessment'] ?? 'High',
+            'policy_compliance'  => $aiAnalysis['policy_compliance'] ?? 'Fail',
         ]);
 
-        Log::info("✅ Draft created and saved successfully for email: {$email}");
+        if ($autoSend) {
+            $this->sendEmail($email, $emailData['subject'], $aiDraft);
+            Log::info("✅ Auto-sent email to {$email} with subject: {$emailData['subject']}");
+        } else {
+            Log::info("📥 Draft saved for manual review for email: {$email}");
+        }
+
+        return $draft;
 
     } catch (\Exception $e) {
-        Log::error("🚨 Error while generating draft: " . $e->getMessage(), [
-            'email' => $emailData['from'],
-            'message_id' => $messageId
+        Log::error("🚨 Error generating draft: " . $e->getMessage(), [
+            'email'       => $emailData['from'],
+            'message_id'  => $messageId,
+            'stacktrace'  => $e->getTraceAsString(),
         ]);
+        return null;
     }
 }
 
+
+
+
+    /**
+     * ✅ Send a single email via Gmail API
+     */
+    public function sendEmail($to, $subject, $body)
+    {
+        try {
+            $rawMessage = $this->createRawEmail($to, $subject, $body);
+
+            $message = new Message();
+            $message->setRaw($rawMessage);
+
+            $sentMessage = $this->service->users_messages->send('me', $message);
+
+            Log::info("✅ Email sent successfully to: $to");
+            Log::info("✅ Email sent Data:", ['sentMessage' => $sentMessage]);
+
+            return $sentMessage;
+        } catch (\Exception $e) {
+            Log::error("🚨 Failed to send email to $to: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * ✅ Send bulk emails from email drafts
+     */
+    public function sendBulkEmails($draftIds)
+{
+    $drafts = EmailDraft::with('shopifyOrder')->whereIn('id', $draftIds)->where('status', 'pending')->get();
+
+    if ($drafts->isEmpty()) {
+        return ['message' => '❌ No pending drafts found.'];
+    }
+
+    $sentCount = 0;
+    foreach ($drafts as $draft) {
+        $to = $draft->shopifyOrder->email_address ?? null;
+
+        if (!$to) {
+            continue;
+        }
+
+        $result = $this->sendEmail($to, $draft->subject, $draft->body);
+        Log::info("Email send result:", ['result' => $result]);
+
+        if ($result) {
+            $draft->update(['status' => 'sent']);
+            $sentCount++;
+        }
+    }
+
+    return ['message' => "✅ Successfully sent $sentCount emails."];
+}
+
+
+    /**
+     * ✅ Create raw email message
+     */
+    private function createRawEmail($to, $subject, $body)
+    {
+        $rawMessage = "To: $to\r\n";
+        $rawMessage .= "Subject: $subject\r\n";
+        $rawMessage .= "MIME-Version: 1.0\r\n";
+        $rawMessage .= "Content-Type: text/html; charset=UTF-8\r\n\r\n";
+        $rawMessage .= $body;
+
+        return base64_encode($rawMessage);
+    }
+
+    
+    
+
+    
 }

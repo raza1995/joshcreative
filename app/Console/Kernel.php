@@ -19,7 +19,10 @@ class Kernel extends ConsoleKernel
         // $schedule->command('php artisan gmail:process-emails-updated')->cron(expression: '0 */3 * * *')->withoutOverlapping();
         $schedule->command('gmail:process-emails-updated')->hourly();
         $schedule->command('gmail:check-invoices')->everyFiveMinutes();
-        $schedule->command('emails:fetch')->everyMinute();
+        // $schedule->command('emails:fetch')->everyMinute();
+        // $schedule->command('emails:fetch-unread')->everyFiveMinutes();
+        $schedule->command('emails:process')->everyFiveMinutes();
+
 
         // $schedule->call(function () {
         //     app(SlackService::class)->sendMessage("⏰ Automated check-in from Mycolean AI.");

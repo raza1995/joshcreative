@@ -100,11 +100,17 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/email-draft', [EmailDraftController::class, 'index'])->name('email-draft.index');
     Route::post('/email-draft/data', [EmailDraftController::class, 'getData'])->name('email-draft.data');
-    Route::post('/email-draft/approve', [EmailDraftController::class, 'bulkApprove'])->name('email-draft.approve');
-    Route::post('/email-draft/disapprove', [EmailDraftController::class, 'bulkDisapprove'])->name('email-draft.disapprove');
-    Route::post('/email-draft/send', [EmailDraftController::class, 'sendEmail'])->name('email-draft.send');
+    Route::post('/email-draft/approve/{id}', [EmailDraftController::class, 'approveDraft'])->name('email-draft.approve');
     Route::get('/email-draft/{id}/edit', [EmailDraftController::class, 'edit'])->name('email-draft.edit');
 Route::post('/email-draft/{id}/update', [EmailDraftController::class, 'update'])->name('email-draft.update');
+Route::post('/email-draft/send-bulk', [EmailDraftController::class, 'sendBulkEmails'])->name('email-draft.send.bulk');
+Route::post('/email-draft/send/{id}', [EmailDraftController::class, 'sendEmail'])->name('email-draft.send');
+Route::post('/email-draft/bulk-disapprove', [EmailDraftController::class, 'bulkDisapprove'])->name('email-draft.bulk-disapprove');
+Route::post('/email-draft/disapprove/{id}', [EmailDraftController::class, 'disapproveDraft'])->name('email-draft.disapprove');
+Route::post('/email-draft/bulk-approve', [EmailDraftController::class, 'bulkApprove']);
+Route::get('/email-draft/create', [EmailDraftController::class, 'create'])->name('email-draft.create');
+Route::post('/email-draft/store', [EmailDraftController::class, 'store'])->name('email-draft.store');
+Route::get('/shopify-orders', [EmailDraftController::class, 'getShopifyOrders'])->name('shopify.orders');
 
 });
 
