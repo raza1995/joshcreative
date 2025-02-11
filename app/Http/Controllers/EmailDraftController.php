@@ -247,7 +247,7 @@ public function sendEmail($id)
     $result = $this->gmailService->sendEmail($to, $draft->subject, $draft->body);
 
     if ($result) {
-            $draft->update(['status' => 'approved', 'sent_at' => now()]);
+            $draft->update(['status' => 'sent', 'sent_at' => now()]);
         return response()->json(['message' => "✅ Email sent to $to successfully."]);
     }
 

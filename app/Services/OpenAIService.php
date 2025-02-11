@@ -1139,7 +1139,7 @@ public function analyzeDraft($emailContent, $shopifyOrder)
     5. **Confidence Score:** Rate the email from 0-100 based on clarity, tone, and completeness. *(90+ = suitable for auto-send.)*
 
     ✅ **Output Format (JSON):**
-    {
+    { 
         \"tone_check\": \"Pass/Fail\",
         \"content_check\": \"Pass/Fail\",
         \"risk_assessment\": \"Low/Medium/High\",
