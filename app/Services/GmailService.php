@@ -1124,9 +1124,11 @@ private function generateAndSaveDraft($emailData, $messageId)
         // ✅ Check if email is from Shopify, use 'Reply-To' if applicable
         if (stripos($emailData['from'], 'mailer@shopify.com') !== false && !empty($emailData['reply_to'])) {
             $email = $emailData['reply_to']; // Use reply-to from Shopify emails
+            Log::info("Using 'Reply-To' address for Shopify email: {$email}");
         } else {
             preg_match('/<(.+)>/', $emailData['from'], $matches);
             $email = $matches[1] ?? $emailData['from'];
+            Log::info("Extracted email address: {$email}");
         }
         $shopifyOrder = ShopifyOrder::where('email_address', $email)->first();
         $aiDraft = $this->openAIService->generateEmailDraft($emailData['body'], $shopifyOrder);
