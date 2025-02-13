@@ -9,10 +9,9 @@
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
     <div class="card mb-4">
-        <div class="card-header bg-light">
-        📩 Original Customer Email
-        </div>
+       
         <div class="card-body" style="background-color: #f9f9f9; max-height: 300px; overflow-y: auto;">
+        <label for="body">📩 Original Email  Body:</label>
             {!! nl2br(e($draft->original_email)) ?? 'No original email found.' !!}
         </div>
     </div>

@@ -718,12 +718,23 @@ private function parseEmail($messageId)
 
     $from = '';
     $subject = '';
+    $replyTo = '';
+    $allHeaders = [];
+
+    // Extract key headers and store all headers
     foreach ($headers as $header) {
-        if ($header->getName() === 'From') {
-            $from = $header->getValue();
+        $headerName = $header->getName();
+        $headerValue = $header->getValue();
+        $allHeaders[$headerName] = $headerValue;
+
+        if ($headerName === 'From') {
+            $from = $headerValue;
         }
-        if ($header->getName() === 'Subject') {
-            $subject = $header->getValue();
+        if ($headerName === 'Subject') {
+            $subject = $headerValue;
+        }
+        if ($headerName === 'Reply-To') {
+            $replyTo = $headerValue;
         }
     }
 
@@ -733,6 +744,7 @@ private function parseEmail($messageId)
     $messages = $thread->getMessages();
     $latestMessage = end($messages); // Get the latest message
 
+    // Extract body from latest message
     $body = '';
     $parts = $latestMessage->getPayload()->getParts();
     if ($parts) {
@@ -748,9 +760,11 @@ private function parseEmail($messageId)
 
     return [
         'from'        => $from,
+        'reply_to'    => $replyTo,
         'subject'     => $subject,
         'body'        => substr($body, 0, 300) . '...',
         'received_at' => date('Y-m-d H:i:s', $message->getInternalDate() / 1000),
+        'all_headers' => $allHeaders, // Store all headers for analysis
     ];
 }
 
@@ -1107,9 +1121,13 @@ private function checkKeywords($content, $keywords, $excludeKeywords)
 private function generateAndSaveDraft($emailData, $messageId)
 {
     try {
-        preg_match('/<(.+)>/', $emailData['from'], $matches);
-        $email = $matches[1] ?? $emailData['from'];
-
+        // ✅ Check if email is from Shopify, use 'Reply-To' if applicable
+        if (stripos($emailData['from'], 'mailer@shopify.com') !== false && !empty($emailData['reply_to'])) {
+            $email = $emailData['reply_to']; // Use reply-to from Shopify emails
+        } else {
+            preg_match('/<(.+)>/', $emailData['from'], $matches);
+            $email = $matches[1] ?? $emailData['from'];
+        }
         $shopifyOrder = ShopifyOrder::where('email_address', $email)->first();
         $aiDraft = $this->openAIService->generateEmailDraft($emailData['body'], $shopifyOrder);
 
@@ -1249,7 +1267,10 @@ private function generateAndSaveDraft($emailData, $messageId)
         return base64_encode($rawMessage);
     }
 
-    
+    /**
+ * Extract customer email from Reply-To if email is from Shopify
+ */
+
     
 
     
