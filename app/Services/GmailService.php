@@ -1132,7 +1132,7 @@ private function generateAndSaveDraft($emailData, $messageId)
        Log::info("Using 'Reply-To' address for Shopify email: {$email}");
    } else {
        // Extract email from 'From' header
-       preg_match(pattern: '/<(.+)>/', $emailData['from'], $matches);
+       preg_match('/<(.+)>/', $emailData['from'], $matches);
        $email = $matches[1] ?? $emailData['from'];
        Log::info("Extracted email address: {$email}");
    }
