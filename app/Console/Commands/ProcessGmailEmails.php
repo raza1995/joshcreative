@@ -26,7 +26,7 @@ class ProcessGmailEmails extends Command
         Log::info("🚀 Starting email processing for the last 3 hours...");
 
         // Calculate the time 3 hours ago
-        $threeHoursAgo = now()->subDays(30)->format('Y-m-d H:i:s');
+        $threeHoursAgo = now()->subHours(3)->format('Y-m-d H:i:s');
 
         // Gmail format requires RFC 3339 format
         $rfc3339Time = date(DATE_RFC3339, strtotime($threeHoursAgo));
