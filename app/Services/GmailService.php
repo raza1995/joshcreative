@@ -1122,7 +1122,7 @@ private function checkKeywords($content, $keywords, $excludeKeywords)
 private function generateAndSaveDraft($emailData, $messageId)
 {
     try {
-        Log::info("Email Data: " . json_encode($emailData));
+        Log::info("Email Data: WTF" . json_encode($emailData));
         // ✅ Check if email is from Shopify, use 'Reply-To' if applicable
         if ((preg_match('/<mailer@shopify\.com>/', $emailData['from']) || 
         stripos($emailData['from'], 'mailer@shopify.com') !== false) && 
@@ -1132,7 +1132,7 @@ private function generateAndSaveDraft($emailData, $messageId)
        Log::info("Using 'Reply-To' address for Shopify email: {$email}");
    } else {
        // Extract email from 'From' header
-       preg_match('/<(.+)>/', $emailData['from'], $matches);
+       preg_match(pattern: '/<(.+)>/', $emailData['from'], $matches);
        $email = $matches[1] ?? $emailData['from'];
        Log::info("Extracted email address: {$email}");
    }
