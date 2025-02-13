@@ -1010,7 +1010,8 @@ public function fetchUnreadEmailsAndProcess()
 
     $user = 'me';
     $keywords = ['order', 'refund', 'issue', 'shipping', 'mycolean', 'where my order is', 'taking so long', 'ETA for my order'];
-    $excludeKeywords = ['promotion', 'TripleWhale'];
+    $excludeKeywords = ['promotion', 'TripleWhale', '
+Thank you for your purchase'];
 
     $latestProcessedEmail = ProcessedEmail::latest('received_at')->first();
     $afterTimestamp = $latestProcessedEmail ? strtotime($latestProcessedEmail->received_at) : null;
