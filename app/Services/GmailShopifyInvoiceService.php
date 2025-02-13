@@ -74,7 +74,9 @@ public function processLabeledEmails()
     $labels = $this->getAllLabels();
 
     // Find the label ID dynamically based on text
-    $highPriorityLabelId = $this->getLabelIdByName($labels, 'high-3.-⚠️-🛒-can\'t-purchase!');
+    // $highPriorityLabelId = $this->getLabelIdByName($labels, '🔴 HIGH/3. ⚠️ 🛒 Can\'t Purchase!');
+    $highPriorityLabelId = $this->getLabelIdByName($labels, 'HIGH/3. ⚠️ 🛒 Can\'t Purchase!');
+
     $solvedQueriesLabelId = $this->getLabelIdByName($labels, 'Replied');
 
     
