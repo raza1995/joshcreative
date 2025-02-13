@@ -1143,6 +1143,7 @@ private function generateAndSaveDraft($emailData, $messageId)
         $draft = EmailDraft::create([
             'email_id'           => $messageId,
             'subject'            => $emailData['subject'],
+            'original_email'     => $emailData['body'],  // ✅ Store original email body
             'body'               => $aiDraft,
             'status'             => $autoSend ? 'approved' : 'pending',
             'shopify_order_id'   => $shopifyOrder->id ?? null,

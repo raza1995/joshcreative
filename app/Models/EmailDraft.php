@@ -23,6 +23,7 @@ class EmailDraft extends Model
         'content_check',
         'risk_assessment',
         'policy_compliance',
+        'original_email'
     ];
 
     public function shopifyOrder()
