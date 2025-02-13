@@ -10,7 +10,7 @@
     @endif
     <div class="card mb-4">
         <div class="card-header bg-light">
-            <strong>📩 Original Customer Email</strong>
+        📩 Original Customer Email
         </div>
         <div class="card-body" style="background-color: #f9f9f9; max-height: 300px; overflow-y: auto;">
             {!! nl2br(e($draft->original_email)) ?? 'No original email found.' !!}
