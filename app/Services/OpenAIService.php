@@ -1095,7 +1095,7 @@ EOT;
             ["role" => "system", "content" => "You are an AI customer service assistant specializing in professional email drafting."],
             ["role" => "user", "content" => $prompt],
         ],
-        'temperature' => 0.6,
+        'temperature' => 0.5,
         'max_tokens' => 800,
     ]);
 
@@ -1164,8 +1164,8 @@ public function analyzeDraft($emailContent, $shopifyOrder)
             ["role" => "system", "content" => "You are an AI quality assurance bot specializing in customer service email analysis."],
             ["role" => "user", "content" => $prompt],
         ],
-        'temperature' => 0.2,
-        'max_tokens' => 400,
+        'temperature' => 0.3,
+        'max_tokens' => 600,
     ]);
 
     Log::info('Received response from OpenAI.', ['response' => $response->json()]);

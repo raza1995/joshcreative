@@ -12,6 +12,7 @@ use Google\Service\Gmail\ModifyMessageRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\SlackService;
+use App\Services\ShopifyService;
 
 class GmailService
 {
@@ -20,8 +21,9 @@ class GmailService
     protected $slackService;
     protected $service;
     protected $openAIService;
+    protected $shopifyService;
 
-    public function __construct(SlackService $slackService, OpenAIService $openAIService)
+    public function __construct(SlackService $slackService, OpenAIService $openAIService, ShopifyService $shopifyService)
     {
         $this->tokenPath = storage_path('app/token.json');
         $this->slackService = $slackService;
@@ -1121,22 +1123,58 @@ private function checkKeywords($content, $keywords, $excludeKeywords)
 
 private function generateAndSaveDraft($emailData, $messageId)
 {
+
     try {
+    $emailData = json_decode(json_encode($emailData), true);
         Log::info("Email Data: WTF" . json_encode($emailData));
-        // ✅ Check if email is from Shopify, use 'Reply-To' if applicable
-        if ((preg_match('/<mailer@shopify\.com>/', $emailData['from']) || 
-        stripos($emailData['from'], 'mailer@shopify.com') !== false) && 
-       !empty($emailData['reply_to'])) {
-           
-       $email = $emailData['reply_to']; // Use reply-to from Shopify emails
-       Log::info("Using 'Reply-To' address for Shopify email: {$email}");
-   } else {
-       // Extract email from 'From' header
-       preg_match('/<(.+)>/', $emailData['from'], $matches);
-       $email = $matches[1] ?? $emailData['from'];
-       Log::info("Extracted email address: {$email}");
-   }
-        $shopifyOrder = ShopifyOrder::where('email_address', $email)->first();
+     // Ensure $emailData is an array
+
+// ✅ Check if email is from Shopify, use 'Reply-To' if applicable
+if (
+    (isset($emailData['from']) && 
+    (preg_match('/mailer@shopify\.com/i', $emailData['from'], $matchesShopify) || 
+    stripos($emailData['from'], 'mailer@shopify.com') !== false)) && 
+    !empty($emailData['reply_to'])
+) {
+    Log::info("Detected Shopify email from header: {$emailData['from']}");
+    Log::info("Found Shopify reply-to address: {$emailData['reply_to']}");
+
+    $email = $emailData['reply_to']; // Use reply-to from Shopify emails
+    Log::info("Using 'Reply-To' address for Shopify email: {$email}");
+} else {
+    Log::info("Email is not from Shopify or 'reply_to' is empty. Proceeding to extract from 'From' header.");
+    
+    // Improved regex to extract email from 'From' header
+    if (preg_match('/<([^>]+)>/', $emailData['from'], $matchesFrom)) {
+        Log::info("Regex match found in 'From' header: " . json_encode($matchesFrom));
+        $email = trim($matchesFrom[1]);
+    } else {
+        Log::info("No angle-bracketed email found. Attempting to validate plain email.");
+        // Fallback if no angle brackets are found
+        $email = filter_var($emailData['from'], FILTER_VALIDATE_EMAIL) ? $emailData['from'] : null;
+    }
+
+    if ($email) {
+        Log::info("Extracted email address from 'From': {$email}");
+    } else {
+        Log::warning("Failed to extract email from 'From' header.");
+    }
+}
+
+// Final Log for Debugging
+if ($email) {
+    Log::info("Final extracted email: {$email}");
+} else {
+    Log::error("No valid email could be extracted.");
+}
+
+        // $shopifyOrder = ShopifyOrder::where('email_address', $email)->first();
+        
+        $shopifyOrders = $this->shopifyService->getOrdersByEmail($email);
+        Log::info("Shopify Orders fetched for {$email}: " . json_encode($shopifyOrders));
+        
+        $shopifyOrder = $this->extractShopifyOrderDetails($shopifyOrders);
+        
         $aiDraft = $this->openAIService->generateEmailDraft($emailData['body'], $shopifyOrder);
 
         // ✅ AI Multi-Layer Analysis
@@ -1275,11 +1313,45 @@ private function generateAndSaveDraft($emailData, $messageId)
         return base64_encode($rawMessage);
     }
 
-    /**
- * Extract customer email from Reply-To if email is from Shopify
+ /**
+ * ✅ Extract Important Shopify Order Details
  */
+private function extractShopifyOrderDetails($shopifyOrders)
+{
+    if (empty($shopifyOrders)) {
+        return [];
+    }
 
-    
+    // Use the latest order
+    $order = $shopifyOrders[0];
+
+    // Collect Important Details
+    $importantDetails = [
+        'order_id'        => $order['id'] ?? null,
+        'order_number'    => $order['order_number'] ?? null,
+        'order_date'      => $order['created_at'] ?? null,
+        'financial_status'=> $order['financial_status'] ?? null,
+        'fulfillment_status' => $order['fulfillment_status'] ?? null,
+        'total_price'     => $order['total_price'] ?? null,
+        'subtotal_price'  => $order['subtotal_price'] ?? null,
+        'total_discounts' => $order['total_discounts'] ?? null,
+        'currency'        => $order['currency'] ?? null,
+        'coupon_code'     => $order['discount_codes'][0]['code'] ?? 'N/A',
+        'discount_amount' => $order['discount_codes'][0]['amount'] ?? '0.00',
+        'number_of_items' => count($order['line_items'] ?? []),
+        'customer_name'   => $order['customer']['first_name'] . ' ' . $order['customer']['last_name'] ?? 'N/A',
+        'customer_email'  => $order['email'] ?? 'N/A',
+        'shipping_address'=> $order['shipping_address'] ?? [],
+        'shipping_method' => $order['shipping_lines'][0]['title'] ?? 'N/A',
+        'tracking_number' => $order['fulfillments'][0]['tracking_number'] ?? 'N/A',
+        'tracking_url'    => $order['fulfillments'][0]['tracking_url'] ?? 'N/A',
+    ];
+
+    // Log Important Order Details
+    Log::info("Extracted Important Shopify Order Details: " . json_encode($importantDetails));
+
+    return $importantDetails;
+}
 
     
 }

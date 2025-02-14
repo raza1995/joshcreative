@@ -7,10 +7,11 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+
 class ShopifyService
 {
-    protected string $shopifyDomain;
-    protected string $accessToken;
+    protected  $shopifyDomain;
+    protected  $accessToken;
 
     public function __construct()
     {
