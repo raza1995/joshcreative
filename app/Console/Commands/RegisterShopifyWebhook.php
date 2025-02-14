@@ -12,7 +12,7 @@ class RegisterShopifyWebhook extends Command
      *
      * @var string
      */
-    protected $signature = 'shopify:webhook:register';
+    protected $signature = 'shopify:webhook-register';
 
     /**
      * The console command description.
