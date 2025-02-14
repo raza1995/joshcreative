@@ -32,8 +32,8 @@ class ShopifyService
     $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
     $params = [
         'status' => 'any',
-        'created_at_min' => $from_date . 'T00:00:00Z',
-        'created_at_max' => $to_date . 'T23:59:59Z',
+        'created_at_min' => now()->subMonths(2)->format('Y-m-d') . 'T00:00:00Z',
+        'created_at_max' => now()->format('Y-m-d') . 'T23:59:59Z',
         'limit' => 250, // Fetch max records per page
         'fields' => 'id,name,email,created_at,line_items,customer,fulfillments,total_price,total_discounts,discount_codes'
     ];

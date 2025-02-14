@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('email_reviews', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('draft_id')->constrained('email_drafts')->onDelete('cascade');
-            $table->foreignId('reviewer_id')->constrained('users')->onDelete('cascade'); // Assuming a users table exists
+            $table->unsignedBigInteger('draft_id')->nullable();
+            $table->unsignedBigInteger('reviewer_id')->nullable(); // Assuming a users table exists
             $table->enum('status', ['approved', 'disapproved']);
             $table->text('feedback')->nullable();
             $table->timestamps();

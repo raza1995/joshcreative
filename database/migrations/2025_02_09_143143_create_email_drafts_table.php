@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('subject')->nullable();
             $table->text('body')->nullable();
             $table->enum('status', ['pending', 'approved', 'disapproved','draft'])->default('pending');
-            $table->foreignId('shopify_order_id')->nullable()->constrained()->onDelete('cascade');
+            $table->string('shopify_order_id')->nullable();
             $table->timestamps();
         });
     }

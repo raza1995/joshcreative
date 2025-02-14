@@ -11,76 +11,58 @@ use Yajra\DataTables\Services\DataTable;
 class EmailDraftsDataTable extends DataTable
 {
     public function dataTable($query): EloquentDataTable
-{
-    return (new EloquentDataTable($query))
-        ->addColumn('checkbox', function ($row) {
-            return '<div class="checkbox-container" style="cursor: pointer; text-align: center;">
-                        <input type="checkbox" class="select-draft" value="' . $row->id . '">
-                    </div>';
-        })
-        ->addColumn('customer_name', function ($row) {
-            return $row->shopifyOrder ? $row->shopifyOrder->customer_name : '-';
-        })
-        ->addColumn('email_address', function ($row) {
-            return $row->shopifyOrder ? $row->shopifyOrder->email_address : '-';
-        })
-        ->editColumn('status', function ($data) {
-            $badgeClass = match ($data->status) {
-                'approved' => 'bg-success',
-                'pending' => 'bg-warning text-dark',
-                'disapproved' => 'bg-danger',
-                default => 'bg-secondary',
-            };
-            return '<span class="badge ' . $badgeClass . '">' . ucfirst($data->status) . '</span>';
-        })
-        ->addColumn('actions', function ($row) {
-            return '
-                <div style="display: flex; gap: 5px;">
-                    <a href="' . route('email-draft.edit', $row->id) . '" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
-                    <button onclick="approveDraft(' . $row->id . ')" class="btn btn-sm btn-success"><i class="fas fa-check"></i></button>
-                    <button onclick="disapproveDraft(' . $row->id . ')" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
-                    <button onclick="sendEmail(' . $row->id . ')" class="btn btn-sm btn-info text-white"><i class="fas fa-paper-plane"></i></button>
-                </div>
-            ';
-        })
-        
-        ->editColumn('body', function ($data) {
-            $body = htmlspecialchars($data->body, ENT_QUOTES, 'UTF-8');
-            return '
-                <span class="email-body" 
-                    data-id="' . $data->id . '" 
-                    data-subject="' . htmlspecialchars($data->subject, ENT_QUOTES, 'UTF-8') . '" 
-                    data-body="' . $body . '" 
-                    style="cursor: pointer; color: #007bff; text-decoration: underline;">
-                    ' . (mb_strlen($body) > 50 ? mb_substr($body, 0, 50) . '...' : $body) . '
-                </span>
-            ';
-        })
-        ->editColumn('shopify_order_id', function ($row) {
-            if ($row->shopifyOrder) {
-                $order = $row->shopifyOrder;
-        
-                return '<span class="shopify-order-link" 
-                            data-order=\'' . json_encode($order) . '\'
-                            style="cursor: pointer; color: #007bff; text-decoration: underline;">
-                            ' . htmlspecialchars($order->id, ENT_QUOTES, 'UTF-8') . '
-                        </span>';
-            }
-            return '-';
-        })
-        
-        
-        
-        ->editColumn('created_at', fn($data) => $data->created_at->format('Y-m-d h:i A'))
-        ->editColumn('updated_at', fn($data) => $data->updated_at->format('Y-m-d h:i A'))
-        ->rawColumns(['checkbox', 'status', 'actions', 'body', 'shopify_order_id'])
-        ->setRowId('id');
-}
+    {
+        return (new EloquentDataTable($query))
+            ->addColumn('checkbox', function ($row) {
+                return '<div class="checkbox-container" style="cursor: pointer; text-align: center;">
+                            <input type="checkbox" class="select-draft" value="' . $row->id . '">
+                        </div>';
+            })
+            ->addColumn('customer_name', fn($row) => $row->customer_name ?? '-')
+            ->addColumn('email_address', fn($row) => $row->email_address ?? '-')
+            ->addColumn('shopify_order_id', function ($row) {
+                if ($row->order_number) {
+                    return '<span class="shopify-order-link" 
+                                data-order-number="' . htmlspecialchars($row->order_number, ENT_QUOTES, 'UTF-8') . '"
+                                style="cursor: pointer; color: #007bff; text-decoration: underline;">
+                                ' . htmlspecialchars($row->order_number, ENT_QUOTES, 'UTF-8') . '
+                            </span>';
+                }
+                return '-';
+            })
+            ->editColumn('status', function ($data) {
+                $badgeClass = match ($data->status) {
+                    'approved' => 'bg-success',
+                    'pending' => 'bg-warning text-dark',
+                    'disapproved' => 'bg-danger',
+                    default => 'bg-secondary',
+                };
+                return '<span class="badge ' . $badgeClass . '">' . ucfirst($data->status) . '</span>';
+            })
+            ->addColumn('actions', function ($row) {
+                return '
+                    <div style="display: flex; gap: 5px;">
+                        <a href="' . route('email-draft.edit', $row->id) . '" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
+                        <button onclick="approveDraft(' . $row->id . ')" class="btn btn-sm btn-success"><i class="fas fa-check"></i></button>
+                        <button onclick="disapproveDraft(' . $row->id . ')" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
+                        <button onclick="sendEmail(' . $row->id . ')" class="btn btn-sm btn-info text-white"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                ';
+            })
+            ->editColumn('created_at', fn($data) => $data->created_at->format('Y-m-d h:i A'))
+            ->editColumn('updated_at', fn($data) => $data->updated_at->format('Y-m-d h:i A'))
+            ->rawColumns(['checkbox', 'status', 'actions', 'shopify_order_id'])
+            ->setRowId('id');
+    }
+    
 
 
     public function query(EmailDraft $model)
     {
-        return $model->newQuery()->with('shopifyOrder')->orderByDesc('created_at');
+        return $model->newQuery()
+        ->select('email_drafts.*', 'shopify_orders.customer_name', 'shopify_orders.email_address', 'shopify_orders.order_number')
+        ->leftJoin('shopify_orders', 'email_drafts.shopify_order_id', '=', 'shopify_orders.order_number')
+        ->orderByDesc('email_drafts.created_at');
     }
 
     public function html(): HtmlBuilder

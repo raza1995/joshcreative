@@ -1203,7 +1203,7 @@ if ($email) {
             $aiAnalysis['policy_compliance'] === 'Pass' &&
             $aiAnalysis['confidence_score'] >= 90
         );
-   
+        Log::info($shopifyOrder['order_id']);
         $draft = EmailDraft::create([
             'email_id'           => $messageId,
             'subject'            => $emailData['subject'],
