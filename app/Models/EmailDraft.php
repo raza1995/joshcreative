@@ -28,7 +28,7 @@ class EmailDraft extends Model
 
     public function shopifyOrder()
     {
-        return $this->belongsTo(ShopifyOrder::class);
+        return $this->belongsTo(ShopifyOrder::class, 'shopify_order_id', 'order_number');
     }
 
     public function review()
