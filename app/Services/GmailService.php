@@ -1206,14 +1206,15 @@ if ($email) {
             $aiAnalysis['policy_compliance'] === 'Pass' &&
             $aiAnalysis['confidence_score'] >= 90
         );
-
+        Log::info("Shopify Order ID: " . ($shopifyOrder->order_id ?? 'No Order ID'));
+        Log::info("Shopify Order ID array: " . ($shopifyOrder['order_id'] ?? 'No Order ID'));
         $draft = EmailDraft::create([
             'email_id'           => $messageId,
             'subject'            => $emailData['subject'],
             'original_email'     => $emailData['body'],  // ✅ Store original email body
             'body'               => $aiDraft,
             'status'             => $autoSend ? 'approved' : 'pending',
-            'shopify_order_id'   => $shopifyOrder->id ?? null,
+            'shopify_order_id'   => $shopifyOrder->order_id ?? null,
             'auto_sent'          => $autoSend,
             'ai_confidence'      => $aiAnalysis['confidence_score'] ?? 0,
             'ai_decision_reason' => $autoSend 
