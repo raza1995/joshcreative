@@ -21,111 +21,113 @@ class ShopifyService
 
     
     public function fetchOrders($from_date = null, $to_date = null)
-    {
-        // Default to last 12 months if no date is provided
-        if (!$from_date || !$to_date) {
-            $from_date = now()->subMonths(12)->format('Y-m-d');
-            $to_date = now()->format('Y-m-d');
-        }
-    
-        // Shopify API base URL
-        $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
-        $params = [
-            'status' => 'any',
-            'created_at_min' => $from_date . 'T00:00:00Z',
-            'created_at_max' => $to_date . 'T23:59:59Z',
-            'limit' => 250, // Fetch max records per page
-            'fields' => 'id,name,email,created_at,line_items,customer,fulfillments,total_price,total_discounts,discount_codes'
-        ];
-    
-        do {
-            Log::info('Fetching Shopify Orders from API', ['params' => $params]);
-    
-            // Send request to Shopify API
-            $response = Http::withHeaders([
-                'X-Shopify-Access-Token' => $this->accessToken,
-                'Content-Type' => 'application/json',
-            ])->get($base_url, $params);
-    
-            // Check if the response is successful
-            if (!$response->successful()) {
-                Log::error('Failed to fetch orders from Shopify', ['response' => $response->body()]);
-                return 'Failed to fetch orders!';
-            }
-    
-            // Get orders data
-            $orders = $response->json()['orders'];
-    
-            // Process each order and save it to the database
-            foreach ($orders as $order) {
-                $customerName = !empty($order['customer']['first_name']) || !empty($order['customer']['last_name'])
-                    ? trim(($order['customer']['first_name'] ?? '') . ' ' . ($order['customer']['last_name'] ?? ''))
-                    : 'Unknown Customer';
-    
-                // Get discount code if available
-                $couponCode = $order['discount_codes'][0]['code'] ?? null;
-    
-                foreach ($order['line_items'] as $item) {
-                    // Check if the order already exists with the same data
-                    $existingOrder = ShopifyOrder::where('order_number', $order['id'])
-                        ->where('product_name', $item['title'])
-                        ->where('order_date', Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'))
-                        ->where('customer_name', $customerName)
-                        ->where('email_address', $order['email'] ?? null)
-                        ->where('tracking_number', $order['fulfillments'][0]['tracking_number'] ?? null)
-                        ->where('tracking_url', $order['fulfillments'][0]['tracking_url'] ?? null)
-                        ->where('coupon', $couponCode)
-                        ->where('paid_amount', $order['total_price'] ?? 0.00)
-                        ->where('discount', $order['total_discounts'] ?? 0.00)
-                        ->where('number_of_items', count($order['line_items']))
-                        ->exists();
-    
-                    if (!$existingOrder) {
-                        // Insert new order only if no duplicate record exists
-                        ShopifyOrder::create([
-                            'product_name' => $item['title'] ?? null,
-                            'order_date' => Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'), // Convert date to MySQL format
-                            'customer_name' => $customerName,
-                            'email_address' => $order['email'] ?? null,
-                            'tracking_number' => $order['fulfillments'][0]['tracking_number'] ?? null,
-                            'tracking_url' => $order['fulfillments'][0]['tracking_url'] ?? null,
-                            'coupon' => $couponCode,
-                            'paid_amount' => $order['total_price'] ?? 0.00,
-                            'discount' => $order['total_discounts'] ?? 0.00,
-                            'number_of_items' => count($order['line_items']),
-                        ]);
-                    } else {
-                        Log::info("Skipping duplicate order: " . $order['id']);
-                    }
-                }
-            }
-    
-            // Get the next page URL from the "Link" header
-            $next_url = null;
-            $link_header = $response->header('Link');
-    
-            if ($link_header && strpos($link_header, 'rel="next"') !== false) {
-                preg_match('/<([^>]+)>; rel="next"/', $link_header, $matches);
-                if (isset($matches[1])) {
-                    $next_url = $matches[1];
-                }
-            }
-    
-            // Continue fetching the next page if available
-            if ($next_url) {
-                // Parse the next page URL to get query parameters
-                $parsed_url = parse_url($next_url);
-                parse_str($parsed_url['query'], $params);
-                $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
-    
-                // Create new tab for each pagination step
-                Log::info('Fetching next page: ' . $next_url);
-            }
-    
-        } while ($next_url);
-    
-        return 'All orders from the last 12 months fetched and stored successfully!';
+{
+    // Default to last 2 days if no date is provided
+    if (!$from_date || !$to_date) {
+        $from_date = now()->subDays(10)->format('Y-m-d');
+        $to_date = now()->format('Y-m-d');
     }
+
+    // Shopify API base URL
+    $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+    $params = [
+        'status' => 'any',
+        'created_at_min' => $from_date . 'T00:00:00Z',
+        'created_at_max' => $to_date . 'T23:59:59Z',
+        'limit' => 250, // Fetch max records per page
+        'fields' => 'id,name,email,created_at,line_items,customer,fulfillments,total_price,total_discounts,discount_codes'
+    ];
+
+    do {
+        Log::info('Fetching Shopify Orders from API', ['params' => $params]);
+
+        // Send request to Shopify API
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $this->accessToken,
+            'Content-Type' => 'application/json',
+        ])->get($base_url, $params);
+
+        // Check if the response is successful
+        if (!$response->successful()) {
+            Log::error('Failed to fetch orders from Shopify', ['response' => $response->body()]);
+            return 'Failed to fetch orders!';
+        }
+
+        // Get orders data
+        $orders = $response->json()['orders'];
+        Log::info('Fetched orders from Shopify', ['orders' => $orders]);
+        // Process each order and save it to the database
+        foreach ($orders as $order) {
+            $customerName = !empty($order['customer']['first_name']) || !empty($order['customer']['last_name'])
+                ? trim(($order['customer']['first_name'] ?? '') . ' ' . ($order['customer']['last_name'] ?? ''))
+                : 'Unknown Customer';
+
+            // Get discount code if available
+            $couponCode = $order['discount_codes'][0]['code'] ?? null;
+
+            foreach ($order['line_items'] as $item) {
+                // Check if the order already exists with the same data
+                $existingOrder = ShopifyOrder::where('order_number', $order['id'])
+                    ->where('product_name', $item['title'])
+                    ->where('order_date', Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'))
+                    ->where('customer_name', $customerName)
+                    ->where('email_address', $order['email'] ?? null)
+                    ->where('tracking_number', $order['fulfillments'][0]['tracking_number'] ?? null)
+                    ->where('tracking_url', $order['fulfillments'][0]['tracking_url'] ?? null)
+                    ->where('coupon', $couponCode)
+                    ->where('paid_amount', $order['total_price'] ?? 0.00)
+                    ->where('discount', $order['total_discounts'] ?? 0.00)
+                    ->where('number_of_items', count($order['line_items']))
+                    ->exists();
+
+                if (!$existingOrder) {
+                    // Insert new order only if no duplicate record exists
+                    ShopifyOrder::create([
+                        'product_name' => $item['title'] ?? null,
+                        'order_date' => Carbon::parse($order['created_at'])->format('Y-m-d H:i:s'), // Convert date to MySQL format
+                        'customer_name' => $customerName,
+                        'email_address' => $order['email'] ?? null,
+                        'tracking_number' => $order['fulfillments'][0]['tracking_number'] ?? null,
+                        'tracking_url' => $order['fulfillments'][0]['tracking_url'] ?? null,
+                        'coupon' => $couponCode,
+                        'paid_amount' => $order['total_price'] ?? 0.00,
+                        'discount' => $order['total_discounts'] ?? 0.00,
+                        'number_of_items' => count($order['line_items']),
+                        'order_number' => $order['id']
+                    ]);
+                } else {
+                    Log::info("Skipping duplicate order: " . $order['id']);
+                }
+            }
+        }
+
+        // Get the next page URL from the "Link" header
+        $next_url = null;
+        $link_header = $response->header('Link');
+
+        if ($link_header && strpos($link_header, 'rel="next"') !== false) {
+            preg_match('/<([^>]+)>; rel="next"/', $link_header, $matches);
+            if (isset($matches[1])) {
+                $next_url = $matches[1];
+            }
+        }
+
+        // Continue fetching the next page if available
+        if ($next_url) {
+            // Parse the next page URL to get query parameters
+            $parsed_url = parse_url($next_url);
+            parse_str($parsed_url['query'], $params);
+            $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+
+            // Create new tab for each pagination step
+            Log::info('Fetching next page: ' . $next_url);
+        }
+
+    } while ($next_url);
+
+    return 'All orders from the last 2 days fetched and stored successfully!';
+}
+
     
 public function registerWebhook()
 {

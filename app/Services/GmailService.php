@@ -39,6 +39,7 @@ class GmailService
         $this->client->addScope(Gmail::GMAIL_READONLY);  // Read-only access
         $this->client->addScope(Gmail::GMAIL_MODIFY);    // If you want to mark emails as read, etc.
         $this->openAIService = $openAIService;
+        $this->shopifyService = $shopifyService;
 
         $this->authenticate();
         $this->service = new Gmail($this->client);
@@ -1173,8 +1174,10 @@ if ($email) {
         $shopifyOrders = $this->shopifyService->getOrdersByEmail($email);
         Log::info("Shopify Orders fetched for {$email}: " . json_encode($shopifyOrders));
         
+        Log::info("Extracting Shopify order details from fetched orders.");
         $shopifyOrder = $this->extractShopifyOrderDetails($shopifyOrders);
-        
+        Log::info("Extracted Shopify order details: " . json_encode($shopifyOrder));
+            
         $aiDraft = $this->openAIService->generateEmailDraft($emailData['body'], $shopifyOrder);
 
         // ✅ AI Multi-Layer Analysis
