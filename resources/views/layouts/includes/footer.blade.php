@@ -18,6 +18,9 @@
 <!-- ✅ Other Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.2.0/tinymce.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- DataTables JS and Bootstrap Integration -->
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
 
 <!-- ✅ Custom JS Last -->
 <script src="{{ asset('js/custom.js') }}"></script>

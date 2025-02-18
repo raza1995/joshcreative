@@ -85,19 +85,62 @@ class EmailDraftsDataTable extends DataTable
     }
 
 
-        public function html(): HtmlBuilder
-    {
-        return $this->builder()
-            ->setTableId('emailDraftsTable')
-            ->columns($this->getColumns())
-            ->minifiedAjax()
-            ->parameters([
-                'dom' => 'Bfrtip',
-                'responsive' => true,
-                'autoWidth' => false,
-                'processing' => true,
-            ]);
-    }
+
+public function html(): HtmlBuilder
+{
+    return $this->builder()
+        ->setTableId('emailDraftsTable')
+        ->columns($this->getColumns())
+        ->minifiedAjax()
+        ->parameters([
+            'dom' => 'Bfrtip',
+            'responsive' => true,
+            'autoWidth' => false,
+            'processing' => true,
+            'pagingType' => 'full_numbers',
+            'lengthMenu' => [10, 25, 50, 75, 100],
+            'language' => [
+                'paginate' => [
+                    'next' => '›',
+                    'previous' => '‹',
+                    'first' => '«',
+                    'last' => '»',
+                ],
+            ],
+            'buttons' => ['create', 'export', 'print', 'reset', 'reload'],
+            'theme' => 'bootstrap5',
+            'initComplete' => function() {
+                return 'function(settings, json) {
+                    var table = settings.oInstance.api();
+
+                    // Pagination loading indicator
+                    table.on("preDraw", function() {
+                        if ($(".loading-overlay").length === 0) {
+                            $("body").append("<div class=\"loading-overlay\"><div class=\"spinner-border text-primary\" role=\"status\"></div></div>");
+                        }
+                    });
+
+                    table.on("draw", function() {
+                        $(".loading-overlay").remove();
+                    });
+
+                    // Column search functionality
+                    this.api().columns().every(function() {
+                        var column = this;
+                        var input = document.createElement("input");
+                        input.placeholder = "Search " + $(column.header()).text();
+                        $(input).appendTo($(column.footer()).empty())
+                               .on("keyup change clear", function() {
+                                   if (column.search() !== this.value) {
+                                       column.search(this.value).draw();
+                                   }
+                               });
+                    });
+                }';
+            }
+        ]);
+}
+
 
     public function getColumns(): array
 {
