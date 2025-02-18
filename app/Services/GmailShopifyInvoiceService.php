@@ -282,14 +282,8 @@ private function handleLabeledEmail($messageId)
             "customer" => [
                 "email" => $shopifyOrder['email'] ?? "no-email@unknown.com"
             ],
-            "applied_discount" => [
-                "description" => "FORYOU30 Discount",
-                "value" => "30",
-                "value_type" => "percentage", // Apply as percentage discount
-                "amount" => "0.00",           // Shopify calculates this automatically
-            ],
             "send_invoice" => true,
-            "note" => "Here is your invoice for payment with the FORYOU30 discount applied."
+            "note" => "Here is your invoice for payment."
         ]
     ];
 
@@ -336,7 +330,6 @@ private function handleLabeledEmail($messageId)
                 <div style='max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
                     <h2 style='color: #333;'>Hello,</h2>
                     <p style='font-size: 16px; color: #555; line-height: 1.6;'>
-                        <strong>We’ve already applied the <span style='color: #d9534f;'>FORYOU30</span> discount.</strong> 
                         It looks like there may be an internal issue causing the 
                         <strong>‘error shipping address’</strong> message.
                     </p>
