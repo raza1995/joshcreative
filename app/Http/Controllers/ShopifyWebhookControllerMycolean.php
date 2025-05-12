@@ -76,7 +76,7 @@ class ShopifyWebhookControllerMycolean extends Controller
 }
 
 
-    public function handleFulfillmentUpdate(Request $request, MixpanelService $mixpanelService)
+    public function handleFulfillmentUpdate(Request $request, MixpanelServiceMycolean $mixpanelService)
     {
         Log::info('Shopify Order Webhook Received MYCOLEAN:', ['body' => $request->all()]);
 
