@@ -189,6 +189,7 @@ class ShopifyWebhookController extends Controller
             'email_address' => $fulfillmentData['email'], 
             'tracking_number' => $trackingNumber,
             'tracking_url' => $trackingUrl,
+            'order_number' => $fulfillmentData['id'],
 
         ]);
     
