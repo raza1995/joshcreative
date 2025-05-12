@@ -48,8 +48,8 @@ class ShopifyWebhookControllerMycolean extends Controller
 
     // Identify user in Mixpanel
     $mixpanelService->identifyUser($customerId, [
-        '$name' => $customerName,
-        '$email' => $customerEmail,
+        'name' => $customerName,
+        'email' => $customerEmail,
         'First-Time Buyer' => $isFirstTimeBuyer,
         'Total Orders' => $previousOrders + 1,
         'Total Spend' => ShopifyOrder::where('email_address', $customerEmail)->sum('paid_amount'),

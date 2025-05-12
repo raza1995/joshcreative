@@ -21,6 +21,7 @@ class MixpanelService
 
     public function identifyUser($userId, $properties = [])
     {
+        $this->mixpanel->identify($userId);
         $this->mixpanel->people->set($userId, $properties);
     }
 
@@ -32,9 +33,24 @@ class MixpanelService
     }
 
     public function trackUserEvent($userId, $eventName, $properties = [])
-{
-    $this->mixpanel->identify($userId);
-    $this->mixpanel->track($eventName, $properties);
-}
+    {
+        $this->mixpanel->identify($userId);
+        $this->mixpanel->track($eventName, array_merge([
+            'distinct_id' => $userId,
+        ], $properties));
+    }
+    public function alias($newId, $originalId)
+    {
+        // Identify as the anonymous ID first
+        $this->mixpanel->identify($originalId);
+    
+        // Send alias event to associate anonymous with known ID
+        $this->mixpanel->track('$create_alias', [
+            'distinct_id' => $originalId,
+            'alias' => $newId,
+        ]);
+    }
+    
+    
 
 }

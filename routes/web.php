@@ -78,6 +78,7 @@ Route::post('/shopify/webhook/orders', [ShopifyWebhookController::class, 'handle
 
     Route::post('/shopify/webhook/orders/mycolean', [ShopifyWebhookControllerMycolean::class, 'handleOrderWebhook'])
     ->name('shopify.webhook.orders.mycolean');
+    
     Route::get('/shopify/register-webhook', function () {
      
     });
