@@ -4,7 +4,7 @@ namespace App\Services;
 
 use Mixpanel;
 
-class MixpanelService
+class MixpanelServiceMycolean
 {
     protected $mixpanel;
 
