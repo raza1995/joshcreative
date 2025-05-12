@@ -11,7 +11,7 @@ class MixpanelServiceMycolean
 
     public function __construct()
     {
-        $this->mixpanel = Mixpanel::getInstance(env('MIXPANEL_TOKEN'));
+        $this->mixpanel = Mixpanel::getInstance(env('MIXPANEL_TOKEN_MYCOLEAN'));
     }
 
     public function trackEvent($event, $properties)

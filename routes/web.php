@@ -15,6 +15,7 @@ use App\Services\ShopifyService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShopifyWebhookController;
+use App\Http\Controllers\ShopifyWebhookControllerMycolean;
 use App\Services\GmailShopifyInvoiceService;
 
 /*
@@ -75,8 +76,8 @@ Route::post('/shopify/webhook/fulfillment', [ShopifyWebhookController::class, 'h
 Route::post('/shopify/webhook/orders', [ShopifyWebhookController::class, 'handleOrderWebhook'])
     ->name('shopify.webhook.orders');
 
-    Route::post('/shopify/webhook/orders/mycolean', [ShopifyWebhookController::class, 'handleOrderWebhook'])
-    ->name('shopify.webhook.orders');
+    Route::post('/shopify/webhook/orders/mycolean', [ShopifyWebhookControllerMycolean::class, 'handleOrderWebhook'])
+    ->name('shopify.webhook.orders.mycolean');
     Route::get('/shopify/register-webhook', function () {
      
     });
