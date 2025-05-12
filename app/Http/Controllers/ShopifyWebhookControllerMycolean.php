@@ -13,7 +13,7 @@ class ShopifyWebhookControllerMycolean extends Controller
 {
     public function handleOrderWebhook(Request $request, MixpanelServiceMycolean $mixpanelService)
 {
-    Log::info('Shopify Order Webhook Received:', ['body' => $request->all()]);
+    Log::info('Shopify Order Webhook Received MYCOLEAN:', ['body' => $request->all()]);
 
     $orderData = $request->all();
     $customerId = $orderData['customer']['id'] ?? null;
