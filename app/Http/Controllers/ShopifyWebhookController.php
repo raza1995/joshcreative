@@ -184,9 +184,12 @@ class ShopifyWebhookController extends Controller
     
         // Update DB record
         $order->update([
+            'product_name' => $fulfillmentData['title'],
+            'customer_name' => $customerName,
+            'email_address' => $fulfillmentData['email'], 
             'tracking_number' => $trackingNumber,
             'tracking_url' => $trackingUrl,
-            'customer_name' => $customerName,
+
         ]);
     
         // Track event in Mixpanel
