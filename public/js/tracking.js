@@ -209,7 +209,7 @@
     window.addEventListener('beforeunload', sendBeforeUnload);
  
 
-    document.addEventListener('click', function (event) {
+    document.addEventListener('mousedown', function (event) {
         console.log('📋 Click event detected:', event);
         const target = event.target.closest('[aria-label="Add to cart"]');
         console.log('🔍 Target element:', target);
