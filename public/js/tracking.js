@@ -8,28 +8,36 @@
         /YandexBot/i, /Sogou/i, /Exabot/i, /facebot/i, /ia_archiver/i
     ];
     const isBot = botUserAgents.some(botAgent => botAgent.test(navigator.userAgent));
-    if (isBot) return;
+    if (isBot) {
+        console.log('🤖 Bot detected, exiting script');
+        return;
+    }
 
     function getCookie(name) {
+        console.log(`🍪 Getting cookie: ${name}`);
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
         return match ? match[2] : null;
     }
 
     function setCookie(name, value, days = 365) {
+        console.log(`🍪 Setting cookie: ${name} = ${value}`);
         const expires = new Date(Date.now() + days * 864e5).toUTCString();
         document.cookie = `${name}=${value}; path=/; expires=${expires}`;
     }
 
     function getOrCreateAnonId() {
+        console.log('🔍 Getting or creating anon_id');
         let id = getCookie('_anon_id');
         if (!id) {
             id = crypto.randomUUID();
             setCookie('_anon_id', id);
+            console.log(`🆔 Created new anon_id: ${id}`);
         }
         return id;
     }
 
     function getUTMParams() {
+        console.log('🔍 Getting UTM parameters');
         const params = new URLSearchParams(window.location.search);
         return {
             utm_source: params.get('utm_source'),
@@ -41,6 +49,7 @@
     }
 
     function detectPageType() {
+        console.log('🔍 Detecting page type');
         const path = window.location.pathname;
         if (path.includes('/products/')) return 'product';
         if (path.includes('/cart')) return 'cart';
@@ -62,8 +71,7 @@
     const maxRequestsPerMinute = 5;
     const trackingData = [];
     
-
-    // ✅ Immediately sync anon_id to cart attributes
+    console.log('🔄 Syncing anon_id to cart attributes');
     fetch('/cart/update.js', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,9 +81,13 @@
             }
         })
     });
-    setInterval(() => requestCount = 0, 60000);
+    setInterval(() => {
+        console.log('🔄 Resetting request count');
+        requestCount = 0;
+    }, 60000);
 
     function rateLimitedSend(data) {
+        console.log('📤 Attempting to send data with rate limiting');
         if (requestCount < maxRequestsPerMinute) {
             requestCount++;
             sendToBackend(data);
@@ -85,6 +97,7 @@
     }
 
     function sendToBackend(event) {
+        console.log('📤 Sending data to backend');
         const jsonData = JSON.stringify(event);
         if (navigator.sendBeacon) {
             navigator.sendBeacon(API_ENDPOINT, jsonData);
@@ -98,6 +111,7 @@
     }
 
     function trackEvent(eventType, element = null, funnelStage = null) {
+        console.log(`📊 Tracking event: ${eventType}`);
         const now = new Date();
         const event = {
             anon_id: anonId,
@@ -122,6 +136,7 @@
     }
 
     function handleVisibilityChange() {
+        console.log('👁️ Handling visibility change');
         const now = new Date();
         if (document.visibilityState === 'hidden') {
             totalFocusTime += (now - focusStartTime) / 1000;
@@ -133,12 +148,14 @@
     }
 
     function sendBeforeUnload() {
+        console.log('🚪 Sending data before unload');
         const now = new Date();
         totalFocusTime += (now - focusStartTime) / 1000;
         trackEvent('page_exit', null, 'page_view');
     }
 
     function sendStoredData() {
+        console.log('📤 Sending stored data');
         const stored = localStorage.getItem('pageTrackingData');
         if (stored) {
             const events = JSON.parse(stored);
@@ -148,6 +165,7 @@
     }
 
     window.addEventListener('load', () => {
+        console.log('🌐 Page loaded');
         startTime = new Date();
         focusStartTime = new Date();
         sendStoredData();
@@ -155,6 +173,7 @@
 
         // Funnel: View Product
         if (window.location.pathname.includes('/products/')) {
+            console.log('🔍 Viewing product');
             const productTitle = document.querySelector('h1')?.innerText || '';
             const productHandle = Shopify?.product?.handle || window.location.pathname.split('/').pop();
             const productId = Shopify?.product?.id || null;
@@ -174,11 +193,13 @@
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     document.addEventListener('click', function (event) {
+        console.log('🖱️ Click event detected');
         const el = event.target.closest('form[action*="/cart/add"], button[data-add-to-cart], a[href*="/checkout"], button[name="checkout"]');
 
         if (el) {
             // Funnel: Add to Cart
             if (el.matches('form[action*="/cart/add"], button[data-add-to-cart]')) {
+                console.log('🛒 Add to cart event');
                 const productTitle = document.querySelector('h1')?.innerText || '';
                 const quantity = el.querySelector('input[name="quantity"]')?.value || 1;
                 const cartData = {
@@ -190,6 +211,7 @@
 
             // Funnel: Start Checkout
             if (el.matches('a[href*="/checkout"], button[name="checkout"]')) {
+                console.log('💳 Start checkout event');
                 trackEvent('start_checkout', null, 'start_checkout');
             }
         }
@@ -197,11 +219,13 @@
         // Generic click tracking
         const target = event.target.closest('button, a, [data-track]');
         if (target) {
+            console.log('🔍 Generic click tracking');
             trackEvent('click', target.outerHTML, 'click');
         }
     });
 
     document.addEventListener('submit', function (event) {
+        console.log('📤 Form submit event detected');
         const el = event.target;
         if (el.tagName === 'FORM') {
             trackEvent('form_submit', el.action, 'form_submit');
@@ -209,6 +233,7 @@
     });
 
     setInterval(() => {
+        console.log('🔄 Active ping interval');
         const now = new Date();
         totalFocusTime += (now - visibilityChangeTime) / 1000;
         visibilityChangeTime = now;
