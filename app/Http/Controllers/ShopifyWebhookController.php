@@ -150,7 +150,7 @@ class ShopifyWebhookController extends Controller
         
     
         if ($anonId && $customerEmail) {
-            $mixpanelService->alias($customerEmail, $anonId);
+            $mixpanelService->alias( $anonId,$customerEmail);
         }
         // Update user profile
         $mixpanelService->identifyUser($customerId, [
