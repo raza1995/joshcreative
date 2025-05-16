@@ -109,7 +109,7 @@
         document.addEventListener('click', function (event) {
             const target = event.target.closest('button, a, input[type="submit"]');
             if (!target) return;
-    
+            console.log('target',target);
             const rawLabel = (
                 target.innerText ||
                 target.getAttribute('aria-label') ||
