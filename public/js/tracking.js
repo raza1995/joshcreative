@@ -95,7 +95,32 @@
             console.log('⛔ Rate limit exceeded, skipping');
         }
     }
-
+    document.addEventListener('click', function (event) {
+        const target = event.target.closest('button, input[type="submit"]');
+        if (!target) return;
+      
+        const label = target.innerText.toLowerCase().trim();
+      
+        if (label.includes('apply') && document.activeElement?.name === 'reductions') {
+          trackEvent('apply_discount', {}, 'apply_discount');
+          console.log('🎟️ Discount Code Applied');
+        }
+      
+        if (label.includes('continue to shipping')) {
+          trackEvent('continue_to_shipping', {}, 'continue_to_shipping');
+          console.log('🚚 Continue to Shipping');
+        }
+      
+        if (label.includes('continue to payment')) {
+          trackEvent('continue_to_payment', {}, 'continue_to_payment');
+          console.log('💳 Continue to Payment');
+        }
+      });
+      if (window.location.href.includes('/thank_you')) {
+        trackEvent('purchase_complete', {}, 'purchase_complete');
+        console.log('🎉 Purchase Complete');
+      }
+      
     function sendToBackend(event) {
         console.log('📤 Sending data to backend');
         console.log('📊 Event data:', event); // Log the event data
@@ -195,36 +220,52 @@
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     document.addEventListener('click', function (event) {
-        console.log('🖱️ Click event detected');
-        const el = event.target.closest('form[action*="/cart/add"], button[data-add-to-cart], a[href*="/checkout"], button[name="checkout"]');
-
-        if (el) {
-            // Funnel: Add to Cart
-            if (el.matches('form[action*="/cart/add"], button[data-add-to-cart]')) {
-                console.log('🛒 Add to cart event');
-                const productTitle = document.querySelector('h1')?.innerText || '';
-                const quantity = el.querySelector('input[name="quantity"]')?.value || 1;
-                const cartData = {
-                    product_title: productTitle,
-                    quantity: Number(quantity)
-                };
-                trackEvent('add_to_cart', cartData, 'add_to_cart');
-            }
-
-            // Funnel: Start Checkout
-            if (el.matches('a[href*="/checkout"], button[name="checkout"]')) {
-                console.log('💳 Start checkout event');
-                trackEvent('start_checkout', null, 'start_checkout');
-            }
+        const target = event.target.closest('button, a');
+      
+        if (!target) return;
+      
+        // ✅ Detect Add to Cart button by name or class
+        const isATC = (
+          target.getAttribute('name') === 'add' ||
+          target.classList.contains('gp-button-atc') ||
+          target.textContent.toLowerCase().includes('add to cart')
+        );
+      
+        if (isATC) {
+          // Optional: extract product info from DOM (e.g., h1 or data attribute)
+          const productTitle = document.querySelector('h1')?.innerText || '';
+          const productId = Shopify?.product?.id || null;
+          const variantId = Shopify?.product?.variants?.[0]?.id || null;
+          const quantity = document.querySelector('input[name="quantity"]')?.value || 1;
+      
+          const cartData = {
+            product_title: productTitle,
+            product_id: productId,
+            variant_id: variantId,
+            quantity: Number(quantity),
+          };
+      
+          trackEvent('add_to_cart', cartData, 'add_to_cart');
+          console.log('🛒 Add to Cart event tracked:', cartData);
         }
-
-        // Generic click tracking
-        const target = event.target.closest('button, a, [data-track]');
-        if (target) {
-            console.log('🔍 Generic click tracking');
-            trackEvent('click', target.outerHTML, 'click');
+      });
+      document.addEventListener('click', function (event) {
+        const target = event.target.closest('button');
+      
+        if (!target) return;
+      
+        const isCheckout = (
+          target.getAttribute('name') === 'checkout' ||
+          target.classList.contains('cart__checkout') ||
+          target.textContent.toLowerCase().includes('check out')
+        );
+      
+        if (isCheckout) {
+          trackEvent('start_checkout', {}, 'start_checkout');
+          console.log('🚀 Checkout Started Event Tracked');
         }
-    });
+      });
+        
 
     document.addEventListener('submit', function (event) {
         console.log('📤 Form submit event detected');
