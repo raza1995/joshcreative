@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('shopify_event_logs', function (Blueprint $table) {
             $table->id();
             $table->string('anon_id')->nullable()->index();
-            $table->string('event_type');
+            $table->string('event_type')->nullable();
             $table->string('funnel_stage')->nullable();
             $table->text('element')->nullable();
-            $table->string('page_url');
+            $table->string('page_url')->nullable();
             $table->string('page_type')->nullable();
             $table->string('referrer')->nullable();
             $table->timestamp('timestamp')->nullable();
