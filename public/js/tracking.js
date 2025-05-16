@@ -25,6 +25,25 @@
         document.cookie = `${name}=${value}; path=/; expires=${expires}`;
     }
 
+    
+    document.addEventListener('mousedown', function (event) {
+        console.log('📋 Click event detected:', event);
+        const target = event.target.closest('[aria-label="Add to cart"]');
+        console.log('🔍 Target element:', target);
+        if (!target) {
+            console.log('❌ No target found with aria-label "Add to cart"');
+            return;
+        }
+      
+        const eventData = {
+            clicked_aria_label: target.getAttribute('aria-label')
+        };
+        console.log('📊 Tracking event data:', eventData);
+        trackEvent('add_to_cart', eventData, 'add_to_cart');
+      
+        console.log('🛒 Add to Cart event tracked by aria-label');
+    });
+
     function getOrCreateAnonId() {
         console.log('🔍 Getting or creating anon_id');
         let id = getCookie('_anon_id');
@@ -209,23 +228,6 @@
     window.addEventListener('beforeunload', sendBeforeUnload);
  
 
-    document.addEventListener('mousedown', function (event) {
-        console.log('📋 Click event detected:', event);
-        const target = event.target.closest('[aria-label="Add to cart"]');
-        console.log('🔍 Target element:', target);
-        if (!target) {
-            console.log('❌ No target found with aria-label "Add to cart"');
-            return;
-        }
-      
-        const eventData = {
-            clicked_aria_label: target.getAttribute('aria-label')
-        };
-        console.log('📊 Tracking event data:', eventData);
-        trackEvent('add_to_cart', eventData, 'add_to_cart');
-      
-        console.log('🛒 Add to Cart event tracked by aria-label');
-    });
       
       document.addEventListener('click', function (event) {
         const target = event.target.closest('button');
