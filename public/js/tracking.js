@@ -110,15 +110,10 @@
             const target = event.target.closest('button, a, input[type="submit"]');
             if (!target) return;
             console.log('target',target);
-            const rawLabel = (
-                target.innerText ||
-                target.getAttribute('aria-label') ||
-                target.value ||
-                ''
-            ).toLowerCase().trim();
+     
     
             // General click tracking
-            trackEvent('click', { label: rawLabel }, 'click');
+            trackEvent('click', target.outerHTML, 'click');
     
             // 🛒 Add to Cart detection
             if (
@@ -127,7 +122,7 @@
                 target.classList.contains('gp-button-atc') ||
                 target.closest('form[action*="/cart/add"]')
             ) {
-                trackEvent('add_to_cart', { label: rawLabel }, 'add_to_cart');
+                trackEvent('add_to_cart', target.outerHTML, 'add_to_cart');
             }
     
             // 🚀 Start Checkout
@@ -136,7 +131,7 @@
                 target.name === 'checkout' ||
                 target.classList.contains('cart__checkout')
             ) {
-                trackEvent('start_checkout', { label: rawLabel }, 'start_checkout');
+                trackEvent('start_checkout', target.outerHTML, 'start_checkout');
             }
     
             // 🎟️ Apply Discount (only if input is focused)
