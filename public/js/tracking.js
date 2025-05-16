@@ -210,7 +210,7 @@
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     document.addEventListener('click', function (event) {
-        const target = event.target.closest('button[aria-label="Add to cart"], a[aria-label="Add to cart"]');
+        const target = event.target.closest('[aria-label="Add to cart"]');
         if (!target) return;
       
         trackEvent('add_to_cart', {
