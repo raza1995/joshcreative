@@ -105,39 +105,60 @@
     }
 
     function registerEventListeners() {
-        document.addEventListener('mousedown', function (event) {
-            const target = event.target.closest('[aria-label="Add to cart"]');
-            if (target) {
-                const data = { clicked_aria_label: target.getAttribute('aria-label') };
-                trackEvent('add_to_cart', data, 'add_to_cart');
+        document.addEventListener('click', e => {
+            const el = e.target.closest('button,a');
+            if (!el) return;
+      
+            const rawLabel = (el.innerText || el.getAttribute('aria-label') || '')
+                               .trim()
+                               .toLowerCase();
+      
+            /* Generic click (good for heat-map / UX) */
+            trackEvent('click', { label: rawLabel }, 'click');
+      
+            /* 🛒 Add-to-cart detection (3 heuristics) */
+            if (
+              rawLabel.includes('add to cart') ||
+              el.name === 'add' ||
+              el.closest('form[action*="/cart/add"]')
+            ) {
+              trackEvent('add_to_cart', { label: rawLabel }, 'add_to_cart');
             }
-        });
-
-        document.addEventListener('click', function (event) {
-            const target = event.target.closest('button, input[type="submit"]');
-            if (!target) return;
-
-            const label = target.innerText.toLowerCase().trim();
-
-            if (label.includes('apply') && document.activeElement?.name === 'reductions') {
-                trackEvent('apply_discount', {}, 'apply_discount');
-            } else if (label.includes('continue to shipping')) {
-                trackEvent('continue_to_shipping', {}, 'continue_to_shipping');
-            } else if (label.includes('continue to payment')) {
-                trackEvent('continue_to_payment', {}, 'continue_to_payment');
-            } else if (target.getAttribute('name') === 'checkout' ||
-                       target.classList.contains('cart__checkout') ||
-                       label.includes('check out')) {
-                trackEvent('start_checkout', {}, 'start_checkout');
+      
+            /* 🚀 Checkout start (cart page button) */
+            if (
+              rawLabel.includes('check out') ||
+              el.name === 'checkout' ||
+              el.classList.contains('cart__checkout')
+            ) {
+              trackEvent('start_checkout', { label: rawLabel }, 'start_checkout');
             }
-        });
-
-        document.addEventListener('submit', function (event) {
-            const form = event.target;
-            if (form.tagName === 'FORM') {
-                trackEvent('form_submit', form.action, 'form_submit');
+      
+            /* 🎟️ Discount apply (checkout page—Plus only) */
+            if (rawLabel === 'apply' && document.activeElement?.name === 'reductions') {
+              trackEvent('apply_discount', {}, 'apply_discount');
             }
-        });
+      
+            /* 🚚 / 💳 steps only work on Shopify Plus themes where script is allowed */
+            if (rawLabel.includes('continue to shipping')) {
+              trackEvent('continue_to_shipping', {}, 'continue_to_shipping');
+            }
+            if (rawLabel.includes('continue to payment')) {
+              trackEvent('continue_to_payment', {}, 'continue_to_payment');
+            }
+          });
+      
+          /* 📌 2. AJAX add-to-cart fallback: watch any fetch/XHR to /cart/add.js */
+          const origFetch = window.fetch;
+          window.fetch = function (...args) {
+            const [url] = args;
+            if (typeof url === 'string' && url.includes('/cart/add')) {
+              trackEvent('add_to_cart', { source: 'ajax' }, 'add_to_cart');
+            }
+            return origFetch.apply(this, args);
+          };
+
+      
 
         setInterval(() => {
             const now = new Date();
