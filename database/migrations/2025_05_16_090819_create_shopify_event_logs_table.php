@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('event_type')->nullable();
             $table->string('funnel_stage')->nullable();
             $table->text('element')->nullable();
-            $table->string('page_url')->nullable();
+            $table->text('page_url')->nullable();
             $table->string('page_type')->nullable();
             $table->string('referrer')->nullable();
             $table->timestamp('timestamp')->nullable();
