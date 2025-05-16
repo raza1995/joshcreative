@@ -17,7 +17,7 @@ class AnalyticsController extends Controller
             $data = json_decode($raw, true);
         }
     
-        \Log::info('📥 Event Payload:', $data);
+       
     
         if (empty($data['anon_id'])) {
             return response()->json(['error' => 'Missing anon_id'], 422);
