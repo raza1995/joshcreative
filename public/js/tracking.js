@@ -211,6 +211,7 @@
 
     document.addEventListener('click', function (event) {
         const target = event.target.closest('[aria-label="Add to cart"]');
+        console.log(target);
         if (!target) return;
       
         trackEvent('add_to_cart', {
