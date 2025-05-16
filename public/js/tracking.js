@@ -60,7 +60,7 @@
     function trackEvent(eventType, element = null, funnelStage = null) {
         const now = new Date();
         const event = {
-            anon_id,
+            anon_id: anonId,
             event_type: eventType,
             funnel_stage: funnelStage,
             element: element || null,
