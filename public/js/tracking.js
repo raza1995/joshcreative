@@ -162,17 +162,7 @@
         rateLimitedSend(event);
     }
 
-    function handleVisibilityChange() {
-        console.log('👁️ Handling visibility change');
-        const now = new Date();
-        if (document.visibilityState === 'hidden') {
-            totalFocusTime += (now - focusStartTime) / 1000;
-            trackEvent('page_hidden', null, 'page_view');
-        } else if (document.visibilityState === 'visible') {
-            focusStartTime = new Date();
-        }
-        visibilityChangeTime = now;
-    }
+ 
 
     function sendBeforeUnload() {
         console.log('🚪 Sending data before unload');
