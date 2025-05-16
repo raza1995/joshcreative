@@ -50,9 +50,7 @@ class ShopifyWebhookController extends Controller
         } elseif ($totalSpend >= 1000) {
             $mixpanelService->trackUserEvent($customerId, 'LTV Milestone: $1000+', ['LTV' => $totalSpend]);
         }
-        if ($anonId && $customerEmail) {
-            $mixpanelService->alias($customerEmail, $anonId);
-        }
+      
         // Save each product and trigger event
         foreach ($orderData['line_items'] as $item) {
             ShopifyOrder::updateOrCreate(
@@ -151,7 +149,9 @@ class ShopifyWebhookController extends Controller
         ]);
         
     
-        
+        if ($anonId && $customerEmail) {
+            $mixpanelService->alias($customerEmail, $anonId);
+        }
         // Update user profile
         $mixpanelService->identifyUser($customerId, [
             'name' => $customerName,
