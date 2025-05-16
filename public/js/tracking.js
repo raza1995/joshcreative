@@ -129,13 +129,17 @@
             trackEvent('click', outerHTML, 'click');
         
             // 🛒 Add to Cart detection
-            if (
+            const isAddToCart = (
                 rawLabel.includes('add to cart') ||
+                target.getAttribute('aria-label')?.toLowerCase().includes('add to cart') ||
                 target.name === 'add' ||
                 target.classList.contains('gp-button-atc') ||
                 target.closest('form[action*="/cart/add"]')
-            ) {
+            );
+        
+            if (isAddToCart) {
                 trackEvent('add_to_cart', outerHTML, 'add_to_cart');
+                console.log('🛒 Add to Cart captured');
             }
         
             // 🚀 Checkout
