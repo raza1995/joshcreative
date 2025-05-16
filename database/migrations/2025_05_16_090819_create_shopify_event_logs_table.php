@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('shopify_event_logs', function (Blueprint $table) {
             $table->id();
-            $table->string('anon_id')->index();
+            $table->string('anon_id')->nullable()->index();
             $table->string('event_type');
             $table->string('funnel_stage')->nullable();
             $table->text('element')->nullable();
