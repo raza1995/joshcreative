@@ -19,7 +19,7 @@ return new class extends Migration
             $table->text('element')->nullable();
             $table->text('page_url')->nullable();
             $table->string('page_type')->nullable();
-            $table->string('referrer')->nullable();
+            $table->text('referrer')->nullable();
             $table->timestamp('timestamp')->nullable();
             $table->float('focus_time')->nullable();
             $table->json('utm')->nullable();
