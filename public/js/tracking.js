@@ -117,67 +117,47 @@
     }
     
     function registerEventListeners() {
-        // ✅ Generic Click Tracking on buttons & links
-        document.addEventListener('click', function (event) {
-            const target = event.target.closest('button, a, input[type="submit"]');
-            if (!target) return;
-        
-            const rawLabel = extractButtonLabel(target);
-            const outerHTML = target.outerHTML;
-        
-            // General click tracking
-            trackEvent('click', outerHTML, 'click');
-        
-            // 🛒 Add to Cart detection
-            const isAddToCart = (
-                rawLabel.includes('add to cart') ||
-                target.getAttribute('aria-label')?.toLowerCase().includes('add to cart') ||
-                target.name === 'add' ||
-                target.classList.contains('gp-button-atc') ||
-                target.closest('form[action*="/cart/add"]')
-            );
-        
-            if (isAddToCart) {
-                trackEvent('add_to_cart', outerHTML, 'add_to_cart');
-                console.log('🛒 Add to Cart captured');
+        // ✅ Funnel Tracking by URL
+        const url = window.location.href;
+        const pathname = window.location.pathname;
+    
+        window.addEventListener('load', () => {
+            startTime = new Date();
+            focusStartTime = new Date();
+            sendStoredData();
+    
+            // Always track page view
+            trackEvent('page_view', null, 'page_view');
+    
+            // 🟢 Funnel logic by URL path
+            if (pathname.includes('/products/')) {
+                const productTitle = document.querySelector('h1')?.innerText || '';
+                const productHandle = Shopify?.product?.handle || pathname.split('/').pop();
+                const productId = Shopify?.product?.id || null;
+                const price = Shopify?.product?.variants?.[0]?.price / 100 || null;
+    
+                trackEvent('view_product', {
+                    product_title: productTitle,
+                    product_handle: productHandle,
+                    product_id: productId,
+                    price
+                }, 'view_product');
             }
-        
-            // 🚀 Checkout
-            if (
-                rawLabel.includes('check out') ||
-                target.name === 'checkout' ||
-                target.classList.contains('cart__checkout')
-            ) {
-                trackEvent('start_checkout', outerHTML, 'start_checkout');
+    
+            if (pathname.includes('/cart')) {
+                trackEvent('add_to_cart', { page: 'cart' }, 'add_to_cart');
             }
-        
-            // 🎟️ Discount
-            if (rawLabel === 'apply' && document.activeElement?.name === 'reductions') {
-                trackEvent('apply_discount', outerHTML, 'apply_discount');
+    
+            if (pathname.includes('/checkout')) {
+                trackEvent('start_checkout', { page: 'checkout' }, 'start_checkout');
             }
-        
-            // 🚚 Shipping
-            if (rawLabel.includes('continue to shipping')) {
-                trackEvent('continue_to_shipping', outerHTML, 'continue_to_shipping');
-            }
-        
-            // 💳 Payment
-            if (rawLabel.includes('continue to payment')) {
-                trackEvent('continue_to_payment', outerHTML, 'continue_to_payment');
+    
+            if (pathname.includes('/thank_you')) {
+                trackEvent('purchase_complete', { page: 'thank_you' }, 'purchase_complete');
             }
         });
     
-        // ✅ AJAX Add to Cart detection (drawer or popup adds)
-        const originalFetch = window.fetch;
-        window.fetch = function (...args) {
-            const [url] = args;
-            if (typeof url === 'string' && url.includes('/cart/add')) {
-                trackEvent('add_to_cart', { source: 'ajax' }, 'add_to_cart');
-            }
-            return originalFetch.apply(this, args);
-        };
-    
-        // ✅ Handle visibility & unload events
+        // ✅ Visibility & unload tracking
         window.addEventListener('beforeunload', () => {
             const now = new Date();
             totalFocusTime += (now - focusStartTime) / 1000;
@@ -203,28 +183,6 @@
             trackEvent('active_ping', null, 'page_view');
             trackingData.length = 0;
         }, 60000);
-    
-        // ✅ On page load
-        window.addEventListener('load', () => {
-            startTime = new Date();
-            focusStartTime = new Date();
-            sendStoredData();
-            trackEvent('page_view', null, 'page_view');
-    
-            if (pageType === 'product') {
-                const productTitle = document.querySelector('h1')?.innerText || '';
-                const productHandle = Shopify?.product?.handle || window.location.pathname.split('/').pop();
-                const productId = Shopify?.product?.id || null;
-                const price = Shopify?.product?.variants?.[0]?.price / 100 || null;
-    
-                trackEvent('view_product', {
-                    product_title: productTitle,
-                    product_handle: productHandle,
-                    product_id: productId,
-                    price
-                }, 'view_product');
-            }
-        });
     }
     
 
