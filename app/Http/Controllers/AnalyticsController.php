@@ -24,7 +24,10 @@ class AnalyticsController extends Controller
         }
     
         $data['platform'] = 'shopify';
-    
+        $data['utm'] = json_encode($data['utm'] ?? []);
+        $data['screen'] = json_encode($data['screen'] ?? []);
+        $data['element'] = is_array($data['element']) ? json_encode($data['element']) : $data['element'];
+        
         $event = ShopifyEventLog::create($data);
     
         if (!empty($data['funnel_stage'])) {
