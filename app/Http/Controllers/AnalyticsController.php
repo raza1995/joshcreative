@@ -9,16 +9,29 @@ class AnalyticsController extends Controller
 {
     public function track(Request $request)
     {
+        // Fallback for sendBeacon text/plain
         $data = $request->all();
-        \Log::info('Request Data:', $data); // Log the request data
+    
+        if (empty($data)) {
+            $raw = $request->getContent();
+            $data = json_decode($raw, true);
+        }
+    
+        \Log::info('📥 Event Payload:', $data);
+    
+        if (empty($data['anon_id'])) {
+            return response()->json(['error' => 'Missing anon_id'], 422);
+        }
+    
         $data['platform'] = 'shopify';
+    
         $event = ShopifyEventLog::create($data);
-
-        // Forward to Mixpanel only if it's a funnel_stage
+    
         if (!empty($data['funnel_stage'])) {
             (new MixpanelService())->track($data['anon_id'], $data['event_type'], $data);
         }
-
+    
         return response()->json(['success' => true]);
     }
+    
 }
