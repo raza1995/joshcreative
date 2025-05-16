@@ -164,23 +164,14 @@
             trackEvent('page_exit', null, 'page_view');
         });
     
-        document.addEventListener('visibilitychange', () => {
-            const now = new Date();
-            if (document.visibilityState === 'hidden') {
-                totalFocusTime += (now - focusStartTime) / 1000;
-                trackEvent('page_hidden', null, 'page_view');
-            } else {
-                focusStartTime = new Date();
-            }
-            visibilityChangeTime = now;
-        });
+   
     
         // ✅ Auto ping every 60s for session tracking
         setInterval(() => {
             const now = new Date();
             totalFocusTime += (now - visibilityChangeTime) / 1000;
             visibilityChangeTime = now;
-            trackEvent('active_ping', null, 'page_view');
+            // trackEvent('active_ping', null, 'page_view');
             trackingData.length = 0;
         }, 60000);
     }
