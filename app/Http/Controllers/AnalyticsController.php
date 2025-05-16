@@ -10,6 +10,7 @@ class AnalyticsController extends Controller
     public function track(Request $request)
     {
         $data = $request->all();
+        \Log::info('Request Data:', $data); // Log the request data
         $data['platform'] = 'shopify';
         $event = ShopifyEventLog::create($data);
 
