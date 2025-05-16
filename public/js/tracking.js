@@ -105,61 +105,84 @@
     }
 
     function registerEventListeners() {
-        document.addEventListener('click', e => {
-            const el = e.target.closest('button,a');
-            if (!el) return;
-      
-            const rawLabel = (el.innerText || el.getAttribute('aria-label') || '')
-                               .trim()
-                               .toLowerCase();
-      
-            /* Generic click (good for heat-map / UX) */
+        // ✅ Generic Click Tracking on buttons & links
+        document.addEventListener('click', function (event) {
+            const target = event.target.closest('button, a, input[type="submit"]');
+            if (!target) return;
+    
+            const rawLabel = (
+                target.innerText ||
+                target.getAttribute('aria-label') ||
+                target.value ||
+                ''
+            ).toLowerCase().trim();
+    
+            // General click tracking
             trackEvent('click', { label: rawLabel }, 'click');
-      
-            /* 🛒 Add-to-cart detection (3 heuristics) */
+    
+            // 🛒 Add to Cart detection
             if (
-              rawLabel.includes('add to cart') ||
-              el.name === 'add' ||
-              el.closest('form[action*="/cart/add"]')
+                rawLabel.includes('add to cart') ||
+                target.name === 'add' ||
+                target.classList.contains('gp-button-atc') ||
+                target.closest('form[action*="/cart/add"]')
             ) {
-              trackEvent('add_to_cart', { label: rawLabel }, 'add_to_cart');
+                trackEvent('add_to_cart', { label: rawLabel }, 'add_to_cart');
             }
-      
-            /* 🚀 Checkout start (cart page button) */
+    
+            // 🚀 Start Checkout
             if (
-              rawLabel.includes('check out') ||
-              el.name === 'checkout' ||
-              el.classList.contains('cart__checkout')
+                rawLabel.includes('check out') ||
+                target.name === 'checkout' ||
+                target.classList.contains('cart__checkout')
             ) {
-              trackEvent('start_checkout', { label: rawLabel }, 'start_checkout');
+                trackEvent('start_checkout', { label: rawLabel }, 'start_checkout');
             }
-      
-            /* 🎟️ Discount apply (checkout page—Plus only) */
+    
+            // 🎟️ Apply Discount (only if input is focused)
             if (rawLabel === 'apply' && document.activeElement?.name === 'reductions') {
-              trackEvent('apply_discount', {}, 'apply_discount');
+                trackEvent('apply_discount', {}, 'apply_discount');
             }
-      
-            /* 🚚 / 💳 steps only work on Shopify Plus themes where script is allowed */
+    
+            // 🚚 Shipping / 💳 Payment steps
             if (rawLabel.includes('continue to shipping')) {
-              trackEvent('continue_to_shipping', {}, 'continue_to_shipping');
+                trackEvent('continue_to_shipping', {}, 'continue_to_shipping');
             }
+    
             if (rawLabel.includes('continue to payment')) {
-              trackEvent('continue_to_payment', {}, 'continue_to_payment');
+                trackEvent('continue_to_payment', {}, 'continue_to_payment');
             }
-          });
-      
-          /* 📌 2. AJAX add-to-cart fallback: watch any fetch/XHR to /cart/add.js */
-          const origFetch = window.fetch;
-          window.fetch = function (...args) {
+        });
+    
+        // ✅ AJAX Add to Cart detection (drawer or popup adds)
+        const originalFetch = window.fetch;
+        window.fetch = function (...args) {
             const [url] = args;
             if (typeof url === 'string' && url.includes('/cart/add')) {
-              trackEvent('add_to_cart', { source: 'ajax' }, 'add_to_cart');
+                trackEvent('add_to_cart', { source: 'ajax' }, 'add_to_cart');
             }
-            return origFetch.apply(this, args);
-          };
-
-      
-
+            return originalFetch.apply(this, args);
+        };
+    
+        // ✅ Handle visibility & unload events
+        window.addEventListener('beforeunload', () => {
+            const now = new Date();
+            totalFocusTime += (now - focusStartTime) / 1000;
+            trackEvent('page_exit', null, 'page_view');
+        });
+    
+        document.addEventListener('visibilitychange', () => {
+            const now = new Date();
+            if (document.visibilityState === 'hidden') {
+                totalFocusTime += (now - focusStartTime) / 1000;
+                trackEvent('page_hidden', null, 'page_view');
+            } else {
+                focusStartTime = new Date();
+            }
+            visibilityChangeTime = now;
+        });
+    
+        // ✅ Auto ping every 60s for session tracking
         setInterval(() => {
             const now = new Date();
             totalFocusTime += (now - visibilityChangeTime) / 1000;
@@ -167,39 +190,30 @@
             trackEvent('active_ping', null, 'page_view');
             trackingData.length = 0;
         }, 60000);
-
+    
+        // ✅ On page load
         window.addEventListener('load', () => {
             startTime = new Date();
             focusStartTime = new Date();
             sendStoredData();
             trackEvent('page_view', null, 'page_view');
-
+    
             if (pageType === 'product') {
                 const productTitle = document.querySelector('h1')?.innerText || '';
                 const productHandle = Shopify?.product?.handle || window.location.pathname.split('/').pop();
                 const productId = Shopify?.product?.id || null;
                 const price = Shopify?.product?.variants?.[0]?.price / 100 || null;
-                trackEvent('view_product', { product_title: productTitle, product_handle: productHandle, product_id: productId, price }, 'view_product');
+    
+                trackEvent('view_product', {
+                    product_title: productTitle,
+                    product_handle: productHandle,
+                    product_id: productId,
+                    price
+                }, 'view_product');
             }
-        });
-
-        window.addEventListener('beforeunload', () => {
-            const now = new Date();
-            totalFocusTime += (now - focusStartTime) / 1000;
-            trackEvent('page_exit', null, 'page_view');
-        });
-
-        document.addEventListener('visibilitychange', () => {
-            const now = new Date();
-            if (document.visibilityState === 'hidden') {
-                totalFocusTime += (now - focusStartTime) / 1000;
-                trackEvent('page_hidden', null, 'page_view');
-            } else if (document.visibilityState === 'visible') {
-                focusStartTime = new Date();
-            }
-            visibilityChangeTime = now;
         });
     }
+    
 
     // ---------- Init State ----------
     const anonId = getOrCreateAnonId();
