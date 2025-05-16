@@ -210,16 +210,22 @@
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     document.addEventListener('click', function (event) {
+        console.log('📋 Click event detected:', event);
         const target = event.target.closest('[aria-label="Add to cart"]');
-        console.log(target);
-        if (!target) return;
+        console.log('🔍 Target element:', target);
+        if (!target) {
+            console.log('❌ No target found with aria-label "Add to cart"');
+            return;
+        }
       
-        trackEvent('add_to_cart', {
-          clicked_aria_label: target.getAttribute('aria-label')
-        }, 'add_to_cart');
+        const eventData = {
+            clicked_aria_label: target.getAttribute('aria-label')
+        };
+        console.log('📊 Tracking event data:', eventData);
+        trackEvent('add_to_cart', eventData, 'add_to_cart');
       
         console.log('🛒 Add to Cart event tracked by aria-label');
-      });
+    });
       
       document.addEventListener('click', function (event) {
         const target = event.target.closest('button');
