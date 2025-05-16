@@ -103,23 +103,31 @@
             localStorage.removeItem('pageTrackingData');
         }
     }
-
+    function extractButtonLabel(target) {
+        const aria = target.getAttribute('aria-label');
+        if (aria) return aria.toLowerCase().trim();
+    
+        const span = target.querySelector('span');
+        if (span?.innerText) return span.innerText.toLowerCase().trim();
+    
+        if (target.innerText) return target.innerText.toLowerCase().trim();
+        if (target.value) return target.value.toLowerCase().trim();
+    
+        return '';
+    }
+    
     function registerEventListeners() {
         // ✅ Generic Click Tracking on buttons & links
         document.addEventListener('click', function (event) {
             const target = event.target.closest('button, a, input[type="submit"]');
             if (!target) return;
-            console.log('target',target);
-            const rawLabel = (
-                target.innerText ||
-                target.getAttribute('aria-label') ||
-                target.value ||
-                ''
-            ).toLowerCase().trim();
-    
+        
+            const rawLabel = extractButtonLabel(target);
+            const outerHTML = target.outerHTML;
+        
             // General click tracking
-            trackEvent('click', { label: rawLabel }, 'click');
-    
+            trackEvent('click', outerHTML, 'click');
+        
             // 🛒 Add to Cart detection
             if (
                 rawLabel.includes('add to cart') ||
@@ -127,30 +135,31 @@
                 target.classList.contains('gp-button-atc') ||
                 target.closest('form[action*="/cart/add"]')
             ) {
-                trackEvent('add_to_cart', { label: rawLabel }, 'add_to_cart');
+                trackEvent('add_to_cart', outerHTML, 'add_to_cart');
             }
-    
-            // 🚀 Start Checkout
+        
+            // 🚀 Checkout
             if (
                 rawLabel.includes('check out') ||
                 target.name === 'checkout' ||
                 target.classList.contains('cart__checkout')
             ) {
-                trackEvent('start_checkout', { label: rawLabel }, 'start_checkout');
+                trackEvent('start_checkout', outerHTML, 'start_checkout');
             }
-    
-            // 🎟️ Apply Discount (only if input is focused)
+        
+            // 🎟️ Discount
             if (rawLabel === 'apply' && document.activeElement?.name === 'reductions') {
-                trackEvent('apply_discount', {}, 'apply_discount');
+                trackEvent('apply_discount', outerHTML, 'apply_discount');
             }
-    
-            // 🚚 Shipping / 💳 Payment steps
+        
+            // 🚚 Shipping
             if (rawLabel.includes('continue to shipping')) {
-                trackEvent('continue_to_shipping', {}, 'continue_to_shipping');
+                trackEvent('continue_to_shipping', outerHTML, 'continue_to_shipping');
             }
-    
+        
+            // 💳 Payment
             if (rawLabel.includes('continue to payment')) {
-                trackEvent('continue_to_payment', {}, 'continue_to_payment');
+                trackEvent('continue_to_payment', outerHTML, 'continue_to_payment');
             }
         });
     
