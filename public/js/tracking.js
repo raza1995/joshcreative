@@ -207,7 +207,7 @@
     });
 
     window.addEventListener('beforeunload', sendBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+ 
 
     document.addEventListener('click', function (event) {
         console.log('📋 Click event detected:', event);
