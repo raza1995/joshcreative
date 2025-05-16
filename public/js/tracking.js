@@ -129,11 +129,11 @@
         if (navigator.sendBeacon) {
             navigator.sendBeacon(API_ENDPOINT, jsonData);
         } else {
-            fetch(API_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: jsonData
-            }).catch(console.error);
+            // fetch(API_ENDPOINT, {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: jsonData
+            // }).catch(console.error);
         }
     }
 
