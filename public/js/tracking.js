@@ -98,6 +98,7 @@
 
     function sendToBackend(event) {
         console.log('📤 Sending data to backend');
+        console.log('📊 Event data:', event); // Log the event data
         const jsonData = JSON.stringify(event);
         if (navigator.sendBeacon) {
             navigator.sendBeacon(API_ENDPOINT, jsonData);
