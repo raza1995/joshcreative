@@ -51,6 +51,22 @@ class MixpanelService
         ]);
     }
     
-    
+    public function track($distinctId, $event, array $properties = [])
+    {
+        $props = [
+            'funnel_stage' => $properties['funnel_stage'] ?? null,
+            'page_url' => $properties['page_url'] ?? null,
+            'page_type' => $properties['page_type'] ?? null,
+            'referrer' => $properties['referrer'] ?? null,
+            'utm_source' => $properties['utm']['utm_source'] ?? null,
+            'utm_medium' => $properties['utm']['utm_medium'] ?? null,
+            'utm_campaign' => $properties['utm']['utm_campaign'] ?? null,
+            'screen_width' => $properties['screen']['width'] ?? null,
+            'screen_height' => $properties['screen']['height'] ?? null,
+            'platform' => $properties['platform'] ?? 'shopify',
+        ];
+        $props['distinct_id'] = $distinctId;
+        $this->mixpanel->track($event, $props);
+    }
 
 }

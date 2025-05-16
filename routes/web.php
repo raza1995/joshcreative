@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdsController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailDraftController;
 use App\Http\Controllers\ExcludedIpController;
 use App\Http\Controllers\GmailWebhookController;
@@ -83,6 +84,10 @@ Route::post('/shopify/webhook/orders', [ShopifyWebhookController::class, 'handle
      
     });
 Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard/sales', [DashboardController::class, 'index']);
+    Route::get('/dashboard/filter', [DashboardController::class, 'filter'])->name('dashboard.filter');
+    Route::get('/dashboard/profit', [DashboardController::class, 'profit'])->name('dashboard.profit');
+
     Route::get('sales', [SalesController::class, 'index'])->name('sales');
     Route::post('/upload-sales-data', [SalesController::class, 'uploadSalesData'])->name('upload-sales-data');
     Route::get('/dashboard', [SalesController::class, 'rev'])->name('dashboard');

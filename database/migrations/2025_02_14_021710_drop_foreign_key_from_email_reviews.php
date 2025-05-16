@@ -9,7 +9,7 @@ return new class extends Migration {
     {
         // Drop foreign key from email_reviews
         Schema::table('email_reviews', function (Blueprint $table) {
-            $table->dropForeign(['draft_id']);
+            // $table->dropForeign(['draft_id']);
         });
 
         // Now you can truncate the email_drafts table safely

@@ -9,7 +9,7 @@ return new class extends Migration {
     {
         Schema::table('manual_reviews', function (Blueprint $table) {
             // Drop the foreign key constraint
-            $table->dropForeign(['assigned_to']);
+            // $table->dropForeign(['assigned_to']);
         });
     }
 

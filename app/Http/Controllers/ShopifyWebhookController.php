@@ -15,6 +15,17 @@ class ShopifyWebhookController extends Controller
         Log::info('Shopify Order Webhook Received:', ['body' => $request->all()]);
     
         $orderData = $request->all();
+        $anonId = $orderData['attributes']['_anon_id'] ?? null;
+
+
+        if (!$anonId && isset($orderData['note_attributes'])) {
+            foreach ($orderData['note_attributes'] as $attr) {
+                if ($attr['name'] === '_anon_id') {
+                    $anonId = $attr['value'];
+                    break;
+                }
+            }
+        }
         $customerId = $orderData['customer']['id'] ?? null;
         $customerEmail = $orderData['email'] ?? null;
         $customerName = trim(($orderData['customer']['first_name'] ?? '') . ' ' . ($orderData['customer']['last_name'] ?? ''));
@@ -39,7 +50,9 @@ class ShopifyWebhookController extends Controller
         } elseif ($totalSpend >= 1000) {
             $mixpanelService->trackUserEvent($customerId, 'LTV Milestone: $1000+', ['LTV' => $totalSpend]);
         }
-        
+        if ($anonId && $customerEmail) {
+            $mixpanelService->alias($customerEmail, $anonId);
+        }
         // Save each product and trigger event
         foreach ($orderData['line_items'] as $item) {
             ShopifyOrder::updateOrCreate(

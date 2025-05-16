@@ -13,15 +13,17 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+
+        $schedule->command('shopify:fetch-orders-mycolean')->everySixHours();
         // $schedule->command('inspire')->hourly();
-        $schedule->command('cache:refresh-analytics')->everyThreeHours();
+        // $schedule->command('cache:refresh-analytics')->everyThreeHours();
         // $schedule->command('gmail:process-emails-updated')->everyThreeHours();
         // $schedule->command('php artisan gmail:process-emails-updated')->cron(expression: '0 */3 * * *')->withoutOverlapping();
-        $schedule->command('gmail:process-emails-updated')->hourly();
-        $schedule->command('gmail:check-invoices')->everyFiveMinutes();
+        // $schedule->command('gmail:process-emails-updated')->hourly();
+        // $schedule->command('gmail:check-invoices')->everyFiveMinutes();
         // $schedule->command('emails:fetch')->everyMinute();
         // $schedule->command('emails:fetch-unread')->everyFiveMinutes();
-        $schedule->command('emails:process')->everyFiveMinutes();
+        // $schedule->command('emails:process')->everyFiveMinutes();
 
 
         // $schedule->call(function () {

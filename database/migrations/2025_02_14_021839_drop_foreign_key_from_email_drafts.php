@@ -10,7 +10,7 @@ return new class extends Migration {
     {
         // Drop the foreign key from email_drafts
         Schema::table('email_drafts', function (Blueprint $table) {
-            $table->dropForeign(['shopify_order_id']);
+            // $table->dropForeign(['shopify_order_id']);
         });
 
         // Truncate the table

@@ -11,7 +11,7 @@ return new class extends Migration {
         // Drop known foreign keys from shopify_orders
         Schema::table('shopify_orders', function (Blueprint $table) {
             // Drop individual foreign keys by their column names
-            $table->dropForeign(['email_draft_id']);
+            // $table->dropForeign(['email_draft_id']);
         });
     }
 
