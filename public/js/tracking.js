@@ -221,34 +221,19 @@
 
     document.addEventListener('click', function (event) {
         const target = event.target.closest('button, a');
-      
         if (!target) return;
       
-        // ✅ Detect Add to Cart button by name or class
-        const isATC = (
-          target.getAttribute('name') === 'add' ||
-          target.classList.contains('gp-button-atc') ||
-          target.textContent.toLowerCase().includes('add to cart')
-        );
+        const label = target.innerText?.toLowerCase().trim();
+        
+        if (label && label.includes('add to cart')) {
+          trackEvent('add_to_cart', {
+            clicked_text: label
+          }, 'add_to_cart');
       
-        if (isATC) {
-          // Optional: extract product info from DOM (e.g., h1 or data attribute)
-          const productTitle = document.querySelector('h1')?.innerText || '';
-          const productId = Shopify?.product?.id || null;
-          const variantId = Shopify?.product?.variants?.[0]?.id || null;
-          const quantity = document.querySelector('input[name="quantity"]')?.value || 1;
-      
-          const cartData = {
-            product_title: productTitle,
-            product_id: productId,
-            variant_id: variantId,
-            quantity: Number(quantity),
-          };
-      
-          trackEvent('add_to_cart', cartData, 'add_to_cart');
-          console.log('🛒 Add to Cart event tracked:', cartData);
+          console.log('🛒 Simplified Add to Cart event tracked');
         }
       });
+      
       document.addEventListener('click', function (event) {
         const target = event.target.closest('button');
       
