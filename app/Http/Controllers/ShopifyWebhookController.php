@@ -150,9 +150,7 @@ class ShopifyWebhookController extends Controller
             'First-Time Buyer' => $isFirstTimeBuyer,
         ]);
         
-        if ($mixpanelId && $mixpanelId !== $customerId) {
-            $mixpanelService->alias($customerId, $mixpanelId);
-        }
+    
         
         // Update user profile
         $mixpanelService->identifyUser($customerId, [
