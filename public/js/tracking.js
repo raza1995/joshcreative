@@ -199,7 +199,7 @@
     const maxRequestsPerMinute = 5;
     const trackingData = [];
 
-    if (window.location.href.includes('/thank_you')) {
+    if (window.location.href.includes('/thank-you')) {
         trackEvent('purchase_complete', {}, 'purchase_complete');
     }
 
