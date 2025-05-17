@@ -77,8 +77,7 @@
             user_agent: navigator.userAgent,
             $device_id: anonId,
             $user_id: window.__mp_user_id || undefined,
-            distinct_id: window.__mp_user_id || anonId
-
+            distinct_id: userId || anonId,
         };
         trackingData.push(event);
         localStorage.setItem('pageTrackingData', JSON.stringify(trackingData));
@@ -192,6 +191,8 @@
     // ---------- Init State ----------
     const anonId = getOrCreateAnonId();
     const pageUrl = window.location.href;
+    const userId = window.__mp_user_id || null;
+
     const utmData = getUTMParams();
     const pageType = detectPageType();
     const referrer = document.referrer;
