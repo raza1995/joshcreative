@@ -46,9 +46,9 @@ class ShopifyWebhookController extends Controller
         $currentOrderAmount = (float) $orderData['total_price'];
         $totalSpend = ShopifyOrder::where('email_address', $customerEmail)->sum('paid_amount') + $currentOrderAmount;
         if ($totalSpend >= 500 && $totalSpend < 1000) {
-            $mixpanelService->trackUserEvent($customerId, 'LTV Milestone: $500+', ['LTV' => $totalSpend]);
+            $mixpanelService->trackUserEvent($customerEmail, 'LTV Milestone: $500+', ['LTV' => $totalSpend]);
         } elseif ($totalSpend >= 1000) {
-            $mixpanelService->trackUserEvent($customerId, 'LTV Milestone: $1000+', ['LTV' => $totalSpend]);
+            $mixpanelService->trackUserEvent($customerEmail, 'LTV Milestone: $1000+', ['LTV' => $totalSpend]);
         }
       
         // Save each product and trigger event
@@ -70,7 +70,7 @@ class ShopifyWebhookController extends Controller
             );
     
             // Track per product
-            $mixpanelService->trackUserEvent($customerId, 'Product Purchased', [
+            $mixpanelService->trackUserEvent($customerEmail, 'Product Purchased', [
                 'Product ID' => $item['product_id'],
                 'Variant ID' => $item['variant_id'],
                 'Product Title' => $item['title'],
@@ -150,19 +150,22 @@ class ShopifyWebhookController extends Controller
         
     
         if ($anonId && $customerEmail) {
-            $mixpanelService->alias( $anonId,$customerEmail);
+            // First alias anonymous ID to email
+            $mixpanelService->alias($anonId, $customerEmail);
+        
+            // Then identify using the email
+            $mixpanelService->identifyUser($customerEmail, [
+                'name' => $customerName,
+                'email' => $customerEmail,
+                'First-Time Buyer' => $isFirstTimeBuyer,
+                'Total Orders' => $previousOrders + 1,
+                'Total Spend' => $totalSpend,
+                'Last Order Date' => $createdAt,
+                'Used Discount' => $usedDiscount,
+                'Discount Code' => $couponCode ?? 'None',
+            ]);
         }
-        // Update user profile
-        $mixpanelService->identifyUser($customerId, [
-            'name' => $customerName,
-            'email' => $customerEmail,
-            'First-Time Buyer' => $isFirstTimeBuyer,
-            'Total Orders' => $previousOrders + 1,
-            'Total Spend' => $totalSpend,
-            'Last Order Date' => $createdAt,
-            'Used Discount' => $usedDiscount,
-            'Discount Code' => $couponCode ?? 'None',
-        ]);
+        
     
         return response()->json(['message' => 'Webhook received, saved, and tracked.']);
     }
