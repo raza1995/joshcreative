@@ -12,7 +12,7 @@ class ShopifyWebhookController extends Controller
 {
     public function handleOrderWebhook(Request $request, MixpanelService $mixpanelService)
     {
-        Log::info('Shopify Order Webhook Received:', ['body' => $request->all()]);
+        Log::info('Shopify Order Webhook Received myco:', ['body' => $request->all()]);
     
         $orderData = $request->all();
         $anonId = $orderData['attributes']['_anon_id'] ?? null;
@@ -176,7 +176,7 @@ class ShopifyWebhookController extends Controller
 
     public function handleFulfillmentUpdate(Request $request, MixpanelService $mixpanelService)
     {
-        Log::info('Shopify Fulfillment Webhook Received:', ['body' => $request->all()]);
+        Log::info('Shopify Fulfillment Webhook Received myco:', ['body' => $request->all()]);
     
         $fulfillmentData = $request->all();
         $orderId = $fulfillmentData['order_id'] ?? null;
