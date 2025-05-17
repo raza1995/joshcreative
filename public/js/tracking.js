@@ -159,10 +159,18 @@
     
         // ✅ Visibility & unload tracking
         window.addEventListener('beforeunload', () => {
-            const now = new Date();
-            totalFocusTime += (now - focusStartTime) / 1000;
-            trackEvent('page_exit', null, 'page_view');
+            const destination = document.activeElement?.href || '';
+        
+            // Only track if user is leaving to external domain or closing tab
+            const isExternal = destination && !destination.includes(location.hostname);
+        
+            if (!destination || isExternal) {
+                const now = new Date();
+                totalFocusTime += (now - focusStartTime) / 1000;
+                trackEvent('site_exit', null, 'exit_site');
+            }
         });
+        
     
    
     

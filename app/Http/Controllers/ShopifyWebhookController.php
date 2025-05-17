@@ -100,7 +100,7 @@ class ShopifyWebhookController extends Controller
                 // Customer Meta
                 'Customer First Name' => $orderData['customer']['first_name'] ?? null,
                 'Customer Last Name' => $orderData['customer']['last_name'] ?? null,
-                'Customer Email' => $customerEmail,
+                'email' => $customerEmail,  
                 'Is First-Time Buyer' => $isFirstTimeBuyer,
             ]);
             
@@ -125,7 +125,7 @@ class ShopifyWebhookController extends Controller
         
             // Customer Info
             'Customer Name' => $customerName,
-            'Customer Email' => $customerEmail,
+            'email' => $customerEmail,  
             'Customer Phone' => $orderData['customer']['phone'] ?? null,
             'Customer ID' => $orderData['customer']['id'] ?? null,
             'Customer Note' => $orderData['note'] ?? null,
@@ -141,7 +141,7 @@ class ShopifyWebhookController extends Controller
             'Billing Province' => $orderData['billing_address']['province'] ?? null,
             'Billing Country' => $orderData['billing_address']['country'] ?? null,
             'Billing Zip' => $orderData['billing_address']['zip'] ?? null,
-        
+            
             // Attribution
             'UTM Source' => $utm_source,
             'Used Discount' => $usedDiscount,
@@ -208,6 +208,7 @@ class ShopifyWebhookController extends Controller
         $mixpanelService->trackEvent('Order Fulfilled', [
             'Order ID' => $orderId,
             'Customer' => $customerName,
+            'email' => $fulfillmentData['email'], 
             'Tracking Number' => $trackingNumber,
             'Tracking URL' => $trackingUrl,
             'Fulfillment Date' => now()->toDateTimeString(),
