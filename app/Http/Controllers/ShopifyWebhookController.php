@@ -152,7 +152,7 @@ class ShopifyWebhookController extends Controller
             'Used Discount' => $usedDiscount,
             'First-Time Buyer' => $isFirstTimeBuyer,
         ]);
-        
+    
     
         if ($anonId && $customerEmail) {
             // First alias anonymous ID to email

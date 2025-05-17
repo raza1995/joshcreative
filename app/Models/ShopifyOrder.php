@@ -22,6 +22,8 @@ class ShopifyOrder extends Model
         'discount',
         'number_of_items',
         'email_draft_id',
+        'anon_id',
+        'raw_json',
     ];
 
     public function emailDraft()
