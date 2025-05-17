@@ -35,13 +35,20 @@ class MixpanelService
     public function trackUserEvent($userId, $eventName, $properties = [])
     {
         if (isset($properties['$device_id'])) {
-            $this->mixpanel->register('$device_id', $properties['$device_id']);
+            $deviceId = $properties['$device_id'];
+            unset($properties['$device_id']);
+        } else {
+            $deviceId = null;
         }
+        
+        
         
         $this->mixpanel->track($eventName, array_merge([
             'distinct_id' => $userId,
             '$user_id' => $userId,
+            '$device_id' => $deviceId, 
         ], $properties));
+        
     }
     
 
@@ -78,15 +85,6 @@ class MixpanelService
         $this->mixpanel->track($event, $props);
     }
 
-    public function trackSimplified($eventName, $deviceId, $userId = null, array $properties = [])
-{
-    $properties['$device_id'] = $deviceId;
 
-    if ($userId) {
-        $properties['$user_id'] = $userId;
-    }
-
-    $this->mixpanel->track($eventName, $properties);
-}
 
 }

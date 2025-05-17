@@ -160,7 +160,6 @@ class ShopifyWebhookController extends Controller
     
         if ($anonId && $customerEmail) {
             // First alias anonymous ID to email
-            $mixpanelService->alias($customerEmail, $anonId);
         
             // Then identify using the email
             $mixpanelService->identifyUser($customerEmail, [
