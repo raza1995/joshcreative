@@ -34,11 +34,16 @@ class MixpanelService
 
     public function trackUserEvent($userId, $eventName, $properties = [])
     {
-        $this->mixpanel->identify($userId);
+        if (isset($properties['$device_id'])) {
+            $this->mixpanel->register('$device_id', $properties['$device_id']);
+        }
+        
         $this->mixpanel->track($eventName, array_merge([
             'distinct_id' => $userId,
+            '$user_id' => $userId,
         ], $properties));
     }
+    
 
     public function alias($anonId, $userId)
     {

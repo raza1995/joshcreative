@@ -41,7 +41,11 @@ class ShopifyWebhookController extends Controller
         // Check previous orders from DB
         $previousOrders = ShopifyOrder::where('email_address', $customerEmail)->count();
         $isFirstTimeBuyer = $previousOrders === 0;
-    
+        $identityProps = [
+            '$device_id' => $anonId,
+            '$user_id' => $customerEmail,
+            'distinct_id' => $customerEmail,
+        ];
         // LTV calculation (only if stored in DB)
         $currentOrderAmount = (float) $orderData['total_price'];
         $totalSpend = ShopifyOrder::where('email_address', $customerEmail)->sum('paid_amount') + $currentOrderAmount;
@@ -72,7 +76,7 @@ class ShopifyWebhookController extends Controller
             );
     
             // Track per product
-            $mixpanelService->trackUserEvent($customerEmail, 'Product Purchased', [
+            $mixpanelService->trackUserEvent($customerEmail, 'Product Purchased', array_merge($identityProps, [
                 'Product ID' => $item['product_id'],
                 'Variant ID' => $item['variant_id'],
                 'Product Title' => $item['title'],
@@ -104,7 +108,7 @@ class ShopifyWebhookController extends Controller
                 'Customer Last Name' => $orderData['customer']['last_name'] ?? null,
                 'email' => $customerEmail,  
                 'Is First-Time Buyer' => $isFirstTimeBuyer,
-            ]);
+            ]));
             
         }
         Log::info('Alias Attempt', [
@@ -112,7 +116,7 @@ class ShopifyWebhookController extends Controller
             'email' => $customerEmail
         ]);
         // Track full order
-        $mixpanelService->trackUserEvent($customerEmail, 'Order Created', [
+        $mixpanelService->trackUserEvent($customerEmail, 'Order Created', array_merge($identityProps, [
             'Order ID' => $orderData['id'],
             'Order Name' => $orderData['name'],
             'Order Date' => $createdAt,
@@ -151,25 +155,25 @@ class ShopifyWebhookController extends Controller
             'UTM Source' => $utm_source,
             'Used Discount' => $usedDiscount,
             'First-Time Buyer' => $isFirstTimeBuyer,
-        ]);
+        ]));
     
     
-        if ($anonId && $customerEmail) {
-            // First alias anonymous ID to email
-            $mixpanelService->alias($customerEmail, $anonId);
+        // if ($anonId && $customerEmail) {
+        //     // First alias anonymous ID to email
+        //     $mixpanelService->alias($customerEmail, $anonId);
         
-            // Then identify using the email
-            $mixpanelService->identifyUser($customerEmail, [
-                'name' => $customerName,
-                'email' => $customerEmail,
-                'First-Time Buyer' => $isFirstTimeBuyer,
-                'Total Orders' => $previousOrders + 1,
-                'Total Spend' => $totalSpend,
-                'Last Order Date' => $createdAt,
-                'Used Discount' => $usedDiscount,
-                'Discount Code' => $couponCode ?? 'None',
-            ]);
-        }
+        //     // Then identify using the email
+        //     $mixpanelService->identifyUser($customerEmail, [
+        //         'name' => $customerName,
+        //         'email' => $customerEmail,
+        //         'First-Time Buyer' => $isFirstTimeBuyer,
+        //         'Total Orders' => $previousOrders + 1,
+        //         'Total Spend' => $totalSpend,
+        //         'Last Order Date' => $createdAt,
+        //         'Used Discount' => $usedDiscount,
+        //         'Discount Code' => $couponCode ?? 'None',
+        //     ]);
+        // }
         
     
         return response()->json(['message' => 'Webhook received, saved, and tracked.']);
