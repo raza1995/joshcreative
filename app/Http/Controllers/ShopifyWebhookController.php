@@ -105,9 +105,12 @@ class ShopifyWebhookController extends Controller
             ]);
             
         }
-    
+        Log::info('Alias Attempt', [
+            'anon_id' => $anonId,
+            'email' => $customerEmail
+        ]);
         // Track full order
-        $mixpanelService->trackUserEvent($customerId, 'Order Created', [
+        $mixpanelService->trackUserEvent($customerEmail, 'Order Created', [
             'Order ID' => $orderData['id'],
             'Order Name' => $orderData['name'],
             'Order Date' => $createdAt,
@@ -151,7 +154,7 @@ class ShopifyWebhookController extends Controller
     
         if ($anonId && $customerEmail) {
             // First alias anonymous ID to email
-            $mixpanelService->alias($anonId, $customerEmail);
+            $mixpanelService->alias($customerEmail, $anonId);
         
             // Then identify using the email
             $mixpanelService->identifyUser($customerEmail, [
