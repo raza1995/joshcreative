@@ -158,22 +158,22 @@ class ShopifyWebhookController extends Controller
         ]));
     
     
-        // if ($anonId && $customerEmail) {
-        //     // First alias anonymous ID to email
-        //     $mixpanelService->alias($customerEmail, $anonId);
+        if ($anonId && $customerEmail) {
+            // First alias anonymous ID to email
+            $mixpanelService->alias($customerEmail, $anonId);
         
-        //     // Then identify using the email
-        //     $mixpanelService->identifyUser($customerEmail, [
-        //         'name' => $customerName,
-        //         'email' => $customerEmail,
-        //         'First-Time Buyer' => $isFirstTimeBuyer,
-        //         'Total Orders' => $previousOrders + 1,
-        //         'Total Spend' => $totalSpend,
-        //         'Last Order Date' => $createdAt,
-        //         'Used Discount' => $usedDiscount,
-        //         'Discount Code' => $couponCode ?? 'None',
-        //     ]);
-        // }
+            // Then identify using the email
+            $mixpanelService->identifyUser($customerEmail, [
+                'name' => $customerName,
+                'email' => $customerEmail,
+                'First-Time Buyer' => $isFirstTimeBuyer,
+                'Total Orders' => $previousOrders + 1,
+                'Total Spend' => $totalSpend,
+                'Last Order Date' => $createdAt,
+                'Used Discount' => $usedDiscount,
+                'Discount Code' => $couponCode ?? 'None',
+            ]);
+        }
         
     
         return response()->json(['message' => 'Webhook received, saved, and tracked.']);
