@@ -33,7 +33,7 @@ class ShopifyWebhookController extends Controller
         $mixpanelId = $_COOKIE['mixpanel_id'] ?? null;
         // UTM Source
         $utm_source = collect($orderData['note_attributes'])->firstWhere('name', 'utm_source')['value'] ?? null;
-    
+        $rawPayload = json_encode($orderData);
         // Discount
         $couponCode = $orderData['discount_codes'][0]['code'] ?? null;
         $usedDiscount = !empty($couponCode);
@@ -60,6 +60,8 @@ class ShopifyWebhookController extends Controller
                     'product_name' => $item['title'],
                     'customer_name' => $customerName,
                     'email_address' => $customerEmail,
+                    'anon_id' => $anonId,
+                    'raw_json' => $rawPayload,
                     'tracking_number' => $orderData['fulfillments'][0]['tracking_number'] ?? null,
                     'tracking_url' => $orderData['fulfillments'][0]['tracking_url'] ?? null,
                     'coupon' => $couponCode,
