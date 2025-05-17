@@ -54,7 +54,7 @@ class MixpanelService
     /**
      * Custom contextual tracking wrapper to include funnel metadata
      */
-    public function trackWithContext($distinctId, $event, array $properties = [])
+    public function track($distinctId, $event, array $properties = [])
     {
         $props = array_merge([
             'distinct_id'    => $distinctId,

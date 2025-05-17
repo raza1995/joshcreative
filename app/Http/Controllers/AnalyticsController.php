@@ -31,7 +31,7 @@ class AnalyticsController extends Controller
         $event = ShopifyEventLog::create($data);
     
         if (!empty($data['funnel_stage'])) {
-            (new MixpanelService())->trackWithContext($data['anon_id'], $data['event_type'], $data);
+            (new MixpanelService())->track($data['anon_id'], $data['event_type'], $data);
         }
     
         return response()->json(['success' => true]);
