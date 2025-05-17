@@ -155,7 +155,7 @@
                 trackEvent('start_checkout', { page: 'checkout' }, 'start_checkout');
             }
     
-            if (pathname.includes('/thank-you')) {
+            if (pathname.includes('/thank')) {
                 trackEvent('purchase_complete', { page: 'thank-you' }, 'purchase_complete');
             }
         });
