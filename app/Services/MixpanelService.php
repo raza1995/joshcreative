@@ -31,6 +31,7 @@ class MixpanelService
         }
     }
 
+
     public function trackUserEvent($userId, $eventName, $properties = [])
     {
         $this->mixpanel->identify($userId);
@@ -39,18 +40,16 @@ class MixpanelService
         ], $properties));
     }
 
-    public function alias($newId, $originalId)
+    public function alias($anonId, $userId)
     {
-        // Identify as anonymous first
-        $this->mixpanel->identify($originalId);
-
-        // Create alias to bind anonymous to known ID
         $this->mixpanel->track('$create_alias', [
-            'distinct_id' => $originalId,
-            'alias' => $newId,
+            'distinct_id' => $anonId,
+            'alias' => $userId,
+            'token' => env('MIXPANEL_TOKEN')
         ]);
     }
-
+    
+    
     /**
      * Custom contextual tracking wrapper to include funnel metadata
      */
@@ -73,4 +72,16 @@ class MixpanelService
         $this->mixpanel->identify($distinctId);
         $this->mixpanel->track($event, $props);
     }
+
+    public function trackSimplified($eventName, $deviceId, $userId = null, array $properties = [])
+{
+    $properties['$device_id'] = $deviceId;
+
+    if ($userId) {
+        $properties['$user_id'] = $userId;
+    }
+
+    $this->mixpanel->track($eventName, $properties);
+}
+
 }

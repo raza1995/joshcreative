@@ -74,7 +74,11 @@
                 width: window.innerWidth,
                 height: window.innerHeight
             },
-            user_agent: navigator.userAgent
+            user_agent: navigator.userAgent,
+            $device_id: anonId,
+            $user_id: window.__mp_user_id || undefined,
+            distinct_id: window.__mp_user_id || anonId
+
         };
         trackingData.push(event);
         localStorage.setItem('pageTrackingData', JSON.stringify(trackingData));
