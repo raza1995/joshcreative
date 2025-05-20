@@ -129,35 +129,6 @@
             focusStartTime = new Date();
             sendStoredData();
     
-            // Always track page view
-            trackEvent('page_view', null, 'page_view');
-    
-            // 🟢 Funnel logic by URL path
-            if (pathname.includes('/products/')) {
-                const productTitle = document.querySelector('h1')?.innerText || '';
-                const productHandle = Shopify?.product?.handle || pathname.split('/').pop();
-                const productId = Shopify?.product?.id || null;
-                const price = Shopify?.product?.variants?.[0]?.price / 100 || null;
-    
-                trackEvent('view_product', {
-                    product_title: productTitle,
-                    product_handle: productHandle,
-                    product_id: productId,
-                    price
-                }, 'view_product');
-            }
-    
-            if (pathname.includes('/cart')) {
-                trackEvent('add_to_cart', { page: 'cart' }, 'add_to_cart');
-            }
-    
-            if (pathname.includes('/checkout')) {
-                trackEvent('start_checkout', { page: 'checkout' }, 'start_checkout');
-            }
-    
-            if (pathname.includes('/thank')) {
-                trackEvent('purchase_complete', { page: 'thank-you' }, 'purchase_complete');
-            }
         });
     
         // ✅ Visibility & unload tracking
@@ -204,9 +175,6 @@
     const maxRequestsPerMinute = 5;
     const trackingData = [];
 
-    if (window.location.href.includes('/thank-you')) {
-        trackEvent('purchase_complete', {}, 'purchase_complete');
-    }
 
     syncAnonIdToCart();
     registerEventListeners();
