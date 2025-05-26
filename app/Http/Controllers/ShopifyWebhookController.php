@@ -158,7 +158,7 @@ class ShopifyWebhookController extends Controller
         ]));
     
     
-        if ($anonId && $customerEmail) {
+        if ($customerEmail) {
             // First alias anonymous ID to email
         
             // Then identify using the email

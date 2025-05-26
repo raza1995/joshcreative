@@ -33,7 +33,8 @@ class MixpanelService
 
 
     public function trackUserEvent($userId, $eventName, $properties = [])
-    {
+    {   
+        $this->mixpanel->identify($userId);
         if (isset($properties['$device_id'])) {
             $deviceId = $properties['$device_id'];
             unset($properties['$device_id']);
