@@ -4,6 +4,7 @@ use App\Http\Controllers\AdsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailDraftController;
 use App\Http\Controllers\ExcludedIpController;
+use App\Http\Controllers\FacebookAdsController;
 use App\Http\Controllers\GmailWebhookController;
 use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\ManualReviewController;
@@ -30,6 +31,7 @@ use App\Services\GmailShopifyInvoiceService;
 |
 */
 
+Route::get('/facebook-ads', [FacebookAdsController::class, 'index']);
 
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
