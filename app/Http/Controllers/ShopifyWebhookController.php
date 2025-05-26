@@ -43,8 +43,8 @@ class ShopifyWebhookController extends Controller
         $isFirstTimeBuyer = $previousOrders === 0;
         $identityProps = [
             '$device_id' => $anonId,
-            '$user_id' => $anonId,
-            'distinct_id' => $anonId,
+            '$user_id' => $customerEmail,
+            'distinct_id' => $customerEmail,
         ];
         // LTV calculation (only if stored in DB)
         $currentOrderAmount = (float) $orderData['total_price'];
