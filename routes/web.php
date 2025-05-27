@@ -32,6 +32,10 @@ use App\Services\GmailShopifyInvoiceService;
 */
 
 Route::get('/facebook-ads', [FacebookAdsController::class, 'index']);
+Route::get('/fb-fetch', [FacebookAdsController::class, 'queueCampaigns'])->name('fb.fetch');
+Route::get('/facebook/fetch-ui', [FacebookAdsController::class, 'showFetchView'])->name('fb.fetch-ui');
+Route::get('/facebook/job-status', [FacebookAdsController::class, 'checkStatus'])->name('fb.status');
+Route::get('/facebook/list-files', [FacebookAdsController::class, 'listJsonFiles'])->name('fb.files');
 
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
