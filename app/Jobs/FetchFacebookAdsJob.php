@@ -17,11 +17,14 @@ class FetchFacebookAdsJob implements ShouldQueue
 
     protected $campaignId;
     protected $campaignName;
-
-    public function __construct($campaignId, $campaignName)
+    protected $startDate;
+    protected $endDate;
+    public function __construct($campaignId, $campaignName, $startDate, $endDate)
     {
         $this->campaignId = $campaignId;
         $this->campaignName = $campaignName;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
     }
 
     public function handle(FacebookAdsService $fb)
@@ -35,13 +38,36 @@ class FetchFacebookAdsJob implements ShouldQueue
             $adSets = $fb->getAdSets($this->campaignId);
 
             foreach ($adSets as $adSet) {
-                $ads = $fb->getAds($adSet['id']);
+           
+                $ads = $fb->getAds($adSet['id'], $this->startDate, $this->endDate);
 
+               
                 foreach ($ads as $ad) {
                     $creative = $fb->getAdCreative($ad['creative']['id'] ?? '');
                     $insights = $fb->getAdInsights($ad['id']);
+                    $actions = $insights['actions'] ?? [];    
+                    $conversionCount = 0;
 
-                    $output[] = [
+                        foreach ($actions as $action) {
+                            if (
+                                isset($action['action_type']) &&
+                                in_array($action['action_type'], ['offsite_conversion.purchase', 'purchase', 'omni_purchase'])
+                            ) {
+                                $conversionCount += (int) $action['value'];
+                            }
+                        }
+
+                        // Calculate CPA if we have conversions and spend
+                        $spend = isset($insights['spend']) ? (float) $insights['spend'] : 0;
+                        $cpa = $conversionCount > 0 ? round($spend / $conversionCount, 2) : null;
+
+                        $videoUrl = null;
+
+                        if (!empty($creative['video_id'])) {
+                            $videoUrl = $fb->getVideoUrlFromId($creative['video_id']);
+                        }
+
+                        $output[] = [
                         'campaign_id' => $this->campaignId,
                         'campaign_name' => $this->campaignName,
                         'adset_id' => $adSet['id'],
@@ -51,6 +77,9 @@ class FetchFacebookAdsJob implements ShouldQueue
                         'ad_link' => $creative['ad_post_link'] ?? null,
                         'title' => $creative['title'] ?? null,
                         'body' => $creative['body'] ?? null,
+                        'description' => $creative['description'] ?? null,
+                        'thumbnail_url' => $creative['thumbnail_url'] ?? null,
+                        'video_id' => $creative['video_id'] ?? null, 
                         'image_url' => $creative['image_url'] ?? null,
                         'link_url' => $creative['link_url'] ?? null,
                         'display_url' => $creative['display_url'] ?? null,
@@ -62,19 +91,46 @@ class FetchFacebookAdsJob implements ShouldQueue
                         'cpm' => $insights['cpm'] ?? null,
                         'spend' => $insights['spend'] ?? null,
                         'purchase_roas' => $insights['purchase_roas'] ?? null,
+                        'conversions' => $conversionCount,
+                        'cpa' => $cpa,
+                        'video_url' => $videoUrl
                     ];
                 }
             }
-
-            $filename = 'fb_ads/' . now()->format('Ymd_His') . '_' . preg_replace('/\s+/', '_', $this->campaignName) . '.json';
+            $filename = 'fb_ads/' . $this->campaignId . '.json';
             Storage::disk('public')->put($filename, json_encode($output, JSON_PRETTY_PRINT));
+            
 
             Cache::put('fb_ads_job_status', 'completed', now()->addMinutes(30));
             Log::info("✅ Facebook Ads data saved: {$filename}");
+
+            $this->mergeAllJsonFiles();
 
         } catch (\Throwable $e) {
             Cache::put('fb_ads_job_status', 'failed', now()->addMinutes(30));
             Log::error('❌ Facebook Ads Job failed: ' . $e->getMessage());
         }
     }
+
+    protected function mergeAllJsonFiles()
+{
+    $allFiles = Storage::disk('public')->files('fb_ads');
+    $merged = [];
+
+    foreach ($allFiles as $file) {
+        if (str_ends_with($file, '.json')) {
+            $content = json_decode(Storage::disk('public')->get($file), true);
+            if (is_array($content)) {
+                $merged = array_merge($merged, $content);
+            }
+        }
+    }
+
+    // Clean and overwrite the merged file
+    $mergedPath = 'fb_ads_merged/fb_ads_all.json';
+    Storage::disk('public')->put($mergedPath, json_encode($merged, JSON_PRETTY_PRINT));
+
+    Log::info("✅ Merged Facebook Ads saved: {$mergedPath}");
+}
+
 }

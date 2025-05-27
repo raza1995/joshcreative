@@ -56,24 +56,26 @@ class FacebookAdsService
     /**
      * Fetch ads under an ad set
      */
-    public function getAds($adSetId)
+    public function getAds($adSetId, $startDate = null, $endDate = null)
     {
         Log::info("Fetching ads for adSetId: {$adSetId}");
 
         $timeRange = [
-            'since' => now()->subDays(7)->toDateString(),
-            'until' => now()->toDateString()
+            'since' => $startDate ?? now()->subDays(7)->toDateString(),
+            'until' => $endDate ?? now()->toDateString()
         ];
-
+     
         $response = Http::get("{$this->apiUrl}/{$adSetId}/ads", [
             'access_token' => $this->accessToken,
             'fields' => 'id,name,insights{spend,impressions,clicks,ctr,cpc,cpm,purchase_roas,actions,conversions},creative{id,name,object_story_spec},status,effective_status,ad_review_feedback,created_time,updated_time',
             'effective_status' => '["ACTIVE"]',
             'time_range' => json_encode($timeRange)
         ]);
-
+   
         $ads = $response->json()['data'] ?? [];
-        Log::info('Fetched ' . count($ads) . ' ads');
+        Log::info('Fetched ads data: ' . json_encode($ads) . ' | Total ads: ' . count($ads));
+
+      
         return $ads;
     }
 
@@ -230,4 +232,25 @@ class FacebookAdsService
 
         return $creative['instagram_permalink_url'] ?? null;
     }
+
+public function getVideoUrlFromId($videoId)
+{
+    Log::info("Fetching video source for videoId: {$videoId}");
+
+    $response = Http::get("{$this->apiUrl}/{$videoId}/advideos", [
+        'access_token' => $this->accessToken,
+        'fields' => 'source,picture'
+    ]);
+
+    $data = $response->json();
+
+    if (isset($data['source'])) {
+        Log::info("Video URL fetched successfully: {$data['source']}");
+        return $data['source'];
+    }
+
+    Log::warning("No video source found for videoId: {$videoId}");
+    return null;
+}
+
 }

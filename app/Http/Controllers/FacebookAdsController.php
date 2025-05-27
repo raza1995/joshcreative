@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\FetchFacebookAdsJob;
 use App\Services\FacebookAdsService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -64,16 +65,19 @@ class FacebookAdsController extends Controller
     {
         return view('facebook.fetch');
     }
-    public function queueCampaigns(FacebookAdsService $fb)
+    public function queueCampaigns(Request $request, FacebookAdsService $fb)
     {
+        $startDate = $request->input('start_date', now()->subDays(7)->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
+    
         Cache::put('fb_ads_job_status', 'queued', now()->addMinutes(30));
-
+    
         $campaigns = $fb->getCampaigns();
-
+    
         foreach ($campaigns as $campaign) {
-            FetchFacebookAdsJob::dispatch($campaign['id'], $campaign['name']);
+            FetchFacebookAdsJob::dispatch($campaign['id'], $campaign['name'], $startDate, $endDate);
         }
-
+    
         return response()->json([
             'message' => '📦 Facebook Ads job has been queued successfully!',
             'output_url' => asset('storage/fb_ads')
@@ -94,8 +98,9 @@ class FacebookAdsController extends Controller
             'name' => basename($f),
             'url' => Storage::url($f)
         ], $files);
-dd($urls);
+
         return response()->json($urls);
     }
-    
+
+
 }

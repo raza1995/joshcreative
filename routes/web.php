@@ -6,6 +6,7 @@ use App\Http\Controllers\EmailDraftController;
 use App\Http\Controllers\ExcludedIpController;
 use App\Http\Controllers\FacebookAdsController;
 use App\Http\Controllers\GmailWebhookController;
+use App\Http\Controllers\GoogleSheetController;
 use App\Http\Controllers\KlaviyoController;
 use App\Http\Controllers\ManualReviewController;
 use App\Http\Controllers\ReviewController;
@@ -36,6 +37,12 @@ Route::get('/fb-fetch', [FacebookAdsController::class, 'queueCampaigns'])->name(
 Route::get('/facebook/fetch-ui', [FacebookAdsController::class, 'showFetchView'])->name('fb.fetch-ui');
 Route::get('/facebook/job-status', [FacebookAdsController::class, 'checkStatus'])->name('fb.status');
 Route::get('/facebook/list-files', [FacebookAdsController::class, 'listJsonFiles'])->name('fb.files');
+Route::get('/facebook/merge-campaigns', [FacebookAdsController::class, 'mergeAllCampaignFiles'])->name('fb.merge');
+
+
+Route::get('/google-sheet/export', [GoogleSheetController::class, 'showForm'])->name('sheet.form');
+Route::post('/google-sheet/create', [GoogleSheetController::class, 'createSheet'])->name('sheet.create');
+Route::post('/google-sheet/append', [GoogleSheetController::class, 'appendToSheet'])->name('sheet.append');
 
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');

@@ -2,6 +2,17 @@
 
 @section('content')
 <div class="container mt-5">
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" id="start_date" class="form-control" value="{{ now()->subDays(7)->toDateString() }}">
+        </div>
+        <div class="col-md-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" id="end_date" class="form-control" value="{{ now()->toDateString() }}">
+        </div>
+    </div>
+    
     <h2 class="mb-4">Facebook Ads Data Sync</h2>
 
     <div id="status-message" class="alert alert-info d-none">
@@ -16,7 +27,7 @@
     </div>
 
     <button id="fetch-button" type="button" class="btn btn-primary">
-        🚀 Fetch All Facebook Ads Data
+        🚀 Fetch All Facebook Ads Dataa
     </button>
 
     <div class="mt-4">
@@ -28,10 +39,12 @@
         <h5>📁 Recent Files</h5>
         <ul id="file-list" class="list-group"></ul>
     </div>
+
+    
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
     function updateStatusLabel(status) {
         const el = document.getElementById('job-status');
@@ -61,6 +74,7 @@
     }
 
     function checkStatus() {
+        console.log('test');
         fetch("{{ route('fb.status') }}")
             .then(res => res.json())
             .then(data => updateStatusLabel(data.status));
@@ -82,28 +96,33 @@
     }
 
     document.getElementById('fetch-button').addEventListener('click', function () {
-        document.getElementById('status-message').classList.remove('d-none');
+    document.getElementById('status-message').classList.remove('d-none');
 
-        fetch("{{ route('fb.fetch') }}")
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then(data => {
-                document.getElementById('status-message').classList.add('d-none');
-                document.getElementById('success-alert').classList.remove('d-none');
-                document.getElementById('result-link').setAttribute('href', data.output_url);
-                updateStatusLabel('queued');
-                setTimeout(fetchFiles, 4000); // wait a few seconds before refreshing list
-            })
-            .catch(error => {
-                document.getElementById('status-message').classList.add('d-none');
-                alert('❌ Failed to trigger queue: ' + error.message);
-            });
-    });
+    const start = document.getElementById('start_date').value;
+    const end = document.getElementById('end_date').value;
+
+    fetch("{{ route('fb.fetch') }}?start_date=" + start + "&end_date=" + end)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('status-message').classList.add('d-none');
+            document.getElementById('success-alert').classList.remove('d-none');
+            document.getElementById('result-link').setAttribute('href', data.output_url);
+            updateStatusLabel('queued');
+            setTimeout(fetchFiles, 4000);
+        })
+        .catch(error => {
+            document.getElementById('status-message').classList.add('d-none');
+            alert('❌ Failed to trigger queue: ' + error.message);
+        });
+});
+
 
     // Initial load
     checkStatus();
     fetchFiles();
 </script>
-@endsection
+@endpush
+
