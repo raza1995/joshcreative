@@ -33,47 +33,70 @@ class FetchFacebookAdsJob implements ShouldQueue
 
         Cache::put('fb_ads_job_status', 'processing', now()->addMinutes(30));
 
-        try {
+    
             $output = [];
             $adSets = $fb->getAdSets($this->campaignId);
-
+              
             foreach ($adSets as $adSet) {
            
                 $ads = $fb->getAds($adSet['id'], $this->startDate, $this->endDate);
 
                
                 foreach ($ads as $ad) {
+                    try {
                     $creative = $fb->getAdCreative($ad['creative']['id'] ?? '');
-                    $insights = $fb->getAdInsights($ad['id']);
-                    $actions = $insights['actions'] ?? [];    
+                    $insights = $ad['insights']['data'][0] ?? [];
+                    Log::info("Insights ads updated data retrieved: ", $insights);
+                    $actions = $insights['actions'] ?? [];
+                    Log::info("Actions data retrieved: ", $actions);
+                    $conversionTypes = [
+                        'purchase',
+                        'onsite_web_purchase',
+                        'onsite_web_app_purchase',
+                        'offsite_conversion.fb_pixel_purchase',
+                        'omni_purchase',
+                        'web_in_store_purchase',
+                        'web_app_in_store_purchase',
+                    ];
+                    
                     $conversionCount = 0;
 
-                        foreach ($actions as $action) {
-                            if (
-                                isset($action['action_type']) &&
-                                in_array($action['action_type'], ['offsite_conversion.purchase', 'purchase', 'omni_purchase'])
-                            ) {
-                                $conversionCount += (int) $action['value'];
-                            }
+                    $actions = $insights['actions'] ?? [];
+                    foreach ($actions as $action) {
+                        if (isset($action['action_type']) && in_array($action['action_type'], $conversionTypes)) {
+                            $conversionCount += (int) $action['value'];
                         }
+                    }
 
                         // Calculate CPA if we have conversions and spend
                         $spend = isset($insights['spend']) ? (float) $insights['spend'] : 0;
-                        $cpa = $conversionCount > 0 ? round($spend / $conversionCount, 2) : null;
+                        $cpa = ($conversionCount > 0 && $spend > 0) ? round($spend / $conversionCount, 2) : null;
 
                         $videoUrl = null;
-
-                        if (!empty($creative['video_id'])) {
-                            $videoUrl = $fb->getVideoUrlFromId($creative['video_id']);
+                        $videoId = $ad['creative']['object_story_spec']['video_data']['video_id'] ?? null;
+                        $adType = ''; 
+                       
+                        Log::info("video id from the ads", ['video_id' => $videoId]);
+                        
+                        $videoUrl = null;
+                        
+                        if (!empty($videoId)) {
+                            $adType = 'video';
+                            $videoUrl = $fb->getVideoUrlFromId($videoId);
+                        }else{
+                            $adType = 'image';
+                      
                         }
+                        
 
                         $output[] = [
-                        'campaign_id' => $this->campaignId,
-                        'campaign_name' => $this->campaignName,
-                        'adset_id' => $adSet['id'],
-                        'adset_name' => $adSet['name'],
-                        'ad_id' => $ad['id'],
-                        'ad_name' => $ad['name'],
+                        'campaign_id' => $this->campaignId ?? null,
+                        'campaign_name' => $this->campaignName ?? null,
+                        'adset_id' => $adSet['id'] ?? null,
+                        'ad_type' => $adType,
+                        'adset_name' => $adSet['name'] ?? null,
+                        'ad_id' => $ad['id'] ?? null,
+                        'ad_name' => $ad['name'] ?? null,
                         'ad_link' => $creative['ad_post_link'] ?? null,
                         'title' => $creative['title'] ?? null,
                         'body' => $creative['body'] ?? null,
@@ -90,12 +113,26 @@ class FetchFacebookAdsJob implements ShouldQueue
                         'cpc' => $insights['cpc'] ?? null,
                         'cpm' => $insights['cpm'] ?? null,
                         'spend' => $insights['spend'] ?? null,
+                        'status' => $ad['effective_status'] ?? null,
+                        'updated_time' => $ad['updated_time'] ?? null,
                         'purchase_roas' => $insights['purchase_roas'] ?? null,
-                        'conversions' => $conversionCount,
-                        'cpa' => $cpa,
-                        'video_url' => $videoUrl
+                        'conversions' => $conversionCount ?? null,
+                        'cpa' => $cpa ?? null,
+                        'video_url' => $videoUrl['video_url'] ?? null,
+                        "full_picture" => $videoUrl['thumbnail_url'] ?? null ,
                     ];
+                } catch (\Throwable $innerEx) {
+                    Log::error("❌ Failed processing ad ID {$ad['id']}: " . $innerEx->getMessage(), [
+                        'exception' => $innerEx instanceof \Throwable ? [
+                            'file' => $innerEx->getFile(),
+                            'line' => $innerEx->getLine(),
+                            'trace' => $innerEx->getTraceAsString()
+                        ] : []
+                    ]);
+                    continue;
                 }
+                }
+           
             }
             $filename = 'fb_ads/' . $this->campaignId . '_' . $this->campaignName . '.json';
             Storage::disk('public')->put($filename, json_encode($output, JSON_PRETTY_PRINT));
@@ -106,10 +143,7 @@ class FetchFacebookAdsJob implements ShouldQueue
 
             $this->mergeAllJsonFiles();
 
-        } catch (\Throwable $e) {
-            Cache::put('fb_ads_job_status', 'failed', now()->addMinutes(30));
-            Log::error('❌ Facebook Ads Job failed: ' . $e->getMessage());
-        }
+        
     }
 
     protected function mergeAllJsonFiles()

@@ -67,9 +67,9 @@ class FacebookAdsService
      
         $response = Http::get("{$this->apiUrl}/{$adSetId}/ads", [
             'access_token' => $this->accessToken,
-            'fields' => 'id,name,insights{spend,impressions,clicks,ctr,cpc,cpm,purchase_roas,actions,conversions},creative{id,name,object_story_spec},status,effective_status,ad_review_feedback,created_time,updated_time',
-            'effective_status' => '["ACTIVE"]',
+            'fields' => 'id,name,insights{spend,impressions,clicks,ctr,cpc,cpm,purchase_roas,actions,conversions},creative{id,name,object_story_spec,effective_instagram_story_id,effective_instagram_media_id,instagram_permalink_url},status,effective_status,ad_review_feedback,created_time,updated_time',
             'time_range' => json_encode($timeRange)
+
         ]);
    
         $ads = $response->json()['data'] ?? [];
@@ -87,16 +87,16 @@ class FacebookAdsService
         Log::info("Fetching ad creative for creativeId: {$creativeId}");
     
         $fields = [
-            'id', 'account_id', 'actor_id', 'adlabels',
-            'authorization_category', 'effective_authorization_category',
-            'name', 'object_story_id', 'effective_object_story_id', 'object_story_spec',
-            'status', 'body', 'title', 'thumbnail_url', 'thumbnail_id',
-            'image_url', 'image_hash', 'video_id', 'call_to_action_type', 'call_to_action',
-            'link_url', 'link_destination_display_url', 'link_og_id',
-            'object_url', 'object_type', 'instagram_permalink_url',
-            'instagram_user_id', 'source_facebook_post_id', 'source_instagram_media_id',
-            'asset_feed_spec', 'template_url', 'template_url_spec',
-            'url_tags', 'page_welcome_message', 'platform_customizations', 'portrait_customizations'
+            'id','account_id','actor_id','adlabels',
+            'authorization_category','effective_authorization_category',
+            'name','object_story_id','effective_object_story_id','object_story_spec',
+            'status','body','title', 'thumbnail_url', 'thumbnail_id',
+            'image_url','image_hash','video_id','call_to_action_type','call_to_action',
+            'link_url','link_destination_display_url','link_og_id',
+            'object_url','object_type','instagram_permalink_url',
+            'instagram_user_id','source_facebook_post_id','source_instagram_media_id',
+            'asset_feed_spec','template_url','template_url_spec',
+            'url_tags','page_welcome_message','platform_customizations','portrait_customizations'
         ];
     
         $response = Http::get("{$this->apiUrl}/{$creativeId}", [
@@ -168,7 +168,7 @@ class FacebookAdsService
 
         $fields = [
             'impressions', 'clicks', 'ctr', 'cpc',
-            'spend', 'cpm', 'purchase_roas', 'actions', 'conversions'
+            'spend', 'cpm', 'purchase_roas', 'actions', 'conversions', 'effective_status', 'ad_id', 'adset_id', 'campaign_id', 'updated_time'
         ];
 
         $timeRange = [
@@ -233,24 +233,44 @@ class FacebookAdsService
         return $creative['instagram_permalink_url'] ?? null;
     }
 
-public function getVideoUrlFromId($videoId)
-{
-    Log::info("Fetching video source for videoId: {$videoId}");
-
-    $response = Http::get("{$this->apiUrl}/{$videoId}/advideos", [
-        'access_token' => $this->accessToken,
-        'fields' => 'source,picture'
-    ]);
-
-    $data = $response->json();
-
-    if (isset($data['source'])) {
-        Log::info("Video URL fetched successfully: {$data['source']}");
-        return $data['source'];
+    public function getVideoUrlFromId($videoId): array
+    {
+        Log::info("🎥 Fetching video details for videoId: {$videoId}");
+    
+        try {
+            $response = Http::get("{$this->apiUrl}/{$videoId}", [
+                'access_token' => $this->accessToken,
+                'fields' => 'source,picture'
+            ]);
+    
+            Log::info("📦 Response data received", ['data' => $response->json()]);
+            $data = $response->json();
+    
+            if (isset($data['source']) || isset($data['picture'])) {
+                Log::info("✅ Video details fetched successfully", [
+                    'video_id' => $videoId,
+                    'source' => $data['source'] ?? null,
+                    'picture' => $data['picture'] ?? null,
+                ]);
+    
+                return [
+                    'video_url' => $data['source'] ?? null,
+                    'thumbnail_url' => $data['picture'] ?? null,
+                    'video_id' => $videoId,
+                ];
+            }
+    
+            Log::info("⚠️ No video source or picture found for videoId: {$videoId}");
+        } catch (\Exception $e) {
+            Log::error("❌ Exception while fetching video for {$videoId}: " . $e->getMessage());
+        }
+    
+        return [
+            'video_url' => null,
+            'thumbnail_url' => null,
+            'video_id' => $videoId,
+        ];
     }
-
-    Log::warning("No video source found for videoId: {$videoId}");
-    return null;
-}
+    
 
 }
