@@ -17,11 +17,10 @@ public function __construct()
     $this->tokenPath = storage_path('app/token.json');
 
     $this->client->setApplicationName('Laravel Facebook Ads Export');
-    $this->client->setScopes([
-        'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/drive' // or 'https://www.googleapis.com/auth/drive' if you need broader access
-    ]);
+    $this->client->addScope(Sheets::SPREADSHEETS);  // Read-only access
+    $this->client->addScope(Sheets::DRIVE);  // Read-only access
+
+   
     $this->client->setAuthConfig(storage_path('app/credentials.json'));
     $this->client->setAccessType('offline');
     $this->client->setPrompt('select_account consent');
@@ -109,40 +108,67 @@ protected function promptManualAuthorization()
     $this->client->setAccessToken($accessToken);
 }
 
-public function createSheetFromJson(string $sheetTitle, string $jsonFile)
+public function createSheetFromJson(string $sheetTitle, string $jsonFile): string
 {
-    $data = json_decode(Storage::disk('public')->get($jsonFile), true);
+    $data = $this->loadJsonData($jsonFile);
 
-    if (empty($data)) {
-        throw new \Exception("JSON file is empty or invalid.");
-    }
+    $spreadsheet = $this->service->spreadsheets->create(
+        new Sheets\Spreadsheet([
+            'properties' => ['title' => $sheetTitle]
+        ])
+    );
 
-    $spreadsheet = new Sheets\Spreadsheet([
-        'properties' => ['title' => $sheetTitle]
-    ]);
-
-    $sheet = $this->service->spreadsheets->create($spreadsheet);
-    $spreadsheetId = $sheet->spreadsheetId;
-
-    $this->writeDataToSheet($spreadsheetId, $data);
+    $this->writeDataToSheet($spreadsheet->spreadsheetId, $data);
 
     return $spreadsheet->spreadsheetUrl;
 }
 
-public function writeDataToSheet(string $spreadsheetId, array $data, string $range = 'Sheet1')
+protected function writeDataToSheet(string $spreadsheetId, array $data, string $range = 'Sheet1'): void
 {
+    if (empty($data)) {
+        throw new \InvalidArgumentException("Data is empty or invalid.");
+    }
+
     $headers = array_keys($data[0]);
-    $rows = array_map('array_values', $data);
+
+    $rows = array_map(fn($row) =>
+        array_map(fn($value) =>
+            is_array($value) || is_object($value)
+                ? json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                : (string) $value,
+        array_values($row)),
+    $data);
 
     $body = new Sheets\ValueRange([
         'range' => $range,
         'values' => array_merge([$headers], $rows)
     ]);
 
-    $params = ['valueInputOption' => 'RAW'];
-
-    $this->service->spreadsheets_values->update($spreadsheetId, $range, $body, $params);
+    $this->service->spreadsheets_values->update(
+        $spreadsheetId,
+        $range,
+        $body,
+        ['valueInputOption' => 'RAW']
+    );
 }
+
+protected function loadJsonData(string $jsonFile): array
+{
+    $json = Storage::disk('public')->get($jsonFile);
+
+    $data = json_decode($json, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE || empty($data)) {
+        throw new \RuntimeException("Failed to decode JSON file or file is empty.");
+    }
+
+    return $data;
+}
+
+
+
+
+
 
 public function appendJsonToSheet(string $spreadsheetId, string $jsonFile, string $range = 'Sheet1')
 {

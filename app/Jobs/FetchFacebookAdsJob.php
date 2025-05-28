@@ -97,7 +97,7 @@ class FetchFacebookAdsJob implements ShouldQueue
                     ];
                 }
             }
-            $filename = 'fb_ads/' . $this->campaignId . '.json';
+            $filename = 'fb_ads/' . $this->campaignId . '_' . $this->campaignName . '.json';
             Storage::disk('public')->put($filename, json_encode($output, JSON_PRETTY_PRINT));
             
 
