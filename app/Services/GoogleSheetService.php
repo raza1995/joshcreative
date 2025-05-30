@@ -191,5 +191,26 @@ public function getSheetUrl(string $spreadsheetId): string
     return "https://docs.google.com/spreadsheets/d/{$spreadsheetId}";
 }
 
+public function appendDataToNewSheet(string $spreadsheetId, array $data, string $sheetName)
+{
+    $spreadsheet = $this->service->spreadsheets->get($spreadsheetId);
+    $this->service->spreadsheets->batchUpdate($spreadsheetId, new Sheets\BatchUpdateSpreadsheetRequest([
+        'requests' => [
+            ['addSheet' => ['properties' => ['title' => $sheetName]]]
+        ]
+    ]));
+
+    $this->writeDataToSheet($spreadsheetId, $data, $sheetName);
+}
+
+public function createSheetFromArray(string $title, array $data): string
+{
+    $spreadsheet = $this->service->spreadsheets->create(new Sheets\Spreadsheet([
+        'properties' => ['title' => $title]
+    ]));
+
+    $this->writeDataToSheet($spreadsheet->spreadsheetId, $data);
+    return $spreadsheet->spreadsheetUrl;
+}
 
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailDraftController;
 use App\Http\Controllers\ExcludedIpController;
 use App\Http\Controllers\FacebookAdsController;
+use App\Http\Controllers\FacebookMetricsController;
 use App\Http\Controllers\GmailWebhookController;
 use App\Http\Controllers\GoogleSheetController;
 use App\Http\Controllers\KlaviyoController;
@@ -39,6 +40,9 @@ Route::get('/facebook/job-status', [FacebookAdsController::class, 'checkStatus']
 Route::get('/facebook/list-files', [FacebookAdsController::class, 'listJsonFiles'])->name('fb.files');
 Route::get('/facebook/merge-campaigns', [FacebookAdsController::class, 'mergeAllCampaignFiles'])->name('fb.merge');
 Route::get('/facebook/ad-accounts', [FacebookAdsController::class, 'getAdAccounts'])->name('fb.accounts');
+Route::get('/facebook-metrics', [FacebookMetricsController::class, 'filter']);
+Route::get('/facebook-ads/data', [FacebookMetricsController::class, 'getData'])->name('facebook.ads.data');
+Route::get('/facebook-ads', [FacebookMetricsController::class, 'index'])->name('facebook.ads.index');
 
 Route::get('/google-sheet/export', [GoogleSheetController::class, 'showForm'])->name('sheet.form');
 Route::post('/google-sheet/create', [GoogleSheetController::class, 'createSheet'])->name('sheet.create');

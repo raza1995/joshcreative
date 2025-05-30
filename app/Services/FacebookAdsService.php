@@ -9,6 +9,7 @@ class FacebookAdsService
 {
     protected $accessToken;
     protected $adAccountId;
+    protected $multiAdAccountId; // For multi-account support
     protected $apiUrl = 'https://graph.facebook.com/v20.0';
 
     public function __construct()
@@ -16,6 +17,7 @@ class FacebookAdsService
         $this->accessToken = env('FB_TOKEN');
         $this->adAccountId = env('AD_ACCOUNT_ID'); // Format: act_xxx
         Log::info("FacebookAdsService initialized with adAccountId: {$this->adAccountId}");
+        $this->multiAdAccountId = env('AD_ACCOUNT_ID');
     }
 
     /**
@@ -35,6 +37,38 @@ class FacebookAdsService
         Log::info('Fetched ' . count($campaigns) . ' campaigns');
         return $campaigns;
     }
+
+
+    public function getAllAdAccountCampaigns()
+{
+    $accounts = json_decode(env('FB_ACCOUNTS'), true);
+    $allCampaigns = [];
+
+    foreach ($accounts as $accountName => $accountId) {
+        Log::info("📡 Fetching campaigns for account: {$accountName} ({$accountId})");
+
+        $response = Http::get("{$this->apiUrl}/{$accountId}/campaigns", [
+            'access_token' => $this->accessToken,
+            'effective_status' => '["ACTIVE"]',
+            'fields' => 'id,name,status,adsets{id,name,daily_budget,start_time,end_time,status},insights{spend,impressions,clicks,ctr,cpc,cpm,purchase_roas,actions,conversions},total_count'
+        ]);
+
+        $campaigns = $response->json()['data'] ?? [];
+
+        foreach ($campaigns as $campaign) {
+            $allCampaigns[] = [
+                'account' => $accountName,
+                'account_id' => $accountId,
+                'campaign' => $campaign
+            ];
+        }
+
+        Log::info("✅ Found " . count($campaigns) . " campaigns for {$accountName}");
+    }
+
+    return $allCampaigns;
+}
+
 
     /**
      * Fetch ad sets for a specific campaign
@@ -140,7 +174,7 @@ class FacebookAdsService
      */
     public function getCampaignInsights($campaignId)
     {
-        return $this->getInsights("{$campaignId}", 'campaign');
+        // return $this->getInsights("{$campaignId}", 'campaign');
     }
 
     /**
@@ -148,7 +182,7 @@ class FacebookAdsService
      */
     public function getAdSetInsights($adSetId)
     {
-        return $this->getInsights("{$adSetId}", 'adset');
+        // return $this->getInsights("{$adSetId}", 'adset');
     }
 
     /**
@@ -156,36 +190,61 @@ class FacebookAdsService
      */
     public function getAdInsights($adId)
     {
-        return $this->getInsights("{$adId}", 'ad');
+        // return $this->getInsights("{$adId}", 'ad');
     }
 
     /**
      * Unified insights handler
      */
-    protected function getInsights($id, $type)
+    public function getInsights($id, $startDate, $endDate, $type = 'ad')
     {
-        Log::info("Fetching {$type} insights for ID: {$id}");
-
+        Log::info("Fetching {$type} insights for ID: {$id} from {$startDate} to {$endDate}");
+    
         $fields = [
             'impressions', 'clicks', 'ctr', 'cpc',
-            'spend', 'cpm', 'purchase_roas', 'actions', 'conversions', 'effective_status', 'ad_id', 'adset_id', 'campaign_id', 'updated_time'
+            'spend', 'cpm', 'purchase_roas', 'actions', 'conversions', 'ad_id', 'adset_id', 'campaign_id', 'updated_time'
         ];
-
+    
         $timeRange = [
-            'since' => now()->subDays(7)->toDateString(),
-            'until' => now()->toDateString()
+            'since' => $startDate,
+            'until' => $endDate
         ];
-
+    
         $response = Http::get("{$this->apiUrl}/{$id}/insights", [
             'access_token' => $this->accessToken,
             'fields' => implode(',', $fields),
             'time_range' => json_encode($timeRange)
         ]);
-
+     
         $data = $response->json()['data'][0] ?? [];
         Log::info("Fetched {$type} insights: " . json_encode($data));
         return $data;
     }
+    
+    //  protected function getInsights($id, $type)
+    // {
+    //     Log::info("Fetching {$type} insights for ID: {$id}");
+
+    //     $fields = [
+    //         'impressions', 'clicks', 'ctr', 'cpc',
+    //         'spend', 'cpm', 'purchase_roas', 'actions', 'conversions', 'effective_status', 'ad_id', 'adset_id', 'campaign_id', 'updated_time'
+    //     ];
+
+    //     $timeRange = [
+    //         'since' => now()->subDays(7)->toDateString(),
+    //         'until' => now()->toDateString()
+    //     ];
+
+    //     $response = Http::get("{$this->apiUrl}/{$id}/insights", [
+    //         'access_token' => $this->accessToken,
+    //         'fields' => implode(',', $fields),
+    //         'time_range' => json_encode($timeRange)
+    //     ]);
+
+    //     $data = $response->json()['data'][0] ?? [];
+    //     Log::info("Fetched {$type} insights: " . json_encode($data));
+    //     return $data;
+    // }
 
     /**
      * Extract image URL from creative
@@ -275,6 +334,32 @@ class FacebookAdsService
 {
     $this->adAccountId = $adAccountId;
 }
+public function getAdInsightsByTimeRange($adId, $start, $end)
+{
+    return $this->getInsightsWithCustomTime($adId, $start, $end, 'ad');
+}
+
+protected function getInsightsWithCustomTime($id, $since, $until, $type)
+{
+    Log::info("Fetching {$type} insights for ID: {$id} from {$since} to {$until}");
+
+    $fields = [
+        'impressions', 'clicks', 'ctr', 'cpc',
+        'spend', 'cpm', 'purchase_roas', 'actions', 'conversions',
+    ];
+
+    $response = Http::get("{$this->apiUrl}/{$id}/insights", [
+        'access_token' => $this->accessToken,
+        'fields' => implode(',', $fields),
+        'time_range' => json_encode([
+            'since' => $since,
+            'until' => $until,
+        ]),
+    ]);
+
+    return $response->json()['data'][0] ?? [];
+}
+
 
 
 }
