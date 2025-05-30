@@ -38,7 +38,7 @@ Route::get('/facebook/fetch-ui', [FacebookAdsController::class, 'showFetchView']
 Route::get('/facebook/job-status', [FacebookAdsController::class, 'checkStatus'])->name('fb.status');
 Route::get('/facebook/list-files', [FacebookAdsController::class, 'listJsonFiles'])->name('fb.files');
 Route::get('/facebook/merge-campaigns', [FacebookAdsController::class, 'mergeAllCampaignFiles'])->name('fb.merge');
-
+Route::get('/facebook/ad-accounts', [FacebookAdsController::class, 'getAdAccounts'])->name('fb.accounts');
 
 Route::get('/google-sheet/export', [GoogleSheetController::class, 'showForm'])->name('sheet.form');
 Route::post('/google-sheet/create', [GoogleSheetController::class, 'createSheet'])->name('sheet.create');

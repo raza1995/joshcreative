@@ -3,6 +3,13 @@
 @section('content')
 <div class="container mt-5">
     <div class="row mb-3">
+    <div class="col-md-4">
+    <label for="ad_account" class="form-label">Select Ad Account</label>
+    <select id="ad_account" class="form-select">
+        <!-- Options will be populated by JS -->
+    </select>
+</div>
+
         <div class="col-md-3">
             <label for="start_date" class="form-label">Start Date</label>
             <input type="date" id="start_date" class="form-control" value="{{ now()->subDays(7)->toDateString() }}">
@@ -100,8 +107,8 @@
 
     const start = document.getElementById('start_date').value;
     const end = document.getElementById('end_date').value;
-
-    fetch("{{ route('fb.fetch') }}?start_date=" + start + "&end_date=" + end)
+    const adAccountId = document.getElementById('ad_account').value;
+    fetch("{{ route('fb.fetch') }}?start_date=" + start + "&end_date=" + end + "&ad_account_id=" + adAccountId)
         .then(response => {
             if (!response.ok) throw new Error('Network response was not ok');
             return response.json();
@@ -119,10 +126,24 @@
         });
 });
 
+function populateAdAccounts() {
+    fetch("{{ route('fb.accounts') }}")
+        .then(res => res.json())
+        .then(accounts => {
+            const select = document.getElementById('ad_account');
+            Object.entries(accounts).forEach(([name, id]) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+        });
+}
 
     // Initial load
     checkStatus();
     fetchFiles();
+    populateAdAccounts();
 </script>
 @endpush
 

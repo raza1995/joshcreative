@@ -69,10 +69,11 @@ class FacebookAdsController extends Controller
     {
         $startDate = $request->input('start_date', now()->subDays(7)->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
+        $adAccountId = $request->input('ad_account_id', null);
     
         Cache::put('fb_ads_job_status', 'queued', now()->addMinutes(30));
     
-        $campaigns = $fb->getCampaigns();
+        $campaigns = $fb->getCampaigns($adAccountId);
     
         foreach ($campaigns as $campaign) {
             FetchFacebookAdsJob::dispatch($campaign['id'], $campaign['name'], $startDate, $endDate);
@@ -102,5 +103,10 @@ class FacebookAdsController extends Controller
         return response()->json($urls);
     }
 
+
+    public function getAdAccounts()
+{
+    return response()->json(config('facebook.accounts'));
+}
 
 }

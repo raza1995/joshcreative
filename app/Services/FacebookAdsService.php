@@ -21,13 +21,13 @@ class FacebookAdsService
     /**
      * Fetch all campaigns
      */
-    public function getCampaigns()
+    public function getCampaigns($adAccountId)
     {
-        Log::info("Fetching campaigns for adAccountId: {$this->adAccountId}");
+        Log::info("Fetching campaigns for adAccountId: {$adAccountId}");
 
-        $response = Http::get("{$this->apiUrl}/{$this->adAccountId}/campaigns", [
+        $response = Http::get("{$this->apiUrl}/{$adAccountId}/campaigns", [
             'access_token' => $this->accessToken,
-            'effective_status' => '["ACTIVE","PAUSED"]',
+            'effective_status' => '["ACTIVE"]',
             'fields' => 'id,name,status,adsets{id,name,daily_budget,start_time,end_time,status},insights{spend,impressions,clicks,ctr,cpc,cpm,purchase_roas,actions,conversions},total_count'
         ]);
 
@@ -67,7 +67,7 @@ class FacebookAdsService
      
         $response = Http::get("{$this->apiUrl}/{$adSetId}/ads", [
             'access_token' => $this->accessToken,
-            'fields' => 'id,name,insights{spend,impressions,clicks,ctr,cpc,cpm,purchase_roas,actions,conversions},creative{id,name,object_story_spec,effective_instagram_story_id,effective_instagram_media_id,instagram_permalink_url},status,effective_status,ad_review_feedback,created_time,updated_time',
+            'fields' => 'id,name,insights{spend,impressions,clicks,ctr,cpc,cpm,purchase_roas,actions,conversions,cost_per_action_type},creative{id,name,object_story_spec,effective_instagram_story_id,effective_instagram_media_id,instagram_permalink_url},status,effective_status,ad_review_feedback,created_time,updated_time',
             'time_range' => json_encode($timeRange)
 
         ]);
@@ -271,6 +271,10 @@ class FacebookAdsService
             'video_id' => $videoId,
         ];
     }
-    
+    public function setAdAccount($adAccountId)
+{
+    $this->adAccountId = $adAccountId;
+}
+
 
 }
