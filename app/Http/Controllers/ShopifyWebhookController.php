@@ -57,6 +57,17 @@ class ShopifyWebhookController extends Controller
       
         // Save each product and trigger event
         foreach ($orderData['line_items'] as $item) {
+
+            $landingSite = $orderData['landing_site'] ?? '';
+            $parsedAdId = null;
+
+            if ($landingSite) {
+                $query = parse_url($landingSite, PHP_URL_QUERY);
+                parse_str($query, $utm);
+                $parsedAdId = $utm['ad_id'] ?? $utm['utm_content'] ?? $utm['utm_term'] ?? null;
+            }
+
+
             ShopifyOrder::updateOrCreate(
                 ['order_number' => $orderData['id']],
                 [
@@ -72,6 +83,7 @@ class ShopifyWebhookController extends Controller
                     'paid_amount' => $currentOrderAmount,
                     'discount' => $orderData['total_discounts'] ?? 0.00,
                     'number_of_items' => count($orderData['line_items']),
+                    'ad_id' => $parsedAdId, 
                 ]
             );
     
