@@ -47,5 +47,9 @@ class FacebookAd extends Model
 {
     return $this->hasMany(FacebookAdMetric::class);
 }
+public function shopifyOrders()
+{
+    return $this->hasMany(ShopifyOrder::class, 'ad_id', 'ad_id');
+}
 
 }

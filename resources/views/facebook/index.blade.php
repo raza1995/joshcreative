@@ -20,6 +20,7 @@
                 <th>Account</th>
                 <th>Campaign</th>
                 <th>AD Link</th>
+                <th>Orders</th>
                 <th>Adset</th>
                 <th>Ad</th>
                 <th>Type</th>
@@ -56,6 +57,7 @@ $(document).ready(function () {
                 { data: 'ad_account_name', name: 'ad_account_name' },
                 { data: 'campaign_name', name: 'campaign_name' },
                 { data: 'ad_link', name: 'ad_link' },
+                { data: 'order_count', name: 'order_count' },
                 { data: 'adset_name', name: 'adset_name' },
                 { data: 'ad_name', name: 'ad_name' },
                 { data: 'ad_type', name: 'ad_type' },

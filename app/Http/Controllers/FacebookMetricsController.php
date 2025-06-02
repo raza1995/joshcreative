@@ -65,22 +65,26 @@ class FacebookMetricsController extends Controller
             'monthly' => now()->startOfMonth()->toDateString(),
         };
     
-        $ads = FacebookAd::with(['metrics' => function ($q) use ($interval, $dateKey) {
-            $q->where('interval', $interval)->where('date_key', $dateKey);
-        }]);
-    
+        $ads = FacebookAd::with([
+            'metrics' => function ($q) use ($interval, $dateKey) {
+                $q->where('interval', $interval)->where('date_key', $dateKey);
+            },
+            'shopifyOrders'
+        ])
+        ->withCount('shopifyOrders') 
+        ->orderByDesc('shopify_orders_count'); 
         return DataTables::of($ads)
-            ->addColumn('ad_id', fn($ad) => $ad->ad_id)
-            ->addColumn('ad_account_name', fn($ad) => $ad->ad_account_name)
-            ->addColumn('campaign_name', fn($ad) => $ad->campaign_name)
-            ->addColumn('adset_name', fn($ad) => $ad->adset_name)
-            ->addColumn('ad_name', fn($ad) => $ad->ad_name)
-            ->addColumn('ad_type', fn($ad) => $ad->ad_type)
-            ->addColumn('ad_link', fn($ad) => $ad->ad_link)
-            ->addColumn('link_url', fn($ad) => $ad->link_url)
-            ->addColumn('thumbnail_url', fn($ad) => $ad->thumbnail_url)
-            ->addColumn('status', fn($ad) => $ad->status)
-            ->addColumn('updated_time', fn($ad) => $ad->updated_time)
+            ->editColumn('ad_id', fn($ad) => $ad->ad_id)
+            ->editColumn('ad_account_name', fn($ad) => $ad->ad_account_name)
+            ->editColumn('campaign_name', fn($ad) => $ad->campaign_name)
+            ->editColumn('adset_name', fn($ad) => $ad->adset_name)
+            ->editColumn('ad_name', fn($ad) => $ad->ad_name)
+            ->editColumn('ad_type', fn($ad) => $ad->ad_type)
+            ->editColumn('ad_link', fn($ad) => $ad->ad_link)
+            ->editColumn('link_url', fn($ad) => $ad->link_url)
+            ->editColumn('thumbnail_url', fn($ad) => $ad->thumbnail_url)
+            ->editColumn('status', fn($ad) => $ad->status)
+            ->editColumn('updated_time', fn($ad) => $ad->updated_time)
             ->addColumn('spend', fn($ad) => $ad->metrics->first()->spend ?? 0)
             ->addColumn('clicks', fn($ad) => $ad->metrics->first()->clicks ?? 0)
             ->addColumn('ctr', fn($ad) => $ad->metrics->first()->ctr ?? 0)
@@ -90,7 +94,14 @@ class FacebookMetricsController extends Controller
                 return collect($roas)->pluck('value')->implode(', ');
             })
             ->addColumn('interval', fn() => $interval)
-    
+            ->addColumn('order_count', function ($ad) {
+           
+
+                $count = $ad->shopifyOrders->count();
+                $url = route('facebook.ad.orders', ['ad_id' => $ad->ad_id]);
+                return "<a href='{$url}' target='_blank'>{$count} Orders</a>";
+            })
+
             // ORDER SUPPORT
             ->orderColumn('spend', function ($query, $order) use ($interval, $dateKey) {
                 $query->join('facebook_ad_metrics as fam1', 'facebook_ads.ad_id', '=', 'fam1.ad_id')
@@ -131,14 +142,23 @@ class FacebookMetricsController extends Controller
             
     
             // Optional: order other native fields if needed
+            ->orderColumn('shopify_orders_count', 'shopify_orders_count $1')
             ->orderColumn('ad_account_name', 'ad_account_name $1')
             ->orderColumn('ad_id', 'ad_id $1')
             ->orderColumn('adset_name', 'adset_name $1')
             ->orderColumn('campaign_name', 'campaign_name $1')
             ->orderColumn('updated_time', 'updated_time $1')
-    
-            ->rawColumns(['thumbnail_url', 'ad_link'])
+            ->rawColumns(['thumbnail_url', 'ad_link', 'order_count'])
             ->make(true);
     }
-    
+    public function showOrders($ad_id)
+{
+    $ad = FacebookAd::with('shopifyOrders')->where('ad_id', $ad_id)->firstOrFail();
+
+    return view('facebook.orders', [
+        'ad' => $ad,
+        'orders' => $ad->shopifyOrders
+    ]);
+}
+
 }

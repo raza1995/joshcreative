@@ -31,4 +31,8 @@ class ShopifyOrder extends Model
     {
         return $this->hasOne(EmailDraft::class);
     }
+    public function facebookAd()
+{
+    return $this->belongsTo(FacebookAd::class, 'ad_id', 'ad_id');
+}
 }

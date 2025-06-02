@@ -43,6 +43,8 @@ Route::get('/facebook/ad-accounts', [FacebookAdsController::class, 'getAdAccount
 Route::get('/facebook-metrics', [FacebookMetricsController::class, 'filter']);
 Route::get('/facebook-ads/data', [FacebookMetricsController::class, 'getData'])->name('facebook.ads.data');
 Route::get('/facebook-ads', [FacebookMetricsController::class, 'index'])->name('facebook.ads.index');
+Route::get('/facebook-ads/orders/{ad_id}', [FacebookMetricsController::class, 'showOrders'])->name('facebook.ad.orders');
+
 
 Route::get('/google-sheet/export', [GoogleSheetController::class, 'showForm'])->name('sheet.form');
 Route::post('/google-sheet/create', [GoogleSheetController::class, 'createSheet'])->name('sheet.create');
