@@ -1,9 +1,9 @@
 <?php
 
-
 namespace App\Jobs;
 
 use App\Models\FacebookAd;
+use App\Models\MonthlySpreadsheet;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,6 +25,21 @@ class ExportFacebookAdsToGoogleSheetJob implements ShouldQueue
 
     public function handle(GoogleSheetService $sheetService)
     {
+        $month = now()->format('Y-m');
+        $sheetName = match ($this->interval) {
+            'daily' => now()->format('Y_m_d'),
+            'weekly' => 'Weekly_' . now()->weekOfMonth,
+            'monthly' => 'Monthly_Summary',
+        };
+
+        // Get or create spreadsheet for the current month
+        $spreadsheet = MonthlySpreadsheet::firstOrCreate(
+            ['month' => $month],
+            ['spreadsheet_id' => $sheetService->createEmptySpreadsheet("FB Ads - $month")]
+        );
+
+        $spreadsheetId = $spreadsheet->spreadsheet_id;
+
         $dateKey = match ($this->interval) {
             'daily' => now()->subDay()->toDateString(),
             'weekly' => now()->startOfWeek()->toDateString(),
@@ -33,7 +48,7 @@ class ExportFacebookAdsToGoogleSheetJob implements ShouldQueue
 
         $ads = FacebookAd::with(['metrics' => function ($q) {
             $q->where('interval', $this->interval)
-              ->where('date_key', now()->subDay()->toDateString()); // or relevant interval
+              ->where('date_key', now()->subDay()->toDateString());
         }])->get();
 
         $rows = [];
@@ -55,7 +70,6 @@ class ExportFacebookAdsToGoogleSheetJob implements ShouldQueue
                 'body' => $ad->body,
                 'description' => $ad->description,
                 'call_to_action' => $ad->call_to_action,
-                'account_name' => $ad->ad_account_name,
                 'campaign_name' => $ad->campaign_name,
                 'adset_name' => $ad->adset_name,
                 'ad_name' => $ad->ad_name,
@@ -74,26 +88,12 @@ class ExportFacebookAdsToGoogleSheetJob implements ShouldQueue
                 'roas' => $metric->purchase_roas ?? null,
                 'status' => $ad->status,
                 'updated_time' => $ad->updated_time,
-                'data_interval' => $metric->interval,
+                'data_interval' => $metric->interval ?? null,
                 'interval' => $this->interval,
             ];
         }
 
-        $sheetTitle = "FB Ads - {$this->interval} - " . now()->toDateString();
-        $sheetName = now()->format('Y_m_d');
-
-       
-        if ($this->interval === 'daily') {
-            $spreadsheetId = config('sheets.daily_spreadsheet_id');
-            $sheetService->appendDataToNewSheet($spreadsheetId, $rows, $sheetName);
-        } elseif ($this->interval === 'weekly') {
-            $spreadsheetTitle = "FB Weekly " . now()->startOfWeek()->format('Y-m-d');
-            $spreadsheetUrl = $sheetService->createSheetFromArray($spreadsheetTitle, $rows);
-            Log::info("✅ Weekly Sheet Created: $spreadsheetUrl");
-        } else {
-            $spreadsheetTitle = "FB Monthly " . now()->startOfMonth()->format('F Y');
-            $spreadsheetUrl = $sheetService->createSheetFromArray($spreadsheetTitle, $rows);
-            Log::info("✅ Monthly Sheet Created: $spreadsheetUrl");
-        }
+        $sheetService->appendDataToNewSheet($spreadsheetId, $rows, $sheetName);
+        Log::info("✅ Data appended to sheet: $sheetName in spreadsheet: https://docs.google.com/spreadsheets/d/{$spreadsheetId}");
     }
 }

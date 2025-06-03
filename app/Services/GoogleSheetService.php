@@ -6,6 +6,10 @@ use Google\Client;
 use Google\Service\Sheets;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Google\Service\Sheets\Spreadsheet;
+use Google\Service\Sheets\ValueRange;
+use Google\Service\Sheets\BatchUpdateSpreadsheetRequest;
+
 class GoogleSheetService
 {
 protected $client;
@@ -111,80 +115,82 @@ protected function promptManualAuthorization()
 public function createSheetFromJson(string $sheetTitle, string $jsonFile): string
 {
     $data = $this->loadJsonData($jsonFile);
+    $spreadsheetId = $this->createEmptySpreadsheet($sheetTitle);
+    $this->writeDataToSheet($spreadsheetId, $data);
+    return $this->getSheetUrl($spreadsheetId);
+}
+protected function writeDataToSheet(string $spreadsheetId, array $data, string $range = 'Sheet1'): void
+    {
+        if (empty($data)) {
+            throw new \InvalidArgumentException("Data is empty or invalid.");
+        }
 
+        $headers = array_keys($data[0]);
+
+        $rows = array_map(function ($row) {
+            return array_map(function ($value) {
+                return is_array($value) || is_object($value)
+                    ? json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    : (string) $value;
+            }, array_values($row));
+        }, $data);
+
+        $body = new Sheets\ValueRange([
+            'range' => $range,
+            'values' => array_merge([$headers], $rows)
+        ]);
+
+        $this->service->spreadsheets_values->update(
+            $spreadsheetId,
+            $range,
+            $body,
+            ['valueInputOption' => 'RAW']
+        );
+    }
+
+    protected function loadJsonData(string $jsonFile): array
+    {
+        $json = Storage::disk('public')->get($jsonFile);
+        $data = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || empty($data)) {
+            throw new \RuntimeException("Failed to decode JSON file or file is empty.");
+        }
+
+        return $data;
+    }
+
+
+
+
+public function createEmptySpreadsheet(string $title): string
+{
     $spreadsheet = $this->service->spreadsheets->create(
         new Sheets\Spreadsheet([
-            'properties' => ['title' => $sheetTitle]
+            'properties' => ['title' => $title]
         ])
     );
 
-    $this->writeDataToSheet($spreadsheet->spreadsheetId, $data);
-
-    return $spreadsheet->spreadsheetUrl;
+    return $spreadsheet->spreadsheetId;
 }
 
-protected function writeDataToSheet(string $spreadsheetId, array $data, string $range = 'Sheet1'): void
+public function appendJsonToSheet(string $spreadsheetId, string $jsonFile, string $range = 'Sheet1'): void
 {
-    if (empty($data)) {
-        throw new \InvalidArgumentException("Data is empty or invalid.");
-    }
-
-    $headers = array_keys($data[0]);
-
-    $rows = array_map(fn($row) =>
-        array_map(fn($value) =>
-            is_array($value) || is_object($value)
-                ? json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-                : (string) $value,
-        array_values($row)),
-    $data);
-
-    $body = new Sheets\ValueRange([
-        'range' => $range,
-        'values' => array_merge([$headers], $rows)
-    ]);
-
-    $this->service->spreadsheets_values->update(
-        $spreadsheetId,
-        $range,
-        $body,
-        ['valueInputOption' => 'RAW']
-    );
-}
-
-protected function loadJsonData(string $jsonFile): array
-{
-    $json = Storage::disk('public')->get($jsonFile);
-
-    $data = json_decode($json, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE || empty($data)) {
-        throw new \RuntimeException("Failed to decode JSON file or file is empty.");
-    }
-
-    return $data;
-}
-
-
-
-
-
-
-public function appendJsonToSheet(string $spreadsheetId, string $jsonFile, string $range = 'Sheet1')
-{
-    $data = json_decode(Storage::disk('public')->get($jsonFile), true);
-
-    if (empty($data)) {
-        throw new \Exception("JSON file is empty or invalid.");
-    }
+    $data = $this->loadJsonData($jsonFile);
 
     $rows = array_map('array_values', $data);
 
     $body = new Sheets\ValueRange(['values' => $rows]);
 
-    $params = ['valueInputOption' => 'RAW', 'insertDataOption' => 'INSERT_ROWS'];
-
-    $this->service->spreadsheets_values->append($spreadsheetId, $range, $body, $params);
+    $this->service->spreadsheets_values->append(
+        $spreadsheetId,
+        $range,
+        $body,
+        [
+            'valueInputOption' => 'RAW',
+            'insertDataOption' => 'INSERT_ROWS'
+        ]
+    );
 }
 public function getSheetUrl(string $spreadsheetId): string
 {
@@ -205,12 +211,9 @@ public function appendDataToNewSheet(string $spreadsheetId, array $data, string 
 
 public function createSheetFromArray(string $title, array $data): string
 {
-    $spreadsheet = $this->service->spreadsheets->create(new Sheets\Spreadsheet([
-        'properties' => ['title' => $title]
-    ]));
-
-    $this->writeDataToSheet($spreadsheet->spreadsheetId, $data);
-    return $spreadsheet->spreadsheetUrl;
+    $spreadsheetId = $this->createEmptySpreadsheet($title);
+    $this->writeDataToSheet($spreadsheetId, $data);
+    return $this->getSheetUrl($spreadsheetId);
 }
 
 }

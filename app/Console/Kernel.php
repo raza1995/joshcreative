@@ -27,9 +27,13 @@ class Kernel extends ConsoleKernel
         // $schedule->command('emails:process')->everyFiveMinutes();
         $schedule->command('facebook:sync-daily')->dailyAt('03:00'); 
 
-        $schedule->job(new ExportFacebookAdsToGoogleSheetJob('daily'))->dailyAt('06:00');
-        $schedule->job(new ExportFacebookAdsToGoogleSheetJob('weekly'))->weeklyOn(1, '07:00'); // every Monday
-     $schedule->job(new ExportFacebookAdsToGoogleSheetJob('monthly'))->monthlyOn(1, '08:00'); // 1st day of month
+        // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('daily'))->dailyAt('06:00');
+        // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('weekly'))->weeklyOn(1, '07:00'); // every Monday
+        // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('monthly'))->monthlyOn(1, '08:00'); // 1st day of month
+
+        $schedule->command('facebook:export daily')->dailyAt('06:00');
+$schedule->command('facebook:export weekly')->weeklyOn(1, '07:00');
+$schedule->command('facebook:export monthly')->monthlyOn(1, '08:00');
         // $schedule->call(function () {
         //     app(SlackService::class)->sendMessage("⏰ Automated check-in from Mycolean AI.");
         // })->everyFiveMinutes();
