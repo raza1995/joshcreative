@@ -4,13 +4,34 @@
 <div class="container">
     <h2>Facebook Ads Insights</h2>
 
-    <div class="mb-3">
-        <label for="intervalFilter">Filter by Interval:</label>
-        <select id="intervalFilter" class="form-select" style="width: 200px;">
-            <option value="daily" selected>Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-        </select>
+    <div class="mb-4 d-flex align-items-end gap-3 flex-wrap">
+        <div>
+            <label for="intervalFilter">Filter by Interval:</label>
+            <select id="intervalFilter" class="form-select" style="width: 200px;">
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="custom_60">Last 60 Days</option>
+                <option value="custom_90">Last 90 Days</option>
+                <option value="custom_120">Last 120 Days</option>
+                <option value="custom_365">Last 12 Months</option>
+                <option disabled>──────────</option>
+                <option value="month_01">January</option>
+                <option value="month_02">February</option>
+                <option value="month_03">March</option>
+                <option value="month_04">April</option>
+                <option value="month_05">May</option>
+                <option value="month_06">June</option>
+                <option value="month_07">July</option>
+                <option value="month_08">August</option>
+                <option value="month_09">September</option>
+                <option value="month_10">October</option>
+                <option value="month_11">November</option>
+                <option value="month_12">December</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary" id="applyFilter">Apply Filter</button>
     </div>
 
     <table class="table table-bordered table-striped" id="facebookAdsTable" style="width: 100%;">
@@ -24,6 +45,7 @@
                 <th>Adset</th>
                 <th>Ad</th>
                 <th>Type</th>
+                <th>Impressions</th>
                 <th>Spend</th>
                 <th>Clicks</th>
                 <th>CTR</th>
@@ -43,46 +65,78 @@
 @push('scripts')
 <script>
 $(document).ready(function () {
-    function loadTable(interval = 'daily') {
-        $('#facebookAdsTable').DataTable({
+    let dataTable;
+
+    function loadTable() {
+        const interval = $('#intervalFilter').val();
+
+        if (dataTable) {
+            dataTable.destroy();
+        }
+
+        dataTable = $('#facebookAdsTable').DataTable({
             processing: true,
             serverSide: true,
-            destroy: true,
             ajax: {
                 url: '{{ route("facebook.ads.data") }}',
-                data: { interval: interval }
+                data: function (d) {
+                    d.interval = interval;
+                    d.start_date = '';
+                    d.end_date = '';
+                }
             },
             columns: [
-                { data: 'ad_id', name: 'ad_id' },
-                { data: 'ad_account_name', name: 'ad_account_name' },
-                { data: 'campaign_name', name: 'campaign_name' },
-                { data: 'ad_link', name: 'ad_link' },
-                { data: 'order_count', name: 'order_count' },
-                { data: 'adset_name', name: 'adset_name' },
-                { data: 'ad_name', name: 'ad_name' },
-                { data: 'ad_type', name: 'ad_type' },
-                { data: 'spend', name: 'spend',  },
-                { data: 'clicks', name: 'clicks' },
-                { data: 'ctr', name: 'ctr' },
-                { data: 'cpa', name: 'cpa' },
-                { data: 'roas', name: 'roas' },
-                { data: 'status', name: 'status' },
-                { data: 'updated_time', name: 'updated_time' },
-                { data: 'interval', name: 'interval' },
-                { data: 'link_url', name: 'link_url',},
-                { data: 'thumbnail_url', name: 'thumbnail_url', render: function(data, type, row) {
-                    return `<img src="${data}" alt="Thumbnail" style="width: 50px; height: auto;">`;
-                }},
+    { data: 'ad_id', name: 'facebook_ads.ad_id' },
+    { data: 'ad_account_name', name: 'facebook_ads.ad_account_name' },
+    { data: 'campaign_name', name: 'facebook_ads.campaign_name' },
+    { data: 'ad_link', name: 'facebook_ads.ad_link', orderable: true, searchable: true },
+    { data: 'order_count', orderable: true }, // from `shopify_orders_count`
+    { data: 'adset_name', name: 'facebook_ads.adset_name' },
+    { data: 'ad_name', name: 'facebook_ads.ad_name' },
+    { data: 'ad_type', name: 'facebook_ads.ad_type' },
+    { data: 'impressions', orderable: true, searchable: false },
+    { data: 'spend', orderable: true, searchable: false },
+    { data: 'clicks', orderable: true, searchable: false },
+    { data: 'ctr', orderable: true, searchable: false },
+    { data: 'cpa', orderable: true, searchable: false },
+    { data: 'roas', orderable: true, searchable: false },
+    { data: 'status', name: 'facebook_ads.status' },
+    { data: 'updated_time', name: 'facebook_ads.updated_time' },
+    { data: 'interval', orderable: true, searchable:    false },
+    { data: 'link_url', orderable: true, searchable: false },
+    {
+        data: 'thumbnail_url',
+        orderable: false,
+        searchable: false,
+        render: function (data) {
+            return `<img src="${data}" style="width: 50px;">`;
+        }
+    },
+],
+    order: [[9, 'desc']], // shopify_orders_count
 
-            ],
-            order: [[6, 'desc']],
         });
     }
 
+    function applyFilter() {
+        const interval = $('#intervalFilter').val();
+        localStorage.setItem('fb_ads_filter', interval);
+        loadTable();
+    }
+
     $('#intervalFilter').on('change', function () {
-        let interval = $(this).val();
-        loadTable(interval);
+        applyFilter();
     });
+
+    $('#applyFilter').on('click', function () {
+        applyFilter();
+    });
+
+    // Load saved filter from localStorage
+    const savedInterval = localStorage.getItem('fb_ads_filter');
+    if (savedInterval) {
+        $('#intervalFilter').val(savedInterval);
+    }
 
     loadTable();
 });

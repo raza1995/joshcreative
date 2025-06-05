@@ -26,12 +26,17 @@ class FacebookAdMetric extends Model
         'add_to_cart',
         'initiate_checkout',
         'view_content',
+        'start_date',
+        'end_date',
     ];
 
     protected $casts = [
         'purchase_roas' => 'array',
-        'date_key' => 'date',
+        'date_key' => 'string',
+        'start_date' => 'date',
+        'end_date' => 'date',
     ];
+    
 
     public function facebookAd()
     {

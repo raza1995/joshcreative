@@ -7,72 +7,72 @@ use App\Models\FacebookAdMetric;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
+
 class FacebookMetricsController extends Controller
 {
-
-
     public function index()
-{
-    return view('facebook.index'); // make sure this blade exists
-}
-    public function filter(Request $request)
     {
-        $interval = $request->get('interval', 'daily');
-    
-        $validIntervals = ['daily', 'weekly', 'monthly'];
-        if (!in_array($interval, $validIntervals)) {
-            return response()->json(['error' => 'Invalid interval'], 400);
-        }
-    
-        $dateKey = match ($interval) {
-            'daily' => now()->subDay()->toDateString(),
-            'weekly' => now()->startOfWeek()->toDateString(),
-            'monthly' => now()->startOfMonth()->toDateString(),
-        };
-    
-        // Fetch ads with attached metrics for the interval and date
-        $ads = FacebookAd::with(['metrics' => function ($query) use ($interval, $dateKey) {
-            $query->where('interval', $interval)
-                  ->where('date_key', $dateKey);
-        }])
-        ->whereHas('metrics', function ($query) use ($interval, $dateKey) {
-            $query->where('interval', $interval)
-                  ->where('date_key', $dateKey);
-        })
-        ->orderByDesc(FacebookAdMetric::select('spend')
-            ->whereColumn('facebook_ads.id', 'facebook_ad_metrics.facebook_ad_id')
-            ->where('interval', $interval)
-            ->where('date_key', $dateKey)
-            ->limit(1)
-        )
-        ->get();
-    
-        return response()->json([
-            'interval' => $interval,
-            'date_key' => $dateKey,
-            'ads' => $ads,
-        ]);
+        return view('facebook.index');
     }
 
+    protected function resolveDateKeyAndInterval(Request $request): array
+    {
+        $interval = $request->get('interval', 'daily');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
 
+        if ($interval === 'custom' && $startDate && $endDate) {
+            $dateKey = "{$startDate}_{$endDate}";
+        } elseif (str_starts_with($interval, 'custom_')) {
+            $days = (int) str_replace('custom_', '', $interval);
+            $startDate = now()->subDays($days)->toDateString();
+            $endDate = now()->toDateString();
+            $dateKey = "{$startDate}_{$endDate}";
+        } elseif (str_starts_with($interval, 'month_')) {
+            $month = (int) str_replace('month_', '', $interval);
+            $year = now()->year;
+
+            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth()->toDateString();
+            $endDate = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
+            $dateKey = "{$startDate}_{$endDate}";
+        } else {
+            $dateKey = match ($interval) {
+                'daily' => now()->subDay()->toDateString(),
+                'weekly' => now()->startOfWeek()->toDateString(),
+                'monthly' => now()->startOfMonth()->toDateString(),
+                default => now()->toDateString(),
+            };
+        }
+
+        return [$interval, $dateKey, $startDate ?? null, $endDate ?? null];
+    }
 
     public function getData(Request $request)
     {
-        $interval = $request->get('interval', 'daily');
-        $dateKey = match ($interval) {
-            'daily' => now()->subDay()->toDateString(),
-            'weekly' => now()->startOfWeek()->toDateString(),
-            'monthly' => now()->startOfMonth()->toDateString(),
-        };
-    
-        $ads = FacebookAd::with([
-            'metrics' => function ($q) use ($interval, $dateKey) {
-                $q->where('interval', $interval)->where('date_key', $dateKey);
-            },
-            'shopifyOrders'
-        ])
-        ->withCount('shopifyOrders') 
-        ->orderByDesc('shopify_orders_count'); 
+        [$interval, $dateKey, $startDate, $endDate] = $this->resolveDateKeyAndInterval($request);
+
+        $ads = FacebookAd::with(['metrics' => function ($q) use ($interval, $dateKey, $startDate, $endDate) {
+            $q->where(function ($query) use ($interval, $dateKey, $startDate, $endDate) {
+                $query->where(function ($sub) use ($interval, $dateKey) {
+                    $sub->where('interval', $interval)
+                        ->where('date_key', $dateKey);
+                });
+
+                if ($interval === 'custom' && $startDate && $endDate) {
+                    $query->orWhere(function ($fallback) use ($startDate, $endDate) {
+                        $fallback->where('interval', 'daily')
+                            ->whereBetween('date_key', [$startDate, $endDate]);
+                    });
+                }
+            });
+        }, 'shopifyOrders'])
+        ->withCount('shopifyOrders')
+        ->get()
+        ->sortByDesc(function ($ad) {
+            return $ad->shopify_orders_count;
+        })
+        ->values();
+
         return DataTables::of($ads)
             ->editColumn('ad_id', fn($ad) => $ad->ad_id)
             ->editColumn('ad_account_name', fn($ad) => $ad->ad_account_name)
@@ -83,82 +83,53 @@ class FacebookMetricsController extends Controller
             ->editColumn('ad_link', fn($ad) => $ad->ad_link)
             ->editColumn('link_url', fn($ad) => $ad->link_url)
             ->editColumn('thumbnail_url', fn($ad) => $ad->thumbnail_url)
-            ->editColumn('status', fn($ad) => $ad->status)
+            ->editColumn('status', fn($ad) => ucfirst($ad->status))
             ->editColumn('updated_time', fn($ad) => $ad->updated_time)
-            ->addColumn('spend', fn($ad) => $ad->metrics->first()->spend ?? 0)
-            ->addColumn('clicks', fn($ad) => $ad->metrics->first()->clicks ?? 0)
-            ->addColumn('ctr', fn($ad) => $ad->metrics->first()->ctr ?? 0)
-            ->addColumn('cpa', fn($ad) => $ad->metrics->first()->cpa ?? null)
-            ->addColumn('roas', function ($ad) {
-                $roas = json_decode($ad->metrics->first()->purchase_roas ?? '[]', true);
-                return collect($roas)->pluck('value')->implode(', ');
-            })
             ->addColumn('interval', fn() => $interval)
             ->addColumn('order_count', function ($ad) {
-           
-
-                $count = $ad->shopifyOrders->count();
                 $url = route('facebook.ad.orders', ['ad_id' => $ad->ad_id]);
-                return "<a href='{$url}' target='_blank'>{$count} Orders</a>";
+                return "<a href='{$url}' target='_blank'>{$ad->shopifyOrders->count()} Orders</a>";
             })
+            ->addColumn('spend', fn($ad) => $this->sumMetric($ad, 'spend'))
+            ->addColumn('clicks', fn($ad) => $this->sumMetric($ad, 'clicks'))
+            ->addColumn('impressions', fn($ad) => $this->sumMetric($ad, 'impressions'))
+            ->addColumn('ctr', fn($ad) => $this->avgMetric($ad, 'ctr'))
+            ->addColumn('cpa', fn($ad) => $this->avgMetric($ad, 'cpa'))
+            ->addColumn('roas', function ($ad) {
+                $spend = $this->sumMetric($ad, 'spend');
+                $roasValues = $ad->metrics->map(function ($metric) {
+                    $values = json_decode($metric->purchase_roas, true);
+                    return [
+                        'spend' => (float) $metric->spend,
+                        'value' => $values[0]['value'] ?? null
+                    ];
+                })->filter(fn($r) => $r['value'] !== null);
 
-            // ORDER SUPPORT
-            ->orderColumn('spend', function ($query, $order) use ($interval, $dateKey) {
-                $query->join('facebook_ad_metrics as fam1', 'facebook_ads.ad_id', '=', 'fam1.ad_id')
-                    ->where('fam1.interval', $interval)
-                    ->where('fam1.date_key', $dateKey)
-                    ->orderBy('fam1.spend', $order);
+                $weighted = $roasValues->sum(fn($r) => $r['value'] * $r['spend']);
+                return $spend > 0 ? round($weighted / $spend, 2) : null;
             })
-            ->orderColumn('clicks', function ($query, $order) use ($interval, $dateKey) {
-                $query->join('facebook_ad_metrics as fam2', 'facebook_ads.ad_id', '=', 'fam2.ad_id')
-                    ->where('fam2.interval', $interval)
-                    ->where('fam2.date_key', $dateKey)
-                    ->orderBy('fam2.clicks', $order);
-            })
-            ->orderColumn('ctr', function ($query, $order) use ($interval, $dateKey) {
-                $query->join('facebook_ad_metrics as fam3', 'facebook_ads.ad_id', '=', 'fam3.ad_id')
-                    ->where('fam3.interval', $interval)
-                    ->where('fam3.date_key', $dateKey)
-                    ->orderBy('fam3.ctr', $order);
-            })
-            ->orderColumn('cpa', function ($query, $order) use ($interval, $dateKey) {
-                $query->join('facebook_ad_metrics as fam4', 'facebook_ads.ad_id', '=', 'fam4.ad_id')
-                    ->where('fam4.interval', $interval)
-                    ->where('fam4.date_key', $dateKey)
-                    ->orderBy('fam4.cpa', $order);
-            })
-            ->orderColumn('conversions', function ($query, $order) use ($interval, $dateKey) {
-                $query->join('facebook_ad_metrics as fam5', 'facebook_ads.ad_id', '=', 'fam5.ad_id')
-                    ->where('fam5.interval', $interval)
-                    ->where('fam5.date_key', $dateKey)
-                    ->orderBy('fam5.conversions', $order);
-            })
-            ->orderColumn('roas', function ($query, $order) use ($interval, $dateKey) {
-                $query->join('facebook_ad_metrics as fam6', 'facebook_ads.ad_id', '=', 'fam6.ad_id')
-                    ->where('fam6.interval', $interval)
-                    ->where('fam6.date_key', $dateKey)
-                    ->orderBy(DB::raw("JSON_EXTRACT(fam6.purchase_roas, '$[0].value')"), $order);
-            })
-            
-    
-            // Optional: order other native fields if needed
-            ->orderColumn('shopify_orders_count', 'shopify_orders_count $1')
-            ->orderColumn('ad_account_name', 'ad_account_name $1')
-            ->orderColumn('ad_id', 'ad_id $1')
-            ->orderColumn('adset_name', 'adset_name $1')
-            ->orderColumn('campaign_name', 'campaign_name $1')
-            ->orderColumn('updated_time', 'updated_time $1')
-            ->rawColumns(['thumbnail_url', 'ad_link', 'order_count'])
+            ->rawColumns(['order_count', 'ad_link', 'thumbnail_url'])
             ->make(true);
     }
+
+    protected function sumMetric($ad, $field)
+    {
+        return $ad->metrics->sum(fn($m) => (float) $m->$field);
+    }
+
+    protected function avgMetric($ad, $field)
+    {
+        $valid = $ad->metrics->pluck($field)->filter();
+        return $valid->count() > 0 ? round($valid->avg(), 2) : null;
+    }
+
     public function showOrders($ad_id)
-{
-    $ad = FacebookAd::with('shopifyOrders')->where('ad_id', $ad_id)->firstOrFail();
+    {
+        $ad = FacebookAd::with('shopifyOrders')->where('ad_id', $ad_id)->firstOrFail();
 
-    return view('facebook.orders', [
-        'ad' => $ad,
-        'orders' => $ad->shopifyOrders
-    ]);
-}
-
+        return view('facebook.orders', [
+            'ad' => $ad,
+            'orders' => $ad->shopifyOrders
+        ]);
+    }
 }

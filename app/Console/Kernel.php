@@ -32,12 +32,43 @@ class Kernel extends ConsoleKernel
         // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('monthly'))->monthlyOn(1, '08:00'); // 1st day of month
 
         $schedule->command('facebook:export daily')->dailyAt('06:00');
-    $schedule->command('facebook:export weekly')->weeklyOn(1, '07:00');
-$schedule->command('facebook:export monthly')->monthlyOn(1, '08:00');
+        $schedule->command('facebook:export weekly')->weeklyOn(1, '07:00');
+        $schedule->command('facebook:export monthly')->monthlyOn(1, '08:00');
+
+
+        $schedule->command('facebook:aggregate-custom-metrics --days=60')->weeklyOn(0, '1:00'); // Sunday
+        $schedule->command('facebook:aggregate-custom-metrics --days=90')->weeklyOn(0, '1:15');
+        $schedule->command('facebook:aggregate-custom-metrics --days=15')->weeklyOn(0, '1:30');
+        $schedule->command('facebook:aggregate-custom-metrics --days=30')->weeklyOn(0, '1:45');
+        $schedule->command('facebook:aggregate-custom-metrics --days=60')->weeklyOn(0, '2:00');
+        $schedule->command('facebook:aggregate-custom-metrics --days=90')->weeklyOn(0, '2:15');
+        $schedule->command('facebook:aggregate-custom-metrics --days=120')->weeklyOn(0, '2:30');
+        $schedule->command('facebook:aggregate-custom-metrics --days=150')->weeklyOn(0, '2:45');
+        $schedule->command('facebook:aggregate-custom-metrics --days=180')->weeklyOn(0, '3:00');
+        $schedule->command('facebook:aggregate-custom-metrics --days=210')->weeklyOn(0, '3:15');
+        $schedule->command('facebook:aggregate-custom-metrics --days=240')->weeklyOn(0, '4:30');
+        $schedule->command('facebook:aggregate-custom-metrics --days=270')->weeklyOn(0, '5:45');
+        $schedule->command('facebook:aggregate-custom-metrics --days=300')->weeklyOn(0, '6:00');
+        $schedule->command('facebook:aggregate-custom-metrics --days=330')->weeklyOn(0, '7:15');
+        $schedule->command('facebook:aggregate-custom-metrics --days=360')->weeklyOn(0, '8:30');
+     
+        // Run twice a month: 1st and 15th
+        $schedule->command('facebook:aggregate-custom-metrics --days=120')
+            ->cron('0 1 1,15 * *');
+    
+        // Run monthly on 1st
+        $schedule->command('facebook:aggregate-custom-metrics --days=365')
+            ->monthlyOn(1, '1:30');
         // $schedule->call(function () {
         //     app(SlackService::class)->sendMessage("⏰ Automated check-in from Mycolean AI.");
         // })->everyFiveMinutes();
-
+        for ($m = 1; $m <= 12; $m++) {
+            $schedule->command("facebook:sync-metrics --month={$m}")
+                     ->monthlyOn(1, '01:30')
+                     ->when(function () use ($m) {
+                         return (int) now()->subMonth()->format('n') === $m;
+                     });
+        }
 
 
     }
