@@ -1203,6 +1203,16 @@ public function generateAdInsights(
     $impCustom = strip_tags($ad['custom_trends']['Impressions'] ?? '-');
     $clickCustom = strip_tags($ad['custom_trends']['Clicks'] ?? '-');
 
+    // Check for sufficient data
+    $criticalValues = [$roasTrend, $cpaTrend, $spendTrend, $ctrTrend, $roasCustom, $cpaCustom, $spendCustom, $ctrCustom];
+    $hasValidData = collect($criticalValues)->contains(function ($value) {
+        return $value !== '-' && $value !== '';
+    });
+
+    if (!$hasValidData) {
+        return 'Not enough performance data to generate insights.';
+    }
+
     $prompt = <<<EOT
 You're an expert Facebook Ads marketing analyst.
 
