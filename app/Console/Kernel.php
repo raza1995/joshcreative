@@ -26,7 +26,6 @@ class Kernel extends ConsoleKernel
         // $schedule->command('emails:fetch-unread')->everyFiveMinutes();
         // $schedule->command('emails:process')->everyFiveMinutes();
         $schedule->command('facebook:sync-daily')->everyThreeHours();
-
         // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('daily'))->dailyAt('06:00');
         // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('weekly'))->weeklyOn(1, '07:00'); // every Monday
         // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('monthly'))->monthlyOn(1, '08:00'); // 1st day of month

@@ -6,6 +6,7 @@ use App\Models\FacebookAd;
 use App\Models\FacebookAdMetric;
 use App\Services\FacebookAdsService;
 use App\Services\FacebookAdFormatter;
+use App\Services\FacebookMetricsSyncService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -34,32 +35,40 @@ class SyncFacebookAdsToDbJob implements ShouldQueue
 
     public function handle(FacebookAdsService $fb, FacebookAdFormatter $formatter)
     {
-        Log::info("🔄 Syncing to DB: {$this->campaignName}");
+        // Log::info("🔄 Syncing to DB: {$this->campaignName}");
 
-        $adSets = $fb->getAdSets($this->campaignId);
+        // $adSets = $fb->getAdSets($this->campaignId);
 
-        foreach ($adSets as $adSet) {
-            $ads = $fb->getAds($adSet['id'], $this->startDate, $this->endDate);
+        // foreach ($adSets as $adSet) {
+        //     $ads = $fb->getAds($adSet['id'], $this->startDate, $this->endDate);
 
-            foreach ($ads as $ad) {
-                $formatted = $formatter->formatAd(
-                    $this->campaignId, $this->campaignName, $adSet, $ad,
-                    $this->startDate, $this->endDate, $this->adAccountName
-                );
+        //     foreach ($ads as $ad) {
+        //         $formatted = $formatter->formatAd(
+        //             $this->campaignId, $this->campaignName, $adSet, $ad,
+        //             $this->startDate, $this->endDate, $this->adAccountName
+        //         );
 
-                if ($formatted) {
-                    $adModel = FacebookAd::updateOrCreate(
-                        ['ad_id' => $formatted['ad_id']],
-                        $formatted
-                    );
+        //         if ($formatted) {
+        //             $adModel = FacebookAd::updateOrCreate(
+        //                 ['ad_id' => $formatted['ad_id']],
+        //                 $formatted
+        //             );
 
-                    // Fetch and store time-based metrics
-                    $this->storeTimeBasedMetrics($fb, $adModel->id, $ad['id']);
-                }
-            }
-        }
+        //             // Fetch and store time-based metrics
+        //             $this->storeTimeBasedMetrics($fb, $adModel->id, $ad['id']);
+        //         }
+        //     }
+        // }
 
-        Log::info("✅ DB sync complete for: {$this->campaignName}");
+        // Log::info("✅ DB sync complete for: {$this->campaignName}");
+
+        app(FacebookMetricsSyncService::class)->syncCampaign(
+            $this->campaignId,
+            $this->campaignName,
+            $this->startDate,
+            $this->endDate,
+            $this->adAccountName
+        );
     }
 
     protected function storeTimeBasedMetrics(FacebookAdsService $fb, $facebookAdId, $adId)
@@ -99,7 +108,7 @@ class SyncFacebookAdsToDbJob implements ShouldQueue
             $initiateCheckout = $this->extractActionValue($actions, 'offsite_conversion.fb_pixel_initiate_checkout');
             $viewContent = $this->extractActionValue($actions, 'offsite_conversion.fb_pixel_view_content');
 
-
+        
             FacebookAdMetric::updateOrCreate([
                 'ad_id' => $adId,
                 'interval' => $interval,

@@ -3,33 +3,35 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Services\FacebookAdsService;
-use App\Jobs\SyncFacebookAdsToDbJob;
+use App\Services\FacebookMetricsSyncService;
 
 class SyncFacebookAdsDaily extends Command
 {
     protected $signature = 'facebook:sync-daily';
-    protected $description = '📅 Dispatch daily Facebook Ads sync to DB for all campaigns';
+    protected $description = '📅 Directly sync daily Facebook Ads to DB for all campaigns';
 
-    public function handle(FacebookAdsService $fb)
+    public function handle(FacebookAdsService $fb, FacebookMetricsSyncService $sync)
     {
         $startDate = now()->subDay()->toDateString();
-        $endDate = now()->toDateString();
-    
+        $endDate = now()->subDay()->toDateString();   
+
         $campaignGroups = $fb->getAllAdAccountCampaigns();
         $count = 0;
-    
+
         foreach ($campaignGroups as $group) {
-            SyncFacebookAdsToDbJob::dispatch(
-                $group['campaign']['id'], 
+            $this->info("🔄 Syncing: {$group['campaign']['name']} ({$group['account']})");
+
+            $sync->syncCampaign(
+                $group['campaign']['id'],
                 $group['campaign']['name'],
                 $startDate,
                 $endDate,
-                $group['account'],  
+                $group['account']
             );
+
             $count++;
         }
-    
-        $this->info("✅ Dispatched {$count} campaign sync jobs across all ad accounts.");
+
+        $this->info("✅ Synced {$count} campaigns successfully.");
     }
-    
 }

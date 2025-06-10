@@ -1176,6 +1176,87 @@ public function analyzeDraft($emailContent, $shopifyOrder)
 
     return $analysisResult;
 }
+public function generateAdInsights(
+    array $ad,
+    string $adId,
+    string $primaryInterval,
+    string $comparisonInterval
+): string {
+    $intervalText = ucfirst($comparisonInterval) . ' → ' . ucfirst($primaryInterval);
+    $compareDate1 = $ad['compare_date_1'] ?? 'N/A';
+    $compareDate2 = $ad['compare_date_2'] ?? 'N/A';
+    $comparisonDates = strip_tags($ad['comparison_dates'] ?? '-');
+    $primaryDates = strip_tags($ad['primary_dates'] ?? '-');
+
+    // Prepare trend values
+    $roasTrend = strip_tags($ad['roas_trend'] ?? '-');
+    $cpaTrend = strip_tags($ad['cpa_trend'] ?? '-');
+    $spendTrend = strip_tags($ad['spend_trend'] ?? '-');
+    $ctrTrend = strip_tags($ad['ctr_trend'] ?? '-');
+    $impTrend = strip_tags($ad['impressions_trend'] ?? '-');
+    $clickTrend = strip_tags($ad['clicks_trend'] ?? '-');
+
+    $roasCustom = strip_tags($ad['custom_trends']['ROAS'] ?? '-');
+    $cpaCustom = strip_tags($ad['custom_trends']['CPA'] ?? '-');
+    $spendCustom = strip_tags($ad['custom_trends']['Spend'] ?? '-');
+    $ctrCustom = strip_tags($ad['custom_trends']['CTR'] ?? '-');
+    $impCustom = strip_tags($ad['custom_trends']['Impressions'] ?? '-');
+    $clickCustom = strip_tags($ad['custom_trends']['Clicks'] ?? '-');
+
+    $prompt = <<<EOT
+You're an expert Facebook Ads marketing analyst.
+
+The data below compares performance across two different perspectives:
+
+📅 Interval-Based Comparison:
+- Interval: {$intervalText}
+- Comparison Dates: {$comparisonDates}
+- Primary Dates: {$primaryDates}
+- Metrics:
+  • ROAS: {$roasTrend}
+  • CPA: {$cpaTrend}
+  • Spend: {$spendTrend}
+  • CTR: {$ctrTrend}
+  • Impressions: {$impTrend}
+  • Clicks: {$clickTrend}
+
+📅 Direct Date Comparison:
+- Compared Period (Date 1): {$compareDate1}
+- Current Period (Date 2): {$compareDate2}
+- Metrics:
+  • ROAS: {$roasCustom}
+  • CPA: {$cpaCustom}
+  • Spend: {$spendCustom}
+  • CTR: {$ctrCustom}
+  • Impressions: {$impCustom}
+  • Clicks: {$clickCustom}
+
+🎯 Task:
+1. Provide a summary (3–5 lines) of what’s happening with the ad’s performance across both comparisons.
+2. Highlight any significant improvements or declines.
+3. Give 3–5 specific, actionable marketing recommendations using clear language for non-technical business stakeholders.
+Use emojis (📈 for improvements, 📉 for declines) where helpful.
+EOT;
+
+    try {
+        $response = Http::withToken($this->apiKey)->post('https://api.openai.com/v1/chat/completions', [
+            'model' => 'gpt-4o',
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => 'You are a senior Facebook Ads marketing analyst tasked with summarizing ad trends and making smart recommendations.',
+                ],
+                ['role' => 'user', 'content' => $prompt],
+            ],
+        ]);
+
+        return trim($response['choices'][0]['message']['content'] ?? 'No insights available.');
+    } catch (\Exception $e) {
+        
+        return 'Unable to generate insights at this time.';
+    }
+}
+
 
 
  

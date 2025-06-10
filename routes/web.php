@@ -44,6 +44,11 @@ Route::get('/facebook-metrics', [FacebookMetricsController::class, 'filter']);
 Route::get('/facebook-ads/data', [FacebookMetricsController::class, 'getData'])->name('facebook.ads.data');
 Route::get('/facebook-ads', [FacebookMetricsController::class, 'index'])->name('facebook.ads.index');
 Route::get('/facebook-ads/orders/{ad_id}', [FacebookMetricsController::class, 'showOrders'])->name('facebook.ad.orders');
+Route::get('/facebook/multi-interval', [FacebookMetricsController::class, 'multiIntervalView'])->name('facebook.multi_interval.view');
+Route::get('/facebook/multi-interval/data', [FacebookMetricsController::class, 'getMultiIntervalData'])->name('facebook.multi_interval.data');
+Route::get('/facebook/trend-metrics', [FacebookMetricsController::class, 'showTrendMetrics'])->name('facebook.trend.metrics');
+Route::get('/facebook/ads/{ad_id}/trend-metrics', [FacebookMetricsController::class, 'showAdTrendMetrics'])->name('facebook.ad.trend_metrics');
+Route::get('/facebook/ads/{ad_id}/charts', [FacebookMetricsController::class, 'showAdCharts'])->name('facebook.ad.charts');
 
 
 Route::get('/google-sheet/export', [GoogleSheetController::class, 'showForm'])->name('sheet.form');
