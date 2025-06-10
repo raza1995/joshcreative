@@ -115,12 +115,25 @@ class FacebookMetricsController extends Controller
 
     public function getData(Request $request)
 {
-   [$interval, $dateKey, $startDate, $endDate] = $this->resolveDateKeyAndInterval($request);
+    [$interval, $dateKey, $startDate, $endDate] = $this->resolveDateKeyAndInterval($request);
 
+    $query = FacebookAdStat::query();
 
-    $query = FacebookAdStat::query()
-        ->where('interval', $interval)
-        ->where('date_key', $dateKey);
+    // Apply interval and date range filtering
+    $query->where(function ($query) use ($interval, $dateKey, $startDate, $endDate) {
+        $query->where(function ($sub) use ($interval, $dateKey) {
+            $sub->where('interval', $interval)
+                ->where('date_key', $dateKey);
+        });
+
+        // Fallback: use daily data between custom date range
+        if ($interval === 'custom' && $startDate && $endDate) {
+            $query->orWhere(function ($fallback) use ($startDate, $endDate) {
+                $fallback->where('interval', 'daily')
+                    ->whereBetween('date_key', [$startDate, $endDate]);
+            });
+        }
+    });
 
     if ($request->has('campaign')) {
         $query->where('campaign_name', $request->get('campaign'));
