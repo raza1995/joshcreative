@@ -119,7 +119,7 @@ $(function () {
                 d.intervals = $('#intervals').val();
                 d.start_date = $('#start-date').val();
                 d.end_date = $('#end-date').val();
-                d.performance_flag = $('#performance-flag').val(); // NEW
+                d.performance_flag = $('#performance-flag').val(); 
 
             }
         },
