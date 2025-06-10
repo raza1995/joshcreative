@@ -115,7 +115,8 @@ class FacebookMetricsController extends Controller
 
     public function getData(Request $request)
 {
-    [$interval, $dateKey] = $this->resolveDateKeyAndInterval($request);
+   [$interval, $dateKey, $startDate, $endDate] = $this->resolveDateKeyAndInterval($request);
+
 
     $query = FacebookAdStat::query()
         ->where('interval', $interval)
