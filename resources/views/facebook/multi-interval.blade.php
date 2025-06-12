@@ -71,20 +71,22 @@
             <input type="date" id="end-date" class="form-control" />
         </div>
     </div>
-
+    <div class="alert alert-info" id="filter-note" style="display:none;">
+        Showing results for <strong id="filter-description"></strong>
+    </div>
     <table id="ads-table" class="table table-bordered">
         <thead>
             <tr>
                 <th>Ad ID</th>
                 <th>Campaign</th>
                 <th>Ad Name</th>
+                <th>Ad Set Name</th>
                 <th>Interval</th>
                 <th>Spend</th>
                 <th>ROAS</th>
                 <th>Orders</th>
                 <th>CPA</th>
                 <th>ROAS Trend</th>
-                <th>Date Range</th>
                 <th>Performance Flag</th>
                 <th>Trend</th>
                 <th>Chart</th>
@@ -127,13 +129,13 @@ $(function () {
     { data: 'ad_id', name: 'ad_id' },
     { data: 'campaign_name', name: 'campaign_name' },
     { data: 'ad_name', name: 'ad_name' },
+    { data: 'adset_name', name: 'adset_name' },
     { data: 'interval', name: 'interval' },
     { data: 'spend', name: 'spend' },
     { data: 'roas', name: 'roas' },
     { data: 'order_count', name: 'order_count' },
     { data: 'cpa', name: 'cpa' },
     { data: 'roas_trend', name: 'roas_trend' },
-    { data: 'date_range' }, 
     { data: 'performance_flag'  }, 
     { data: 'trend_metrics', orderable: false, searchable: false },
     { data: 'charts', orderable: false, searchable: false },
@@ -175,6 +177,30 @@ rowCallback: function (row, data) {
     $('#avg-roas').text(data.avg_roas);
     $('#total-orders').text(data.total_orders);
 });
+
+function updateFilterNote() {
+    const start = $('#start-date').val();
+    const end = $('#end-date').val();
+    const interval = $('#intervals').val();
+
+    if (start && end) {
+        $('#filter-note').show();
+        $('#filter-description').text(`Custom Date Range: ${start} → ${end}`);
+    } else if (interval) {
+        $('#filter-note').show();
+        $('#filter-description').text(`Interval: ${interval}`);
+    } else {
+        $('#filter-note').hide();
+    }
+}
+
+$('#intervals, #campaign-filter, #start-date, #end-date, #performance-flag').on('change', function () {
+    updateFilterNote();
+    table.draw();
+});
+
+updateFilterNote(); // Initial call
+
 });
 </script>
 @endpush

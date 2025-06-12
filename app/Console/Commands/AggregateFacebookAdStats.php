@@ -33,11 +33,21 @@ class AggregateFacebookAdStats extends Command
             $grouped = $ad->metrics->groupBy(fn($m) => $m->interval . ':' . $m->date_key);
     
             foreach ($grouped as $key => $metrics) {
+              
                 [$interval, $dateKey] = explode(':', $key);
+
+                if (strpos($dateKey, '_') !== false) {
+                    [$start_date, $end_date] = explode('_', $dateKey, 2);
+                } else {
+                    $start_date = $dateKey;
+                    $end_date = null;
+                }
+                
+               
                 $spend = $metrics->sum('spend');
                 $clicks = $metrics->sum('clicks');
                 $impressions = $metrics->sum('impressions');
-    
+                
                 $ctr = $metrics->pluck('ctr')->filter()->avg();
                 $cpa = $metrics->pluck('cpa')->filter()->avg();
     
@@ -51,7 +61,7 @@ class AggregateFacebookAdStats extends Command
     
                 $weightedRoas = $roasData->sum(fn($r) => $r['value'] * $r['spend']);
                 $roas = $spend > 0 ? round($weightedRoas / $spend, 2) : null;
-    
+        
                 FacebookAdStat::updateOrCreate([
                     'ad_id' => $ad->ad_id,
                     'interval' => $interval,
@@ -60,6 +70,8 @@ class AggregateFacebookAdStats extends Command
                     'facebook_ad_id' => $ad->id,
                     'campaign_name' => $ad->campaign_name,
                     'adset_name' => $ad->adset_name,
+                    'start_date' => $start_date,
+                    'end_date' => $end_date,
                     'ad_name' => $ad->ad_name,
                     'ad_type' => $ad->ad_type,
                     'ad_account_name' => $ad->ad_account_name,
@@ -79,5 +91,7 @@ class AggregateFacebookAdStats extends Command
             }
         }
     }
+
+    
     
 }

@@ -17,37 +17,38 @@ class FacebookMetricsController extends Controller
         return view('facebook.index');
     }
 
-    protected function resolveDateKeyAndInterval(Request $request): array
+    protected function resolveDateInterval(Request $request): array
     {
         $interval = $request->get('interval', 'daily');
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
-
+    
         if ($interval === 'custom' && $startDate && $endDate) {
-            $dateKey = "{$startDate}_{$endDate}";
-        } elseif (str_starts_with($interval, 'custom_')) {
+            return [$interval, $startDate, $endDate];
+        }
+    
+        if (str_starts_with($interval, 'custom_')) {
             $days = (int) str_replace('custom_', '', $interval);
             $startDate = now()->subDays($days)->toDateString();
             $endDate = now()->toDateString();
-            $dateKey = "{$startDate}_{$endDate}";
-        } elseif (str_starts_with($interval, 'month_')) {
-            $month = (int) str_replace('month_', '', $interval);
-            $year = now()->year;
-
-            $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth()->toDateString();
-            $endDate = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
-            $dateKey = "{$startDate}_{$endDate}";
-        } else {
-            $dateKey = match ($interval) {
-                'daily' => now()->subDay()->toDateString(),
-                'weekly' => now()->startOfWeek()->toDateString(),
-                'monthly' => now()->startOfMonth()->toDateString(),
-                default => now()->toDateString(),
-            };
+            return [$interval, $startDate, $endDate];
         }
-
-        return [$interval, $dateKey, $startDate ?? null, $endDate ?? null];
+    
+        if (str_starts_with($interval, 'month_')) {
+            $month = (int) str_replace('month_', '', $interval);
+            $startDate = Carbon::create(null, $month)->startOfMonth()->toDateString();
+            $endDate = Carbon::create(null, $month)->endOfMonth()->toDateString();
+            return [$interval, $startDate, $endDate];
+        }
+    
+        return match ($interval) {
+            'daily' => [$interval, now()->subDay()->toDateString(), now()->subDay()->toDateString()],
+            'weekly' => [$interval, now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()],
+            'monthly' => [$interval, now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()],
+            default => [$interval, now()->toDateString(), now()->toDateString()],
+        };
     }
+    
 
     // public function getData(Request $request)
     // {
@@ -116,26 +117,24 @@ class FacebookMetricsController extends Controller
 
     public function getData(Request $request)
 {
-    [$interval, $dateKey, $startDate, $endDate] = $this->resolveDateKeyAndInterval($request);
+    [$interval, $startDate, $endDate] = $this->resolveDateInterval($request);
+
 
     $query = FacebookAdStat::query();
 
-    // Apply interval and date range filtering
-    $query->where(function ($query) use ($interval, $dateKey, $startDate, $endDate) {
-        $query->where(function ($sub) use ($interval, $dateKey) {
-            $sub->where('interval', $interval)
-                ->where('date_key', $dateKey);
-        });
+// Apply interval and date range filtering
+            $query->where('interval', $interval);
 
-        // Fallback: use daily data between custom date range
-        if ($interval === 'custom' && $startDate && $endDate) {
-            $query->orWhere(function ($fallback) use ($startDate, $endDate) {
-                $fallback->where('interval', 'daily')
-                    ->whereBetween('date_key', [$startDate, $endDate]);
-            });
-        }
-    });
+            if ($startDate && $endDate) {
+                $query->whereDate('start_date', '>=', $startDate)
+                    ->whereDate('end_date', '<=', $endDate);
+            }
 
+            if ($interval === 'custom' && $startDate && $endDate && $query->count() === 0) {
+                $query = FacebookAdStat::where('interval', 'daily')
+                    ->whereDate('start_date', '>=', $startDate)
+                    ->whereDate('end_date', '<=', $endDate);
+            }
     if ($request->has('campaign')) {
         $query->where('campaign_name', $request->get('campaign'));
     }
@@ -195,117 +194,91 @@ class FacebookMetricsController extends Controller
 
 public function getMultiIntervalData(Request $request)
 {
-    $intervals = (array) $request->get('intervals', ['weekly', 'monthly']);
+    $hasDateRange = $request->filled('start_date') && $request->filled('end_date');
+    $interval = $request->get('intervals', 'weekly');
 
-    $query = FacebookAdStat::query()->whereIn('interval', $intervals);
+
+    $query = FacebookAdStat::query()->where('status', 'active');
+
+    if ($hasDateRange) {
+        $query->whereDate('start_date', '>=', $request->get('start_date'))
+              ->whereDate('end_date', '<=', $request->get('end_date'))
+              ->where('interval', 'daily');
+    } else {
+        $query->where('interval', $interval);
+    }
+    
 
     if ($request->filled('campaign')) {
         $query->where('campaign_name', $request->get('campaign'));
-    }
-
-    if ($request->filled('start_date') && $request->filled('end_date')) {
-        $query->whereBetween('date_key', [
-            $request->get('start_date'),
-            $request->get('end_date')
-        ]);
     }
 
     if ($request->filled('ad_type')) {
         $query->where('ad_type', $request->get('ad_type'));
     }
 
-    if ($request->filled('status')) {
-        $query->where('status', $request->get('status'));
+    // Fetch all and group by ad_id + interval (avoid duplicates)
+    $grouped = $query->get()
+        ->groupBy(fn($item) => $item->ad_id . '_' . $item->interval)
+        ->map(fn($group) => $group->first());
+
+    // Optional: attach computed fields
+    $processed = $grouped->map(function ($ad) use ($grouped) {
+        $weekly = $grouped->firstWhere(fn($item) => $item->ad_id === $ad->ad_id && $item->interval === 'weekly');
+        $monthly = $grouped->firstWhere(fn($item) => $item->ad_id === $ad->ad_id && $item->interval === 'monthly');
+
+        $ad->roas_trend = '-';
+        if ($weekly && $monthly && $weekly->roas && $monthly->roas > 0) {
+            $diff = round(($weekly->roas - $monthly->roas) / $monthly->roas * 100, 1);
+            $ad->roas_trend = $diff >= 0 ? "↑ {$diff}%" : "↓ " . abs($diff) . "%";
+        }
+
+        // Performance flag
+        $roas = (float) $ad->roas;
+        $spend = (float) $ad->spend;
+        $ad->performance_flag = match (true) {
+            $roas >= 3 => 'excellent',
+            $roas >= 1.5 => 'moderate',
+            $spend >= 1000 && $roas < 2 => 'risky',
+            default => 'poor'
+        };
+
+        return $ad;
+    });
+
+    // Filter performance
+    if ($request->filled('performance_flag')) {
+        $processed = $processed->filter(fn($ad) => $ad->performance_flag === $request->get('performance_flag'));
     }
 
-    // Group by ad_id and compute roas_trend
-    $ads = $query->get()->groupBy('ad_id')->flatMap(function ($group) {
-        $weekly = $group->firstWhere('interval', 'weekly');
-        $monthly = $group->firstWhere('interval', 'monthly');
-    
-        return $group->map(function ($ad) use ($weekly, $monthly) {
-            $ad->roas_trend = '-';
-    
-            if ($weekly && $monthly && $weekly->roas !== null && $monthly->roas > 0) {
-                $diff = round(($weekly->roas - $monthly->roas) / $monthly->roas * 100, 1);
-                $ad->roas_trend = $diff >= 0 ? "↑ {$diff}%" : "↓ " . abs($diff) . "%";
-            }
-    
-            // Assign performance flag
-            $roas = (float) $ad->roas;
-            $spend = (float) $ad->spend;
-            if ($roas >= 3) {
-                $ad->performance_flag = 'excellent';
-            } elseif ($roas >= 1.5) {
-                $ad->performance_flag = 'moderate';
-            } elseif ($spend >= 1000 && $roas < 2) {
-                $ad->performance_flag = 'risky';
-            } else {
-                $ad->performance_flag = 'poor';
-            }
-    
-            return $ad;
-        });
-    });
-    if ($request->filled('performance_flag')) {
-        $ads = $ads->filter(function ($ad) use ($request) {
-            return $ad->performance_flag === $request->get('performance_flag');
-        });
-    }
-    return DataTables::of($ads)
-        ->editColumn('ad_id', fn($row) => $row->ad_id)
-        ->editColumn('campaign_name', fn($row) => $row->campaign_name)
-        ->editColumn('ad_name', fn($row) => $row->ad_name)
-        ->editColumn('interval', fn($row) => ucfirst($row->interval))
-        ->editColumn('spend', fn($row) => number_format($row->spend, 2))
-        ->editColumn('cpa', fn($row) => number_format($row->cpa, 2))
-        ->editColumn('roas', fn($row) => $row->roas ?? '-')
-        ->addColumn('date_range', function ($row) {
-            if (str_contains($row->date_key, '_')) {
-                [$start, $end] = explode('_', $row->date_key);
-                try {
-                    return \Carbon\Carbon::parse($start)->format('M j, Y') . ' – ' . \Carbon\Carbon::parse($end)->format('M j, Y');
-                } catch (\Exception $e) {
-                    return $row->date_key;
-                }
-            }
-        
-            // fallback for single date_key values
-            try {
-                return \Carbon\Carbon::parse($row->date_key)->format('M j, Y');
-            } catch (\Exception $e) {
-                return $row->date_key;
-            }
-        })
-        
-                ->addColumn('roas_trend', function ($row) {
-            if (str_starts_with($row->roas_trend, '↑')) {
-                return "<span style='color:green;'>{$row->roas_trend}</span>";
-            } elseif (str_starts_with($row->roas_trend, '↓')) {
-                return "<span style='color:red;'>{$row->roas_trend}</span>";
-            }
-            return $row->roas_trend;
-        })
-        ->editColumn('order_count', fn($row) => "<a href='".route('facebook.ad.orders', ['ad_id' => $row->ad_id])."' target='_blank'>{$row->order_count} Orders</a>")
+    return DataTables::of($processed->values())
+        ->editColumn('roas_trend', fn($row) =>
+            str_starts_with($row->roas_trend, '↑') ? "<span style='color:green;'>{$row->roas_trend}</span>" :
+            (str_starts_with($row->roas_trend, '↓') ? "<span style='color:red;'>{$row->roas_trend}</span>" : $row->roas_trend)
+        )
+        ->editColumn('order_count', fn($row) => "<a href='" . route('facebook.ad.orders', ['ad_id' => $row->ad_id]) . "' target='_blank'>{$row->order_count} Orders</a>")
         ->editColumn('ad_link', fn($row) => "<a href='{$row->ad_link}' target='_blank'>Ad Link</a>")
         ->editColumn('thumbnail_url', fn($row) => "<img src='{$row->thumbnail_url}' width='60'/>")
         ->editColumn('updated_time', fn($row) => optional($row->updated_time)->format('Y-m-d H:i'))
         ->addColumn('performance_flag', fn($row) => ucfirst($row->performance_flag))
-        ->addColumn('trend_metrics', function ($row) {
-            return "<a href='" . route('facebook.ad.trend_metrics', ['ad_id' => $row->ad_id]) . "' class='btn btn-sm btn-outline-info'>Trend Metrics</a>";
-        })
-        ->addColumn('charts', function ($row) {
-            return "<a href='" . route('facebook.ad.charts', ['ad_id' => $row->ad_id]) . "' class='btn btn-outline-dark btn-sm'>📈 Charts</a>";
-        })
-        
+        ->addColumn('trend_metrics', fn($row) =>
+            "<a href='" . route('facebook.ad.trend_metrics', ['ad_id' => $row->ad_id]) . "' class='btn btn-sm btn-outline-info'>Trend</a>"
+        )
+        ->addColumn('charts', fn($row) =>
+            "<a href='" . route('facebook.ad.charts', ['ad_id' => $row->ad_id]) . "' class='btn btn-sm btn-outline-dark'>📈</a>"
+        )
+        ->addColumn('date_range', fn($row) =>
+            Carbon::parse($row->start_date)->format('M j') . ' – ' . Carbon::parse($row->end_date)->format('M j, Y')
+        )
         ->with([
-            'total_spend' => $ads->sum('spend'),
-            'avg_roas' => round($ads->avg('roas'), 2),
-            'total_orders' => $ads->sum('order_count'),
+            'total_spend' => number_format($processed->sum('spend'), 2),
+            'avg_roas' => round($processed->avg('roas'), 2),
+            'total_orders' => $processed->sum('order_count'),
         ])
-        ->rawColumns(['ad_link', 'thumbnail_url', 'order_count', 'roas_trend', 'trend_metrics', 'performance_flag', 'charts'])
+        ->rawColumns(['roas_trend', 'order_count', 'ad_link', 'thumbnail_url', 'trend_metrics', 'charts'])
         ->make(true);
 }
+
 
 public function showTrendMetrics(Request $request)
 {
@@ -392,31 +365,32 @@ public function showAdTrendMetrics(Request $request, $ad_id)
     $compareDate1 = $request->get('compare_date_1');
     $compareDate2 = $request->get('compare_date_2');
 
-    // Helper functions
+    // Trend computation helper
     $compute = fn($new, $old, $positive = true) =>
         (!is_numeric($new) || !is_numeric($old) || $old == 0)
-            ? '-' : sprintf("<span style='color:%s;'>%s %.1f%%</span>",
+            ? '-' : sprintf(
+                "<span style='color:%s;'>%s %.1f%%</span>",
                 (($new - $old) >= 0) === $positive ? 'green' : 'red',
                 ($new - $old) >= 0 ? '↑' : '↓',
                 abs(($new - $old) / $old * 100)
             );
 
-    $formatDate = fn($key) =>
-        !$key ? '-' :
-        (str_contains($key, '_')
-            ? Carbon::parse(explode('_', $key)[0])->format('M j, Y') . ' → ' . Carbon::parse(explode('_', $key)[1])->format('M j, Y')
-            : Carbon::parse($key)->format('M j, Y'));
-
-    // Fetch interval-based trend comparison
+    // Interval-based comparison fetch
     $records = FacebookAdStat::where('ad_id', $ad_id)
         ->where('status', 'active')
         ->whereIn('interval', [$primary, $comparison])
-        ->when($startDate && $endDate, fn($q) => $q->whereBetween('date_key', [$startDate, $endDate]))
-        ->get();
+        ->when($startDate && $endDate, fn($q) =>
+            $q->whereDate('start_date', '>=', $startDate)
+              ->whereDate('end_date', '<=', $endDate)
+        )->get();
 
-    $ad = collect($records)->groupBy('ad_id')->map(function ($group) use ($primary, $comparison, $compute, $formatDate) {
+    $ad = collect($records)->groupBy('ad_id')->map(function ($group) use ($primary, $comparison, $compute) {
         $primaryRow = $group->firstWhere('interval', $primary);
         $comparisonRow = $group->firstWhere('interval', $comparison);
+
+        $formatRange = fn($row) => $row
+            ? Carbon::parse($row->start_date)->format('M j, Y') . ' → ' . Carbon::parse($row->end_date)->format('M j, Y')
+            : '-';
 
         return [
             'ad_id' => $primaryRow?->ad_id ?? $comparisonRow?->ad_id,
@@ -424,8 +398,8 @@ public function showAdTrendMetrics(Request $request, $ad_id)
             'campaign_name' => $primaryRow?->campaign_name ?? $comparisonRow?->campaign_name,
             'thumbnail_url' => $primaryRow?->thumbnail_url ?? $comparisonRow?->thumbnail_url,
             'ad_link' => $primaryRow?->ad_link ?? $comparisonRow?->ad_link,
-            'primary_dates' => $formatDate($primaryRow?->date_key),
-            'comparison_dates' => $formatDate($comparisonRow?->date_key),
+            'primary_dates' => $formatRange($primaryRow),
+            'comparison_dates' => $formatRange($comparisonRow),
 
             'roas_trend' => $compute($primaryRow?->roas, $comparisonRow?->roas),
             'cpa_trend' => $compute($primaryRow?->cpa, $comparisonRow?->cpa, false),
@@ -436,69 +410,65 @@ public function showAdTrendMetrics(Request $request, $ad_id)
         ];
     })->first();
 
-    // Handle direct day-to-day comparison
-    [$validCompareKey1, $validCompareKey2] = $this->findValidDateKeys($ad_id, $compareDate1, $compareDate2);
+    if (!$ad) {
+        return back()->with('error', 'No active data found for this ad in the selected interval or date range.');
+    }
+
+    // Direct date-to-date comparison (optional: refactor later)
     $ad['custom_trends'] = [
         'ROAS' => '-', 'CPA' => '-', 'Spend' => '-', 'CTR' => '-', 'Impressions' => '-', 'Clicks' => '-',
     ];
 
-    if ($validCompareKey1 && $validCompareKey2) {
+    if ($compareDate1 && $compareDate2) {
         $dailyStats = FacebookAdStat::where('ad_id', $ad_id)
-            ->whereIn('date_key', [$validCompareKey1, $validCompareKey2])
+            ->where('interval', 'daily')
+            ->whereDate('start_date', $compareDate1)
+            ->orWhereDate('start_date', $compareDate2)
             ->get()
-            ->keyBy('date_key');
+            ->keyBy(fn($row) => $row->start_date->toDateString());
 
-        $row1 = $dailyStats[$validCompareKey1] ?? null;
-        $row2 = $dailyStats[$validCompareKey2] ?? null;
+        $row1 = $dailyStats[$compareDate1] ?? null;
+        $row2 = $dailyStats[$compareDate2] ?? null;
 
-        $ad['compare_date_1'] = $formatDate($validCompareKey1);
-        $ad['compare_date_2'] = $formatDate($validCompareKey2);
+        $format = fn($d) => Carbon::parse($d)->format('M j, Y');
+        $ad['compare_date_1'] = $row1 ? $format($row1->start_date) : '-';
+        $ad['compare_date_2'] = $row2 ? $format($row2->start_date) : '-';
+
         if ($row1 && $row2) {
             $ad['custom_trends'] = [
-                'ROAS' => $compute($row2?->roas, $row1?->roas),
-                'CPA' => $compute($row2?->cpa, $row1?->cpa, false),
-                'Spend' => $compute($row2?->spend, $row1?->spend),
-                'CTR' => $compute($row2?->ctr, $row1?->ctr),
-                'Impressions' => $compute($row2?->impressions, $row1?->impressions),
-                'Clicks' => $compute($row2?->clicks, $row1?->clicks),
+                'ROAS' => $compute($row2->roas, $row1->roas),
+                'CPA' => $compute($row2->cpa, $row1->cpa, false),
+                'Spend' => $compute($row2->spend, $row1->spend),
+                'CTR' => $compute($row2->ctr, $row1->ctr),
+                'Impressions' => $compute($row2->impressions, $row1->impressions),
+                'Clicks' => $compute($row2->clicks, $row1->clicks),
             ];
         }
     }
 
-    // Fetch data for charts
+    // Chart Data
     $chartData = FacebookAdStat::where('ad_id', $ad_id)
         ->where('status', 'active')
         ->when($primary !== 'daily', fn($q) => $q->where('interval', $primary))
-        ->when($compareDate1 && $compareDate2, fn($q) => $q->whereBetween('date_key', [$compareDate1, $compareDate2]),
-            fn($q) => $startDate && $endDate ? $q->whereBetween('date_key', [$startDate, $endDate]) : $q)
-        ->orderBy('date_key')
+        ->when($compareDate1 && $compareDate2, fn($q) =>
+            $q->whereDate('start_date', '>=', $compareDate1)
+              ->whereDate('end_date', '<=', $compareDate2),
+            fn($q) =>
+                $startDate && $endDate
+                    ? $q->whereDate('start_date', '>=', $startDate)->whereDate('end_date', '<=', $endDate)
+                    : $q
+        )
+        ->orderBy('start_date')
         ->get();
 
-    $chartLabels = $chartData->pluck('date_key')->map(fn($d) =>
-        str_contains($d, '_') ? Carbon::parse(explode('_', $d)[0])->format('M j') : Carbon::parse($d)->format('M j'));
-
+    $chartLabels = $chartData->map(fn($d) => Carbon::parse($d->start_date)->format('M j'));
     $chartRoas = $chartData->pluck('roas')->map(fn($v) => round($v, 2));
-    $chartCpa = $chartData->pluck('cpa')->map(fn($v) => round($v, 2));
-    $chartCtr = $chartData->pluck('ctr')->map(fn($v) => round($v, 2));
+    $chartCpa  = $chartData->pluck('cpa')->map(fn($v) => round($v, 2));
+    $chartCtr  = $chartData->pluck('ctr')->map(fn($v) => round($v, 2));
 
-    if (!$ad) {
-        return back()->with('error', 'No active data found for this ad in the selected interval or date range.');
-    }
-   
-
-// Construct trend data from your stats (already stripped/cleaned)
-$trendData = [
-    'roas' => strip_tags($ad['roas_trend'] ?? '-'),
-    'cpa' => strip_tags($ad['cpa_trend'] ?? '-'),
-    'spend' => strip_tags($ad['spend_trend'] ?? '-'),
-    'ctr' => strip_tags($ad['ctr_trend'] ?? '-'),
-    'impressions' => strip_tags($ad['impressions_trend'] ?? '-'),
-    'clicks' => strip_tags($ad['clicks_trend'] ?? '-'),
-];
-
-$openAiService = app(OpenAIService::class);
-$ad['ai_insights'] = $openAiService->generateAdInsights($ad, $ad['ad_id'] ?? 'N/A', $primary, $comparison);
-
+    // AI Insights
+    $openAiService = app(OpenAIService::class);
+    $ad['ai_insights'] = $openAiService->generateAdInsights($ad, $ad['ad_id'] ?? 'N/A', $primary, $comparison);
 
     return view('facebook.ad_trend_metrics', compact(
         'ad',
@@ -516,34 +486,36 @@ $ad['ai_insights'] = $openAiService->generateAdInsights($ad, $ad['ad_id'] ?? 'N/
 }
 
 
+
 public function showAdCharts(Request $request, $ad_id)
 {
-    $query = FacebookAdStat::where('ad_id', $ad_id)->where('status', 'active');
+    $query = FacebookAdStat::where('ad_id', $ad_id)
+        ->where('status', 'active');
 
     // Handle predefined range
     if ($request->has('range')) {
         $now = now();
-        switch ($request->get('range')) {
-            case 'last_7':
-                $query->whereDate('date_key', '>=', $now->copy()->subDays(7));
-                break;
-            case 'last_30':
-                $query->whereDate('date_key', '>=', $now->copy()->subDays(30));
-                break;
-            case 'last_90':
-                $query->whereDate('date_key', '>=', $now->copy()->subDays(90));
-                break;
+        $days = match ($request->get('range')) {
+            'last_7' => 7,
+            'last_30' => 30,
+            'last_90' => 90,
+            default => null,
+        };
+
+        if ($days) {
+            $query->whereDate('start_date', '>=', $now->copy()->subDays($days));
         }
     }
 
     // Handle manual range
     if ($request->filled('start_date') && $request->filled('end_date')) {
-        $query->whereBetween('date_key', [$request->start_date, $request->end_date]);
+        $query->whereDate('start_date', '>=', $request->start_date)
+              ->whereDate('end_date', '<=', $request->end_date);
     }
 
-    $stats = $query->orderBy('date_key')->get()->map(function ($item) {
+    $stats = $query->orderBy('start_date')->get()->map(function ($item) {
         return [
-            'date' => $item->date_key,
+            'date' => Carbon::parse($item->start_date)->format('M j, Y'),
             'roas' => round($item->roas ?? 0, 2),
             'spend' => round($item->spend ?? 0, 2),
             'cpa' => round($item->cpa ?? 0, 2),
@@ -562,6 +534,7 @@ public function showAdCharts(Request $request, $ad_id)
         'end_date' => $request->end_date,
     ]);
 }
+
 function computeTrend($new, $old, $positiveIsGood = true)
 {
     if (!is_numeric($new) || !is_numeric($old) || $old == 0) return '-';
@@ -571,73 +544,7 @@ function computeTrend($new, $old, $positiveIsGood = true)
     return "<span style='color:$color;'>$symbol " . abs($diff) . "%</span>";
 }
 
-public function findValidDateKeys($ad_id, $date1, $date2, $maxTries = 7)
-{
-    $validDate1 = null;
-    $validDate2 = null;
 
-    // Step 1: Try exact key format first
-    $exactKeys = FacebookAdStat::where('ad_id', $ad_id)
-        ->whereIn('date_key', [
-            "{$date1}_{$date1}",
-            "{$date2}_{$date2}"
-        ])
-        ->pluck('date_key')
-        ->toArray();
-
-    if (in_array("{$date1}_{$date1}", $exactKeys)) {
-        $validDate1 = "{$date1}_{$date1}";
-       
-    }
-
-    if (in_array("{$date2}_{$date2}", $exactKeys)) {
-        $validDate2 = "{$date2}_{$date2}";
-        
-    }
-
-    // Step 2: Forward search if still not found
-    if (!$validDate1 || !$validDate2) {
-        for ($direction = 1; $direction >= -1; $direction -= 2) { // +1 (forward), then -1 (backward)
-            for ($attempt = 0; $attempt <= $maxTries; $attempt++) {
-                $tryDate1 = Carbon::parse($date1)->addDays($attempt * $direction)->toDateString();
-                $tryDate2 = Carbon::parse($date2)->addDays($attempt * $direction)->toDateString();
-
-                $candidateKeys = FacebookAdStat::where('ad_id', $ad_id)
-                    ->where(function ($q) use ($tryDate1, $tryDate2) {
-                        $q->where('date_key', 'like', "%{$tryDate1}%")
-                          ->orWhere('date_key', 'like', "%{$tryDate2}%");
-                    })
-                    ->pluck('date_key')
-                    ->unique()
-                    ->toArray();
-
-          
-
-                foreach ($candidateKeys as $key) {
-                    if (!str_contains($key, '_')) continue;
-
-                    [$start, $end] = explode('_', $key);
-
-                    if (!$validDate1 && Carbon::parse($tryDate1)->between($start, $end)) {
-                        $validDate1 = $key;
-                     
-                    }
-
-                    if (!$validDate2 && Carbon::parse($tryDate2)->between($start, $end)) {
-                        $validDate2 = $key;
-                      
-                    }
-
-                    if ($validDate1 && $validDate2) break 2;
-                }
-            }
-        }
-    }
-
-
-
-    return [$validDate1, $validDate2];
-}
 
 
 }
