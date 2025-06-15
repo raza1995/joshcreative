@@ -239,6 +239,7 @@ public function getMultiIntervalData(Request $request)
             $ad->ad_link = $first->ad_link;
             $ad->thumbnail_url = $first->thumbnail_url;
             $ad->updated_time = $first->updated_time;
+            $ad->adset_name = $first->adset_name;
 
             return $ad;
         });
