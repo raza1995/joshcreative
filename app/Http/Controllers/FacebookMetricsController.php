@@ -201,9 +201,9 @@ public function getMultiIntervalData(Request $request)
     $query = FacebookAdStat::query()->where('status', 'active');
 
     if ($hasDateRange) {
-        $query->whereDate('start_date', '>=', $request->get('start_date'))
-              ->whereDate('end_date', '<=', $request->get('end_date'))
-              ->where('interval', 'daily');
+        $query->where('interval', 'daily')
+        ->whereDate('start_date', '>=', $request->get('start_date'))
+        ->whereDate('start_date', '<=', $request->get('end_date'));
     } else {
         $query->where('interval', $interval);
     }
@@ -216,24 +216,61 @@ public function getMultiIntervalData(Request $request)
     if ($request->filled('ad_type')) {
         $query->where('ad_type', $request->get('ad_type'));
     }
-
+    $stats = $query->get();
     // Fetch all and group by ad_id + interval (avoid duplicates)
-    $grouped = $query->get()
-        ->groupBy(fn($item) => $item->ad_id . '_' . $item->interval)
-        ->map(fn($group) => $group->first());
+    if ($hasDateRange) {
+        $grouped = $stats->groupBy('ad_id')->map(function ($group) {
+            $totalSpend = $group->sum('spend');
+            $totalOrders = $group->sum('order_count');
+            $avgRoas = $group->avg('roas');
+            $first = $group->first();
+
+            $ad = new \stdClass();
+            $ad->ad_id = $first->ad_id;
+            $ad->ad_name = $first->ad_name;
+            $ad->campaign_name = $first->campaign_name;
+            $ad->interval = 'custom';
+            $ad->start_date = $group->min('start_date');
+            $ad->end_date = $group->max('start_date');
+            $ad->spend = $totalSpend;
+            $ad->order_count = $totalOrders;
+            $ad->roas = round($avgRoas, 2);
+            $ad->cpa = $totalOrders > 0 ? round($totalSpend / $totalOrders, 2) : 0;
+            $ad->ad_link = $first->ad_link;
+            $ad->thumbnail_url = $first->thumbnail_url;
+            $ad->updated_time = $first->updated_time;
+
+            return $ad;
+        });
+    } else {
+        // Default behavior: avoid interval duplication
+        $grouped = $stats->groupBy(fn($item) => $item->ad_id . '_' . $item->interval)
+                         ->map(fn($group) => $group->first());
+    }
 
     // Optional: attach computed fields
-    $processed = $grouped->map(function ($ad) use ($grouped) {
-        $weekly = $grouped->firstWhere(fn($item) => $item->ad_id === $ad->ad_id && $item->interval === 'weekly');
-        $monthly = $grouped->firstWhere(fn($item) => $item->ad_id === $ad->ad_id && $item->interval === 'monthly');
-
-        $ad->roas_trend = '-';
-        if ($weekly && $monthly && $weekly->roas && $monthly->roas > 0) {
-            $diff = round(($weekly->roas - $monthly->roas) / $monthly->roas * 100, 1);
-            $ad->roas_trend = $diff >= 0 ? "↑ {$diff}%" : "↓ " . abs($diff) . "%";
+    $processed = $grouped->map(function ($ad) use ($grouped, $hasDateRange) {
+        if ($hasDateRange) {
+            // Compare against monthly if available
+            $monthly = $grouped->firstWhere(fn($item) => $item->ad_id === $ad->ad_id && $item->interval === 'monthly');
+    
+            $ad->roas_trend = '-';
+            if ($monthly && $monthly->roas > 0) {
+                $diff = round(($ad->roas - $monthly->roas) / $monthly->roas * 100, 1);
+                $ad->roas_trend = $diff >= 0 ? "↑ {$diff}%" : "↓ " . abs($diff) . "%";
+            }
+        } else {
+            $weekly = $grouped->firstWhere(fn($item) => $item->ad_id === $ad->ad_id && $item->interval === 'weekly');
+            $monthly = $grouped->firstWhere(fn($item) => $item->ad_id === $ad->ad_id && $item->interval === 'monthly');
+    
+            $ad->roas_trend = '-';
+            if ($weekly && $monthly && $weekly->roas && $monthly->roas > 0) {
+                $diff = round(($weekly->roas - $monthly->roas) / $monthly->roas * 100, 1);
+                $ad->roas_trend = $diff >= 0 ? "↑ {$diff}%" : "↓ " . abs($diff) . "%";
+            }
         }
-
-        // Performance flag
+    
+        // Performance Flag (unchanged)
         $roas = (float) $ad->roas;
         $spend = (float) $ad->spend;
         $ad->performance_flag = match (true) {
@@ -242,9 +279,10 @@ public function getMultiIntervalData(Request $request)
             $spend >= 1000 && $roas < 2 => 'risky',
             default => 'poor'
         };
-
+    
         return $ad;
     });
+    
 
     // Filter performance
     if ($request->filled('performance_flag')) {
