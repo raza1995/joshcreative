@@ -232,10 +232,10 @@ public function getMultiIntervalData(Request $request)
             $ad->interval = 'custom';
             $ad->start_date = $group->min('start_date');
             $ad->end_date = $group->max('start_date');
-            $ad->spend = $totalSpend;
+            $ad->spend = number_format($totalSpend, 2, '.', '');
             $ad->order_count = $totalOrders;
             $ad->roas = round($avgRoas, 2);
-            $ad->cpa = $totalOrders > 0 ? round($totalSpend / $totalOrders, 2) : 0;
+            $ad->cpa = $first->cpa;
             $ad->ad_link = $first->ad_link;
             $ad->thumbnail_url = $first->thumbnail_url;
             $ad->updated_time = $first->updated_time;
