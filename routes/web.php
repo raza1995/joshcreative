@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdsController;
+use App\Http\Controllers\ConversionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailDraftController;
 use App\Http\Controllers\ExcludedIpController;
@@ -49,6 +50,7 @@ Route::get('/facebook/multi-interval/data', [FacebookMetricsController::class, '
 Route::get('/facebook/trend-metrics', [FacebookMetricsController::class, 'showTrendMetrics'])->name('facebook.trend.metrics');
 Route::get('/facebook/ads/{ad_id}/trend-metrics', [FacebookMetricsController::class, 'showAdTrendMetrics'])->name('facebook.ad.trend_metrics');
 Route::get('/facebook/ads/{ad_id}/charts', [FacebookMetricsController::class, 'showAdCharts'])->name('facebook.ad.charts');
+Route::get('/conversions/landing-sites', [ConversionController::class, 'landingSiteConversions'])->name('conversions.landing_sites');
 
 
 Route::get('/google-sheet/export', [GoogleSheetController::class, 'showForm'])->name('sheet.form');
