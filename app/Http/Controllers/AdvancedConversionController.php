@@ -48,66 +48,46 @@ class AdvancedConversionController extends Controller
     public function productBySource(Request $request)
     {
         [$from, $to] = $this->parseDates($request);
-
-    // Step 1: Get all sources from view events
-    $sources = FactEvent::whereBetween('event_ts', [$from, $to])
-        ->where(function ($q) {
-            $q->where('event_type', 'view')
-              ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_props, '$.productTitle')) IS NOT NULL");
+    
+        // Preload domains and product titles to avoid N+1 queries
+        $refDomains = RefDomainDim::pluck('domain', 'id');
+        $productTitles = ProductDim::pluck('title', 'id');
+    
+        $rows = FactEvent::selectRaw("
+            ref_domain_id,
+            product_id,
+            raw_props->>'$.productTitle' as fallback_title,
+            SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END) AS views,
+            SUM(CASE WHEN event_type = 'buy'  THEN 1 ELSE 0 END) AS orders
+        ")
+        ->whereBetween('event_ts', [$from, $to])
+        ->groupBy('ref_domain_id', 'product_id', 'fallback_title')
+        ->get();
+    
+        // Format stats
+        $stats = $rows->map(function ($row) use ($refDomains, $productTitles) {
+            $source = $refDomains[$row->ref_domain_id] ?? 'unknown';
+    
+            $product = $row->product_id
+                ? ($productTitles[$row->product_id] ?? null)
+                : null;
+    
+            $title = $product ?? $row->fallback_title ?? 'unknown';
+    
+            return [
+                'source'  => $source,
+                'product' => $title,
+                'views'   => (int) $row->views,
+                'orders'  => (int) $row->orders,
+                'cvr'     => $row->views ? round($row->orders / $row->views * 100, 2) : 0.0,
+            ];
         })
-        ->pluck('utm_source')
-        ->filter()
-        ->unique();
-
-    $funnels = [];
-
-    foreach ($sources as $source) {
-        $views = FactEvent::whereBetween('event_ts', [$from, $to])
-            ->where('utm_source', $source)
-            ->where(function ($q) {
-                $q->where('event_type', 'view')
-                  ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_props, '$.productTitle')) IS NOT NULL");
-            })
-            ->pluck('device_id')
-            ->unique();
-
-        $atc = FactEvent::whereBetween('event_ts', [$from, $to])
-            ->where('utm_source', $source)
-            ->where('event_type', 'atc')
-            ->whereIn('device_id', $views)
-            ->pluck('device_id')
-            ->unique();
-
-        $cko = FactEvent::whereBetween('event_ts', [$from, $to])
-            ->where('utm_source', $source)
-            ->where('event_type', 'cko')
-            ->whereIn('device_id', $atc)
-            ->pluck('device_id')
-            ->unique();
-
-        $buy = FactEvent::whereBetween('event_ts', [$from, $to])
-            ->where('utm_source', $source)
-            ->where('event_type', 'buy')
-            ->whereIn('device_id', $cko)
-            ->pluck('device_id')
-            ->unique();
-
-        $funnels[] = [
-            'source'           => $source ?? 'unknown',
-            'views'            => $views->count(),
-            'atc'              => $atc->count(),
-            'cko'              => $cko->count(),
-            'buy'              => $buy->count(),
-            'drop_atc'         => $views->count() - $atc->count(),
-            'drop_cko'         => $atc->count() - $cko->count(),
-            'drop_buy'         => $cko->count() - $buy->count(),
-            'pct_atc'          => $views->count() ? round($atc->count() / $views->count() * 100, 2) : 0,
-            'pct_cko'          => $atc->count() ? round($cko->count() / $atc->count() * 100, 2) : 0,
-            'pct_buy'          => $cko->count() ? round($buy->count() / $cko->count() * 100, 2) : 0,
-        ];
-    }
-
-    return view('analytics.product_by_source', ['funnels' => $funnels]);
+        // Ensure uniqueness based on domain + title combo
+        ->unique(fn($item) => $item['source'] . '|' . $item['product'])
+        ->sortByDesc('orders')
+        ->values();
+    
+        return view('analytics.product_by_source', ['stats' => $stats]);
     }
     
 
