@@ -54,15 +54,15 @@ class AdvancedConversionController extends Controller
         $productTitles = ProductDim::pluck('title', 'id');
     
         $rows = FactEvent::selectRaw("
-            ref_domain_id,
-            product_id,
-            raw_props->>'$.productTitle' as fallback_title,
-            SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END) AS views,
-            SUM(CASE WHEN event_type = 'buy'  THEN 1 ELSE 0 END) AS orders
-        ")
-        ->whereBetween('event_ts', [$from, $to])
-        ->groupBy('ref_domain_id', 'product_id', 'fallback_title')
-        ->get();
+        ref_domain_id,
+        product_id,
+        JSON_UNQUOTE(JSON_EXTRACT(raw_props, '$.productTitle')) as fallback_title,
+        SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END) AS views,
+        SUM(CASE WHEN event_type = 'buy' THEN 1 ELSE 0 END) AS orders
+    ")
+    ->whereBetween('event_ts', [$from, $to])
+    ->groupBy('ref_domain_id', 'product_id', 'fallback_title')
+    ->get();
     
         // Format stats
         $stats = $rows->map(function ($row) use ($refDomains, $productTitles) {
