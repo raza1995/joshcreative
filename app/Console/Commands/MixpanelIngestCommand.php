@@ -20,7 +20,9 @@ class MixpanelIngestCommand extends Command
      *   php artisan mp:ingest          # fetch previous 1 hour (default)
      *   php artisan mp:ingest --hours=24  # back-fill 24 separate hours
      */
-    protected $signature   = 'mp:ingest {--hours=1 : How many past hours to pull}';
+    protected $signature = 'mp:ingest 
+    {--hours=1 : How many past hours to pull}
+    {--days=0 : How many past days (24h blocks) to pull}';
     protected $description = 'Ingest Mixpanel funnel events into analytics schema';
 
     /* ------------------------------------------------------------ */
@@ -64,7 +66,7 @@ class MixpanelIngestCommand extends Command
         
         $resp = Http::withBasicAuth(env('SECRET_MIXPANEL'), '')
             ->withHeaders(['Accept' => 'text/plain'])
-            ->timeout(90)
+            ->timeout(300)
             ->get($url, $query);
         
         if (!$resp->ok()) {
