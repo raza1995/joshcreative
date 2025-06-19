@@ -33,7 +33,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('facebook:export daily')->dailyAt('06:00');
         $schedule->command('facebook:export weekly')->weeklyOn(1, '07:00');
         $schedule->command('facebook:export monthly')->monthlyOn(1, '08:00');
-
+        $schedule->command('mp:ingest')->hourlyAt(3);
 
         $schedule->command('facebook:aggregate-custom-metrics --days=60')->weeklyOn(0, '1:00'); // Sunday
         $schedule->command('facebook:aggregate-custom-metrics --days=90')->weeklyOn(0, '1:15');

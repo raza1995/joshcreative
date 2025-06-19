@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdsController;
+use App\Http\Controllers\AdvancedConversionController;
 use App\Http\Controllers\ConversionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailDraftController;
@@ -50,7 +51,24 @@ Route::get('/facebook/multi-interval/data', [FacebookMetricsController::class, '
 Route::get('/facebook/trend-metrics', [FacebookMetricsController::class, 'showTrendMetrics'])->name('facebook.trend.metrics');
 Route::get('/facebook/ads/{ad_id}/trend-metrics', [FacebookMetricsController::class, 'showAdTrendMetrics'])->name('facebook.ad.trend_metrics');
 Route::get('/facebook/ads/{ad_id}/charts', [FacebookMetricsController::class, 'showAdCharts'])->name('facebook.ad.charts');
-Route::get('/conversions/landing-sites', [ConversionController::class, 'landingSiteConversions'])->name('conversions.landing_sites');
+
+
+Route::prefix('analytics')->group(function () {
+    Route::get('/sources',  [AdvancedConversionController::class, 'sourcePerformance'])
+        ->name('analytics.sources');
+
+    Route::get('/products', [AdvancedConversionController::class, 'productBySource'])
+        ->name('analytics.products');
+
+    Route::get('/lag',      [AdvancedConversionController::class, 'conversionLag'])
+        ->name('analytics.lag');
+
+    Route::get('/landing-sites', [ConversionController::class, 'landingSiteConversions'])->name('analytics.landing_sites');
+
+    Route::get('/funnel', [AdvancedConversionController::class, 'funnelFallout'])
+     ->name('analytics.funnel');
+
+});
 
 
 Route::get('/google-sheet/export', [GoogleSheetController::class, 'showForm'])->name('sheet.form');

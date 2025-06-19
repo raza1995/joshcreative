@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use App\Models\ShopifyOrder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -12,87 +11,90 @@ class ConversionController extends Controller
 {
     public function landingSiteConversions(Request $request)
     {
-        $start = Carbon::parse($request->input('start_date', now()->subDays(7)->toDateString()))
-        ->startOfDay();
-$end   = Carbon::parse($request->input('end_date', now()->toDateString()))
-        ->endOfDay();
+        /* ───── 1. Date-range handling ───── */
+        $start = Carbon::parse(
+            $request->input('start_date', now()->subDays(7)->toDateString())
+        )->startOfDay();
 
-if ($start->gt($end)) {
-return back()->withErrors(['date' => 'Start date must be before end date.']);
-}
+        $end   = Carbon::parse(
+            $request->input('end_date',   now()->toDateString())
+        )->endOfDay();
 
-// The Segmentation API needs YYYY-MM-DD (no time)
-$from = $start->toDateString();
-$to   = $end->toDateString();
+        if ($start->gt($end)) {
+            return back()->withErrors(['date' => 'Start date must be before end date.']);
+        }
 
-/* ─── 2. Query Mixpanel (same logic, just dynamic dates) ─── */
-$viewsRes = Http::withBasicAuth(env('SECRET_MIXPANEL'), '')
-->get('https://mixpanel.com/api/query/segmentation', [
- 'event'     => '$mp_web_page_view',
- 'from_date' => $from,
- 'to_date'   => $to,
- 'on'        => 'properties["$initial_referring_domain"]',
- 'type'      => 'unique',
- 'where'     => 'properties["$device_id"] != ""',
-]);
+        $from = $start->toDateString();     // Mixpanel expects YYYY-MM-DD
+        $to   = $end  ->toDateString();
 
-$convRes = Http::withBasicAuth(env('SECRET_MIXPANEL'), '')
-->get('https://mixpanel.com/api/query/segmentation', [
- 'event'     => 'checkout_completed',
- 'from_date' => $from,
- 'to_date'   => $to,
- 'on'        => 'properties["$initial_referring_domain"]',
- 'where'     => 'properties["$device_id"] != ""',
-]);
+        /* ───── 2. Mixpanel calls ───── */
 
-if (!$viewsRes->ok() || !$convRes->ok()) {
-return response()->json([
- 'error'   => 'Failed to fetch Mixpanel data',
- 'details' => [
-     'views' => $viewsRes->json(),
-     'conv'  => $convRes->json(),
- ],
-], 500);
-}
+        // A. Unique *Product views* per initial referrer  → VISITS
+        $viewsRes = Http::withBasicAuth(env('SECRET_MIXPANEL'), '')
+            ->get('https://mixpanel.com/api/query/segmentation', [
+                'event'     => 'Product viewed',
+                'from_date' => $from,
+                'to_date'   => $to,
+                'on'        => 'properties["$initial_referring_domain"]',
+                'type'      => 'unique',                          // unique devices
+                'where'     => 'properties["$device_id"] != ""',
+            ]);
 
-/* ─── 3. Flatten, merge & compute rates (helper unchanged) ─── */
-$views = $this->flattenSegmentation($viewsRes->json());
-$conv  = $this->flattenSegmentation($convRes->json());
+        // B. *Checkout completed* per same referrer        → CONVERSIONS
+        $convRes = Http::withBasicAuth(env('SECRET_MIXPANEL'), '')
+            ->get('https://mixpanel.com/api/query/segmentation', [
+                'event'     => 'checkout_completed',
+                'from_date' => $from,
+                'to_date'   => $to,
+                'on'        => 'properties["$initial_referring_domain"]',
+                'where'     => 'properties["$device_id"] != ""',
+            ]);
 
-$stats = collect($views)
-->merge($conv)
-->map(function ($val, $domain) use ($views, $conv) {
- $visits      = $views[$domain] ?? 0;
- $conversions = $conv[$domain] ?? 0;
- return [
-     'domain'          => $domain ?: 'unknown',
-     'visits'          => $visits,
-     'conversions'     => $conversions,
-     'conversion_rate' => $visits ? round(($conversions / $visits) * 100, 2) : 0.00,
- ];
-})
-->sortByDesc('conversions')
-->values();
+        if (!$viewsRes->ok() || !$convRes->ok()) {
+            return response()->json([
+                'error'   => 'Failed to fetch Mixpanel data',
+                'details' => [
+                    'views' => $viewsRes->json(),
+                    'conv'  => $convRes->json(),
+                ],
+            ], 500);
+        }
 
-/* ─── 4. Return view with data ─── */
-return view('conversion.landing_sites', [
-'conversions' => $stats,
-]);
+        /* ───── 3. Flatten, merge & compute rates ───── */
+        $views = $this->flattenSegmentation($viewsRes->json());   // [domain => visits]
+        $conv  = $this->flattenSegmentation($convRes->json());    // [domain => conversions]
 
+        $stats = collect($views)
+            ->merge($conv)                     // ensure union of keys
+            ->map(function ($_, $domain) use ($views, $conv) {
+                $v = $views[$domain] ?? 0;
+                $c = $conv [$domain] ?? 0;
+                return [
+                    'domain'          => $domain ?: 'unknown',
+                    'visits'          => $v,
+                    'conversions'     => $c,
+                    'conversion_rate' => $v ? round(($c / $v) * 100, 2) : 0.00,
+                ];
+            })
+            ->sortByDesc('conversions')
+            ->values();
+
+        /* ───── 4. Send to Blade view ───── */
+        return view('analytics.landing_sites', [
+            'conversions' => $stats,
+        ]);
     }
 
-    
-    
+    /**
+     * Collapse Mixpanel Segmentation response into [ key => grandTotal ]
+     */
     private function flattenSegmentation(array $resp): array
     {
-        $out     = [];
-        $values  = $resp['data']['values'] ?? [];
-    
-        foreach ($values as $domain => $dateSeries) {
-            // $dateSeries is a map of 'YYYY-MM-DD' => count
-            $out[$domain ?: 'unknown'] = array_sum($dateSeries);
+        $out = [];
+        foreach ($resp['data']['values'] ?? [] as $key => $series) {
+            // $series is a small time-series map  { "2025-06-18": 12, ... }
+            $out[$key ?: 'unknown'] = array_sum($series);
         }
         return $out;
     }
-  
 }
