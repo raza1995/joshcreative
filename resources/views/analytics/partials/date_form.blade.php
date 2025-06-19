@@ -3,7 +3,7 @@
   <a class="nav-link {{ request()->routeIs('analytics.sources') ? 'active' : '' }}" href="{{ route('analytics.sources') }}">Sources</a>
   <a class="nav-link {{ request()->routeIs('analytics.products') ? 'active' : '' }}" href="{{ route('analytics.products') }}">Products</a>
   <a class="nav-link {{ request()->routeIs('analytics.landing_sites') ? 'active' : '' }}" href="{{ route('analytics.landing_sites') }}">Landing Sites</a>
-    <a class="nav-link {{ request()->routeIs('analytics.funnel_fallout') ? 'active' : '' }}" href="{{ route('analytics.funnel_fallout') }}">Funnel Fallout</a>
+    <a class="nav-link {{ request()->routeIs('analytics.funnel') ? 'active' : '' }}" href="{{ route('analytics.funnel') }}">Funnel Fallout</a>
 </nav>
 
 {{-- Date Filter Form --}}
