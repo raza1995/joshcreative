@@ -107,7 +107,7 @@ class AdvancedConversionController extends Controller
         ];
     }
 
-    return view('analytics.funnel_by_source', ['funnels' => $funnels]);
+    return view('analytics.product_by_source', ['funnels' => $funnels]);
     }
     
 
