@@ -17,7 +17,7 @@ class FacebookAdCreativeSuggestionsController extends Controller
 
     public function getData(Request $request)
     {
-        $startDate = Carbon::today()->subDays(7)->toDateString();
+        $startDate = Carbon::today()->subDays(14)->toDateString();
         $endDate = Carbon::today()->subDay()->toDateString();
 
         $stats = FacebookAdStat::where('interval', 'daily')

@@ -199,7 +199,7 @@ public function getMultiIntervalData(Request $request)
 
 
     $query = FacebookAdStat::query()->where('status', 'active');
-
+    $query->where('status', 'active');
     if ($hasDateRange) {
         $query->where('interval', 'daily')
         ->whereDate('start_date', '>=', $request->get('start_date'))
