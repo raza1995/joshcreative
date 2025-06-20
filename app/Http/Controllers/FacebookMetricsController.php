@@ -235,7 +235,7 @@ public function getMultiIntervalData(Request $request)
             $ad->spend = number_format($totalSpend, 2, '.', '');
             $ad->order_count = $totalOrders;
             $ad->roas = round($avgRoas, 2);
-            $ad->cpa = $first->cpa;
+            $ad->cpa = round($group->avg('cpa'), 2);
             $ad->ad_link = $first->ad_link;
             $ad->thumbnail_url = $first->thumbnail_url;
             $ad->updated_time = $first->updated_time;
