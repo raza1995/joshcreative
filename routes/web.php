@@ -6,6 +6,7 @@ use App\Http\Controllers\ConversionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailDraftController;
 use App\Http\Controllers\ExcludedIpController;
+use App\Http\Controllers\FacebookAdCreativeSuggestionsController;
 use App\Http\Controllers\FacebookAdsController;
 use App\Http\Controllers\FacebookMetricsController;
 use App\Http\Controllers\GmailWebhookController;
@@ -54,6 +55,11 @@ Route::get('/facebook/ads/{ad_id}/charts', [FacebookMetricsController::class, 's
 
 
 Route::prefix('analytics')->group(function () {
+
+    Route::get('/creative-suggestions', [FacebookAdCreativeSuggestionsController::class, 'index'])->name('suggestions.index');
+    Route::get('/creative-suggestions/data', [FacebookAdCreativeSuggestionsController::class, 'getData'])->name('suggestions.data');
+    
+
     Route::get('/sources',  [AdvancedConversionController::class, 'sourcePerformance'])
         ->name('analytics.sources');
 
