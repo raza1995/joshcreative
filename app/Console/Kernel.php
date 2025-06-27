@@ -29,7 +29,7 @@ class Kernel extends ConsoleKernel
         // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('daily'))->dailyAt('06:00');
         // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('weekly'))->weeklyOn(1, '07:00'); // every Monday
         // $schedule->job(new ExportFacebookAdsToGoogleSheetJob('monthly'))->monthlyOn(1, '08:00'); // 1st day of month
-        $schedule->command('facebook:aggregate-stats')->everyThirtyMinutes();
+        $schedule->command('facebook:aggregate-stats')->everyThreeHours();
         $schedule->command('facebook:export daily')->dailyAt('06:00');
         $schedule->command('facebook:export weekly')->weeklyOn(1, '07:00');
         $schedule->command('facebook:export monthly')->monthlyOn(1, '08:00');
