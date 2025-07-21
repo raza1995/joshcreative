@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
 use Mixpanel;
 
 class MixpanelService
@@ -85,7 +86,40 @@ class MixpanelService
         $this->mixpanel->identify($distinctId);
         $this->mixpanel->track($event, $props);
     }
-
+    public function importEvent(array $event)
+    {
+        // Ensure required structure
+        if (!isset($event['event']) || !isset($event['properties']['time']) || !isset($event['properties']['distinct_id'])) {
+            \Log::warning('Mixpanel import: Missing required fields', ['event' => $event]);
+            return false;
+        }
+    
+        // Enforce token from .env
+        $event['properties']['token'] = env('MIXPANEL_TOKEN');
+    
+        $data = base64_encode(json_encode([$event]));
+    
+        $response = Http::withOptions([
+            'verify' => false, // remove if SSL is properly configured
+        ])->get('https://api.mixpanel.com/import/', [
+            'data' => $data,
+            'verbose' => 1,
+        ]);
+    
+        if ($response->failed()) {
+            \Log::error('❌ Mixpanel import failed', [
+                'event' => $event,
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+            return false;
+        }
+    
+        \Log::info('✅ Mixpanel import success', ['distinct_id' => $event['properties']['distinct_id'], 'time' => $event['properties']['time']]);
+    
+        return $response->json();
+    }
+    
 
 
 }
