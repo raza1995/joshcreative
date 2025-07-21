@@ -21,7 +21,7 @@ class MixpanelBackfillService
     }
     EOD;
     
-        $response = Http::withBasicAuth(env('MIXPANEL_SECRET'), '')
+    $response = Http::withBasicAuth('f9cd5c927ad2cdc5ddbababef49a3220', '')
             ->asForm()
             ->post('https://mixpanel.com/api/2.0/jql', [
                 'script' => $query,
