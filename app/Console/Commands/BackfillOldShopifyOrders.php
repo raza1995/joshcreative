@@ -47,7 +47,7 @@ class BackfillOldShopifyOrders extends Command
                     'event' => [ 'clientId' => $order->anon_id ?? null ],
                 ]
             ];
-            dd($event);
+        
             // Send event to Mixpanel /import
             $mixpanelService->importEvent($event);
         
