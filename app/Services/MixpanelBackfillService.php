@@ -21,13 +21,26 @@ class MixpanelBackfillService
     }
     EOD;
     
-        $response = Http::withBasicAuth('f9cd5c927ad2cdc5ddbababef49a3220', '')
+        $response = Http::withBasicAuth(env('MIXPANEL_SECRET'), '')
             ->asForm()
             ->post('https://mixpanel.com/api/2.0/jql', [
                 'script' => $query,
             ]);
     
-        return count($response->json()) > 0;
+        $data = $response->json();
+    
+        if (!is_array($data)) {
+            \Log::error('Mixpanel JQL failed or returned invalid JSON', [
+                'response' => $response->body(),
+                'status' => $response->status(),
+                'distinct_id' => $distinctId,
+                'timestamp' => $timestamp,
+            ]);
+            return false; // fail open (assume event missing)
+        }
+    
+        return count($data) > 0;
     }
+    
     
 }
