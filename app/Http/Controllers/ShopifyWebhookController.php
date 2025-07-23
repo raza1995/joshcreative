@@ -88,7 +88,7 @@ class ShopifyWebhookController extends Controller
             );
     
             // Track per product
-            $mixpanelService->trackUserEvent($customerEmail, 'Product Purchased', array_merge($identityProps, [
+            $mixpanelService->trackUserEvent($customerEmail, 'identity', array_merge($identityProps, [
                 'Product ID' => $item['product_id'],
                 'Variant ID' => $item['variant_id'],
                 'Product Title' => $item['title'],
