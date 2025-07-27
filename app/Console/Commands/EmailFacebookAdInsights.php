@@ -85,7 +85,7 @@ class EmailFacebookAdInsights extends Command
                         'impressions' => $row->impressions,
                     ];
                 })->values();
-
+dd($ad->current );
                 // Aggregate comparisons
                 $ad->spend_previous_total = round($previous3->sum('spend'), 2);
                 $ad->spend_current_total = round($current3->sum('spend'), 2);
