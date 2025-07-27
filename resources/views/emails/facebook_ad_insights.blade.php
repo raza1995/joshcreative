@@ -1,10 +1,12 @@
 <tbody>
 @foreach ($ads as $ad)
     <tr>
-        <td colspan="1" style="font-weight:bold; padding: 10px; border-top: 2px solid #ccc;">
-            {{ $ad->ad_name ?? $ad->ad_id }}<br>
-            <small>{{ $ad->campaign_name }}</small>
-        </td>
+    <td colspan="1" style="font-weight:bold; padding: 10px; border-top: 2px solid #ccc;">
+    {{ $ad->ad_name ?? 'Unnamed Ad' }}<br>
+    <small style="color: #555;">ID: {{ $ad->ad_id }}</small><br>
+    <small>Campaign: {{ $ad->campaign_name }}</small>
+</td>
+
         <td colspan="5" style="padding: 10px; border-top: 2px solid #ccc;">
             <table width="100%" cellpadding="6" cellspacing="0" border="1" style="border-collapse: collapse; font-size: 14px;">
                 <thead style="background-color: #f3f3f3;">
