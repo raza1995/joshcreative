@@ -26,6 +26,7 @@ class FacebookAdInsightsEmail extends Mailable
 
     public function build()
     {
+        dd($this->ads);
         return $this->subject('Facebook Ad Insights: Top 10 Ads ' . $this->startDate->format('M j') . '–' . $this->endDate->format('M j'))
                     ->view('emails.facebook_ad_insights')
                     ->with([
