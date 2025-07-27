@@ -18,8 +18,8 @@
                 <tbody>
                     <tr>
                         <td>Spend</td>
-                        <td>${{ number_format($ad->spend_current_total, 2) }}</td>
-                        <td>${{ number_format($ad->spend_previous_total, 2) }}</td>
+                        <td>${{ number_format($ad->spend_current, 2) }}</td>
+                        <td>${{ number_format($ad->spend_previous, 2) }}</td>
                         <td>
                             @if ($ad->spend_diff !== null)
                                 <span style="color: {{ $ad->spend_diff >= 0 ? 'green' : 'red' }};">
@@ -32,8 +32,8 @@
                     </tr>
                     <tr>
                         <td>ROAS</td>
-                        <td>{{ number_format($ad->roas_current_avg, 2) }}</td>
-                        <td>{{ number_format($ad->roas_previous_avg, 2) }}</td>
+                        <td>{{ number_format($ad->roas_current, 2) }}</td>
+                        <td>{{ number_format($ad->roas_previous, 2) }}</td>
                         <td>
                             @if ($ad->roas_diff !== null)
                                 <span style="color: {{ $ad->roas_diff >= 0 ? 'green' : 'red' }};">
@@ -46,8 +46,8 @@
                     </tr>
                     <tr>
                         <td>CPA</td>
-                        <td>{{ number_format($ad->cpa_current_avg, 2) }}</td>
-                        <td>{{ number_format($ad->cpa_previous_avg, 2) }}</td>
+                        <td>{{ number_format($ad->cpa_current, 2) }}</td>
+                        <td>{{ number_format($ad->cpa_previous, 2) }}</td>
                         <td>
                             @if ($ad->cpa_diff !== null)
                                 <span style="color: {{ $ad->cpa_diff <= 0 ? 'green' : 'red' }};">
@@ -60,8 +60,8 @@
                     </tr>
                     <tr>
                         <td>CTR</td>
-                        <td>{{ number_format($ad->ctr_current_avg, 2) }}%</td>
-                        <td>{{ number_format($ad->ctr_previous_avg, 2) }}%</td>
+                        <td>{{ number_format($ad->ctr_current, 2) }}%</td>
+                        <td>{{ number_format($ad->ctr_previous, 2) }}%</td>
                         <td>
                             @if ($ad->ctr_diff !== null)
                                 <span style="color: {{ $ad->ctr_diff >= 0 ? 'green' : 'red' }};">
@@ -77,6 +77,7 @@
         </td>
     </tr>
 
+    <!-- Daily Breakdown Table -->
     <tr>
         <td colspan="6" style="padding: 10px;">
             <table width="100%" cellpadding="6" cellspacing="0" border="1" style="border-collapse: collapse; font-size: 13px;">
