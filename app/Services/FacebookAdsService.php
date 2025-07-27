@@ -41,7 +41,7 @@ class FacebookAdsService
 
     public function getAllAdAccountCampaigns()
 {
-    $accounts = json_decode(env('FB_ACCOUNTS'), true);
+    $accounts = config('services.fb_accounts');
     $allCampaigns = [];
 
     foreach ($accounts as $accountName => $accountId) {

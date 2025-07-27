@@ -33,6 +33,7 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
     ],
+    'fb_accounts' => json_decode(env('FB_ACCOUNTS', '{}'), true),
 
 
 ];
