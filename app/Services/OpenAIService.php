@@ -24,7 +24,8 @@ class OpenAIService
 
     public function __construct(ShopifyService $shopifyService)
     {
-        $this->shopifyDomain   = env('SHOPIFY_STORE_DOMAIN');
+        $this->shopifyDomain = env('SHOPIFY_STORE_DOMAIN', 'dummy.myshopify.com');
+
         $this->accessToken     = env('SHOPIFY_ACCESS_TOKEN');
         $this->apiKey          = config('services.openai.api_key');
         $this->model           = 'gpt-3.5-turbo';
