@@ -35,53 +35,53 @@ class EmailFacebookAdInsights extends Command
 
             Log::info('Fetched ad rows: ' . $ads->count());
 
-            $grouped = $ads->groupBy('ad_id')->map(function ($group) use ($previousStart, $previousEnd, $currentStart, $now) {
+            $grouped = $ads->groupBy('ad_id')->map(function ($group) use ($currentStart, $now, $previousStart, $previousEnd) {
                 $current = $group->whereBetween('start_date', [$currentStart, $now]);
                 $previous = $group->whereBetween('start_date', [$previousStart, $previousEnd]);
-
-                if ($current->isEmpty()) return null;
-
+            
                 $first = $group->first();
                 $ad = new \stdClass();
                 $ad->ad_id = $first->ad_id;
                 $ad->ad_name = $first->ad_name;
                 $ad->campaign_name = $first->campaign_name;
-                $ad->adset_name = $first->adset_name ?? null;
-                $ad->ad_account_name = $first->ad_account_name ?? null;
-                $ad->ad_link = $first->ad_link ?? null;
-                $ad->thumbnail_url = $first->thumbnail_url ?? null;
-
-                $ad->spend_current = round($current->sum('spend'), 2);
+            
+                $ad->spend_current = $current->sum('spend');
                 $ad->roas_current = round($current->avg('roas'), 2);
-                $ad->cpa_current = round($current->avg('cpa'), 2);
-                $ad->ctr_current = round($current->avg('ctr'), 2);
-
-                $ad->spend_previous = round($previous->sum('spend'), 2);
+                $ad->spend_previous = $previous->sum('spend');
                 $ad->roas_previous = round($previous->avg('roas'), 2);
-                $ad->cpa_previous = round($previous->avg('cpa'), 2);
-                $ad->ctr_previous = round($previous->avg('ctr'), 2);
-
+            
                 $ad->spend_diff = $ad->spend_previous > 0
                     ? round(($ad->spend_current - $ad->spend_previous) / $ad->spend_previous * 100, 1)
                     : null;
-
+            
                 $ad->roas_diff = $ad->roas_previous > 0
                     ? round(($ad->roas_current - $ad->roas_previous) / $ad->roas_previous * 100, 1)
                     : null;
-
-                $ad->cpa_diff = $ad->cpa_previous > 0
-                    ? round(($ad->cpa_current - $ad->cpa_previous) / $ad->cpa_previous * 100, 1)
-                    : null;
-
-                $ad->ctr_diff = $ad->ctr_previous > 0
-                    ? round(($ad->ctr_current - $ad->ctr_previous) / $ad->ctr_previous * 100, 1)
-                    : null;
-
-                $ad->current_dates = $current->pluck('start_date')->sort()->values()->toArray();
-                $ad->previous_dates = $previous->pluck('start_date')->sort()->values()->toArray();
-
+            
+                // ✅ Add this block to support Blade breakdown rows:
+                $ad->previous = $previous->map(function ($row) {
+                    return [
+                        'date' => Carbon::parse($row->start_date)->toDateString(),
+                        'spend' => round($row->spend, 2),
+                        'roas' => round($row->roas, 2),
+                        'cpa' => round($row->cpa, 2),
+                        'ctr' => round($row->ctr, 2),
+                    ];
+                })->values();
+            
+                $ad->current = $current->map(function ($row) {
+                    return [
+                        'date' => Carbon::parse($row->start_date)->toDateString(),
+                        'spend' => round($row->spend, 2),
+                        'roas' => round($row->roas, 2),
+                        'cpa' => round($row->cpa, 2),
+                        'ctr' => round($row->ctr, 2),
+                    ];
+                })->values();
+            
                 return $ad;
-            })->filter();
+            });
+            
 
             $topAds = $grouped->sortByDesc('spend_current')->take(20)->values();
 
