@@ -14,7 +14,7 @@ class SyncFacebookAdsDaily extends Command
 
     public function handle(FacebookAdsService $fb, FacebookMetricsSyncService $sync)
     {
-        $dates = collect(range(1, 7))
+        $dates = collect(range(1, 12))
             ->map(fn($i) => Carbon::now()->subDays($i)->toDateString());
 
         $campaignGroups = $fb->getAllAdAccountCampaigns();
