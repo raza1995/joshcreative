@@ -12,26 +12,26 @@ class SyncFacebookAdsDaily extends Command
 
     public function handle(FacebookAdsService $fb, FacebookMetricsSyncService $sync)
     {
-        $startDate = now()->subDay()->toDateString();
-        $endDate = now()->subDay()->toDateString();   
-
+        // Get previous day in YYYY-MM-DD format (server timezone)
+        $yesterday = now()->subDay()->toDateString(); // e.g. '2025-07-26'
+    
         $campaignGroups = $fb->getAllAdAccountCampaigns();
         $count = 0;
-
+    
         foreach ($campaignGroups as $group) {
             $this->info("🔄 Syncing: {$group['campaign']['name']} ({$group['account']})");
-
+    
             $sync->syncCampaign(
                 $group['campaign']['id'],
                 $group['campaign']['name'],
-                $startDate,
-                $endDate,
+                $yesterday,
+                $yesterday,
                 $group['account']
             );
-
+    
             $count++;
         }
-
+    
         $this->info("✅ Synced {$count} campaigns successfully.");
     }
 }
