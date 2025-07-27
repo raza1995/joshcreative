@@ -66,7 +66,7 @@ class EmailFacebookAdInsights extends Command
 
             Log::info('Top ads selected for email:', $topAds->toArray());
 
-            Mail::to('razakkhanafridi@gmail.com')->send(new FacebookAdInsightsEmail($topAds, $currentStart, $now));
+            Mail::to('razakkhanafridi1995@gmail.com')->send(new FacebookAdInsightsEmail($topAds, $currentStart, $now));
 
             $this->info('Email sent to Jakob with ad insights.');
             Log::info('Email sent to Jakob with ad insights.');
