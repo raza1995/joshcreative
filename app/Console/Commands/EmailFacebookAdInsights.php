@@ -50,8 +50,15 @@ class EmailFacebookAdInsights extends Command
 
                 // Skip if either side is empty
                 if ($previous3->isEmpty() || $current3->isEmpty()) {
+                    Log::debug('Skipping ad due to missing data:', [
+                        'ad_id' => $first->ad_id,
+                        'ad_name' => $first->ad_name,
+                        'previous_count' => $previous3->count(),
+                        'current_count' => $current3->count(),
+                    ]);
                     return null;
                 }
+                
 
                 $ad = new \stdClass();
                 $ad->ad_id = $first->ad_id;
@@ -85,7 +92,7 @@ class EmailFacebookAdInsights extends Command
                         'impressions' => $row->impressions,
                     ];
                 })->values();
-dd($ad->current );
+
                 // Aggregate comparisons
                 $ad->spend_previous_total = round($previous3->sum('spend'), 2);
                 $ad->spend_current_total = round($current3->sum('spend'), 2);
