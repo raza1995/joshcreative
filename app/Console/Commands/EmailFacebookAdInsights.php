@@ -37,25 +37,39 @@ class EmailFacebookAdInsights extends Command
 
             Log::info('Fetched ads count: ' . $ads->count());
 
-            $grouped = $ads->groupBy('ad_id')->map(function ($group) use ($now) {
+            $grouped = $ads->groupBy('ad_id')->map(function ($group) use ($previousStart, $previousEnd, $currentStart, $now) {
                 $first = $group->first();
+
+                $previous3 = $group->filter(function ($row) use ($previousStart, $previousEnd) {
+                    return Carbon::parse($row->start_date)->between($previousStart, $previousEnd);
+                });
+
+                $current3 = $group->filter(function ($row) use ($currentStart, $now) {
+                    return Carbon::parse($row->start_date)->between($currentStart, $now);
+                });
+
+                // Skip if either side is empty
+                if ($previous3->isEmpty() || $current3->isEmpty()) {
+                    return null;
+                }
 
                 $ad = new \stdClass();
                 $ad->ad_id = $first->ad_id;
                 $ad->ad_name = $first->ad_name;
                 $ad->campaign_name = $first->campaign_name;
-
-                $sorted = $group->sortBy('start_date')->values();
-
-                // Previous 3 days (older range)
-                $previous3 = $sorted->slice(-6, 3);
-                $current3 = $sorted->slice(-3, 3);
+                $ad->adset_name = $first->adset_name;
+                $ad->ad_account_name = $first->ad_account_name;
 
                 $ad->previous = $previous3->map(function ($row) {
                     return [
                         'date' => Carbon::parse($row->start_date)->toDateString(),
                         'spend' => round($row->spend, 2),
                         'roas' => round($row->roas, 2),
+                        'cpa' => round($row->cpa, 2),
+                        'ctr' => round($row->ctr, 2),
+                        'clicks' => $row->clicks,
+                        'order_count' => $row->order_count,
+                        'impressions' => $row->impressions,
                     ];
                 })->values();
 
@@ -64,14 +78,31 @@ class EmailFacebookAdInsights extends Command
                         'date' => Carbon::parse($row->start_date)->toDateString(),
                         'spend' => round($row->spend, 2),
                         'roas' => round($row->roas, 2),
+                        'cpa' => round($row->cpa, 2),
+                        'ctr' => round($row->ctr, 2),
+                        'clicks' => $row->clicks,
+                        'order_count' => $row->order_count,
+                        'impressions' => $row->impressions,
                     ];
                 })->values();
 
-                $ad->spend_previous_total = $previous3->sum('spend');
-                $ad->spend_current_total = $current3->sum('spend');
+                // Aggregate comparisons
+                $ad->spend_previous_total = round($previous3->sum('spend'), 2);
+                $ad->spend_current_total = round($current3->sum('spend'), 2);
                 $ad->roas_previous_avg = round($previous3->avg('roas'), 2);
                 $ad->roas_current_avg = round($current3->avg('roas'), 2);
+                $ad->cpa_previous_avg = round($previous3->avg('cpa'), 2);
+                $ad->cpa_current_avg = round($current3->avg('cpa'), 2);
+                $ad->ctr_previous_avg = round($previous3->avg('ctr'), 2);
+                $ad->ctr_current_avg = round($current3->avg('ctr'), 2);
+                $ad->clicks_previous_total = $previous3->sum('clicks');
+                $ad->clicks_current_total = $current3->sum('clicks');
+                $ad->orders_previous_total = $previous3->sum('order_count');
+                $ad->orders_current_total = $current3->sum('order_count');
+                $ad->impressions_previous_total = $previous3->sum('impressions');
+                $ad->impressions_current_total = $current3->sum('impressions');
 
+                // % Change
                 $ad->spend_diff = $ad->spend_previous_total > 0
                     ? round(($ad->spend_current_total - $ad->spend_previous_total) / $ad->spend_previous_total * 100, 1)
                     : null;
@@ -80,8 +111,24 @@ class EmailFacebookAdInsights extends Command
                     ? round(($ad->roas_current_avg - $ad->roas_previous_avg) / $ad->roas_previous_avg * 100, 1)
                     : null;
 
+                $ad->cpa_diff = $ad->cpa_previous_avg > 0
+                    ? round(($ad->cpa_current_avg - $ad->cpa_previous_avg) / $ad->cpa_previous_avg * 100, 1)
+                    : null;
+
+                $ad->ctr_diff = $ad->ctr_previous_avg > 0
+                    ? round(($ad->ctr_current_avg - $ad->ctr_previous_avg) / $ad->ctr_previous_avg * 100, 1)
+                    : null;
+
+                $ad->clicks_diff = $ad->clicks_previous_total > 0
+                    ? round(($ad->clicks_current_total - $ad->clicks_previous_total) / $ad->clicks_previous_total * 100, 1)
+                    : null;
+
+                $ad->orders_diff = $ad->orders_previous_total > 0
+                    ? round(($ad->orders_current_total - $ad->orders_previous_total) / $ad->orders_previous_total * 100, 1)
+                    : null;
+
                 return $ad;
-            });
+            })->filter(); // remove nulls
 
             $topAds = $grouped->sortByDesc('spend_current_total')->take(10)->values();
 
