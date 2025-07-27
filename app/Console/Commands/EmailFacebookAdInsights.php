@@ -51,15 +51,15 @@ class EmailFacebookAdInsights extends Command
         
             $ad->previous = $previous3->map(function ($row) {
                 return [
-                    'date' => $row->start_date->toDateString(),
+                    'date' => Carbon::parse($row->start_date)->toDateString(),
                     'spend' => $row->spend,
                     'roas' => round($row->roas, 2),
                 ];
             });
-        
+            
             $ad->current = $current3->map(function ($row) {
                 return [
-                    'date' => $row->start_date->toDateString(),
+                    'date' => Carbon::parse($row->start_date)->toDateString(),
                     'spend' => $row->spend,
                     'roas' => round($row->roas, 2),
                 ];
