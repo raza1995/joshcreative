@@ -12,43 +12,53 @@ use App\Models\FacebookAdStat;
 class EmailFacebookAdInsights extends Command
 {
     protected $signature = 'email:facebook-ad-insights';
-    protected $description = 'Email Jakob top 10 highest spend ads insights over last 3 days vs previous 3 days with daily breakdown';
+    protected $description = 'Email Jakob top 10 highest spend ads insights using last 3 valid days vs previous 3 with daily breakdown';
 
     public function handle()
     {
         try {
-            $now = Carbon::now();
-            $currentStart = $now->copy()->subDays(3)->startOfDay();
-            $previousStart = $now->copy()->subDays(6)->startOfDay();
-            $previousEnd = $now->copy()->subDays(4)->endOfDay();
+            // STEP 1: Get last 6 real days with interval=daily
+            $validDates = FacebookAdStat::query()
+                ->where('status', 'active')
+                ->where('interval', 'daily')
+                ->orderByDesc('start_date')
+                ->distinct()
+                ->pluck('start_date')
+                ->unique()
+                ->take(6)
+                ->sort()
+                ->values();
 
-            Log::info('Starting FacebookAdInsights email job.', [
-                'currentStart' => $currentStart->toDateTimeString(),
-                'previousStart' => $previousStart->toDateTimeString(),
-                'previousEnd' => $previousEnd->toDateTimeString(),
+            if ($validDates->count() < 6) {
+                Log::warning('Not enough valid days (need 6), got:', $validDates->toArray());
+                $this->warn('Not enough data to run insights.');
+                return;
+            }
+
+            $previousDates = $validDates->slice(0, 3)->values();
+            $currentDates = $validDates->slice(3, 3)->values();
+
+            Log::info('Running insights using real data dates:', [
+                'previousDates' => $previousDates->toArray(),
+                'currentDates' => $currentDates->toArray(),
             ]);
 
+            // STEP 2: Load all ad data from those 6 days
             $ads = FacebookAdStat::query()
                 ->where('status', 'active')
                 ->where('interval', 'daily')
-                ->whereDate('start_date', '>=', $previousStart)
-                ->whereDate('start_date', '<=', $now)
+                ->whereIn('start_date', $validDates)
                 ->get();
 
             Log::info('Fetched ads count: ' . $ads->count());
 
-            $grouped = $ads->groupBy('ad_id')->map(function ($group) use ($previousStart, $previousEnd, $currentStart, $now) {
+            // STEP 3: Group by ad_id and calculate metrics
+            $grouped = $ads->groupBy('ad_id')->map(function ($group) use ($previousDates, $currentDates) {
                 $first = $group->first();
 
-                $previous3 = $group->filter(function ($row) use ($previousStart, $previousEnd) {
-                    return Carbon::parse($row->start_date)->between($previousStart, $previousEnd);
-                });
+                $previous3 = $group->whereIn('start_date', $previousDates);
+                $current3 = $group->whereIn('start_date', $currentDates);
 
-                $current3 = $group->filter(function ($row) use ($currentStart, $now) {
-                    return Carbon::parse($row->start_date)->between($currentStart, $now);
-                });
-
-                // Skip if either side is empty
                 if ($previous3->isEmpty() || $current3->isEmpty()) {
                     Log::debug('Skipping ad due to missing data:', [
                         'ad_id' => $first->ad_id,
@@ -58,7 +68,6 @@ class EmailFacebookAdInsights extends Command
                     ]);
                     return null;
                 }
-                
 
                 $ad = new \stdClass();
                 $ad->ad_id = $first->ad_id;
@@ -93,7 +102,6 @@ class EmailFacebookAdInsights extends Command
                     ];
                 })->values();
 
-                // Aggregate comparisons
                 $ad->spend_previous_total = round($previous3->sum('spend'), 2);
                 $ad->spend_current_total = round($current3->sum('spend'), 2);
                 $ad->roas_previous_avg = round($previous3->avg('roas'), 2);
@@ -109,7 +117,7 @@ class EmailFacebookAdInsights extends Command
                 $ad->impressions_previous_total = $previous3->sum('impressions');
                 $ad->impressions_current_total = $current3->sum('impressions');
 
-                // % Change
+                // % Change calculations
                 $ad->spend_diff = $ad->spend_previous_total > 0
                     ? round(($ad->spend_current_total - $ad->spend_previous_total) / $ad->spend_previous_total * 100, 1)
                     : null;
@@ -144,10 +152,14 @@ class EmailFacebookAdInsights extends Command
                 'top_spenders' => $topAds->pluck('ad_name')->toArray(),
             ]);
 
-            Mail::to('razakkhanafridi1995@gmail.com')->send(new FacebookAdInsightsEmail($topAds, $currentStart, $now));
+            Mail::to('razakkhanafridi1995@gmail.com')->send(new FacebookAdInsightsEmail(
+                $topAds,
+                $currentDates->first(),
+                $currentDates->last()
+            ));
 
-            $this->info('Email sent to Jakob with ad insights.');
-            Log::info('Email sent to Jakob with ad insights.');
+            $this->info('Email sent with ad insights.');
+            Log::info('Email sent with ad insights.');
 
         } catch (\Exception $e) {
             Log::error('Error in email:facebook-ad-insights job', [
