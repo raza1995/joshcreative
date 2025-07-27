@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Console\Commands;
+
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -10,7 +12,7 @@ use App\Models\FacebookAdStat;
 class EmailFacebookAdInsights extends Command
 {
     protected $signature = 'email:facebook-ad-insights';
-    protected $description = 'Email Top 10 Ads: Current 3 days vs Previous 3 days comparison';
+    protected $description = 'Email Jakob top 10 highest spend ads insights using last 3 valid days vs previous 3 with daily breakdown';
 
     public function handle()
     {
