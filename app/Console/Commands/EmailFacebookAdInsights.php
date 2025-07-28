@@ -11,115 +11,142 @@ use App\Models\FacebookAdStat;
 
 class EmailFacebookAdInsights extends Command
 {
-    protected $signature = 'email:facebook-ad-insights';
-    protected $description = 'Email top 20 ad insights comparing last 3 days vs previous 3 days';
+    /** @var string */
+    protected $signature = 'email:facebook-ad-insights
+                            {--dry-run : Log everything but don’t send the email}';
 
-    public function handle()
+    /** @var string */
+    protected $description = 'Email the top‑spend Facebook ads — last 3 full days vs the 3 days prior.';
+
+    public function handle(): void
     {
         try {
-            $now = Carbon::now()->startOfDay();
-            $currentStart = $now->copy()->subDays(3);
-            $previousStart = $now->copy()->subDays(6);
-            $previousEnd = $now->copy()->subDays(4);
+            //------------------------------------------------------------------
+            // 1. Exact 3‑day windows (exclude today to avoid partial data)
+            //------------------------------------------------------------------
+            $today        = Carbon::now(config('app.timezone'))->startOfDay(); // e.g. 2025‑07‑28 00:00
+            $currentEnd   = $today->copy()->subDay();          // 2025‑07‑27
+            $currentStart = $currentEnd->copy()->subDays(2);   // 2025‑07‑25
 
-            Log::info('FacebookAdInsights START', [
+            $previousEnd   = $currentStart->copy()->subDay();  // 2025‑07‑24
+            $previousStart = $previousEnd->copy()->subDays(2); // 2025‑07‑22
+
+            Log::info('FacebookAdInsights windows', [
                 'previous' => [$previousStart->toDateString(), $previousEnd->toDateString()],
-                'current' => [$currentStart->toDateString(), $now->toDateString()],
+                'current'  => [$currentStart->toDateString(),  $currentEnd->toDateString()],
             ]);
 
+            //------------------------------------------------------------------
+            // 2. Pull the six days of stats in one query
+            //------------------------------------------------------------------
             $ads = FacebookAdStat::query()
-                ->where('status', 'active')
-                ->where('interval', 'daily')
-                ->whereBetween('start_date', [$previousStart, $now])
+                ->where('status',  'active')
+                ->where('interval','daily')
+                ->whereBetween('start_date', [$previousStart, $currentEnd])
                 ->get();
 
-            Log::info('Fetched ad rows: ' . $ads->count());
+            Log::info('Fetched ad rows', ['count' => $ads->count()]);
 
-            $grouped = $ads->groupBy('ad_id')->map(function ($group) use ($previousStart, $previousEnd, $currentStart, $now) {
-                $current = $group->whereBetween('start_date', [$currentStart, $now]);
-                $previous = $group->whereBetween('start_date', [$previousStart, $previousEnd]);
+            //------------------------------------------------------------------
+            // 3. Aggregate per ad_id
+            //------------------------------------------------------------------
+            $grouped = $ads->groupBy('ad_id')->map(function ($rows) use (
+                $previousStart, $previousEnd, $currentStart, $currentEnd
+            ) {
+                $current  = $rows->whereBetween('start_date', [$currentStart,  $currentEnd]);
+                if ($current->isEmpty()) {
+                    return null;                         // skip ads with no recent data
+                }
+                $previous = $rows->whereBetween('start_date', [$previousStart, $previousEnd]);
 
-                if ($current->isEmpty()) return null;
+                $base = $rows->first();                 // meta data
 
-                $first = $group->first();
-                $ad = new \stdClass();
-                $ad->ad_id = $first->ad_id;
-                $ad->ad_name = $first->ad_name;
-                $ad->campaign_name = $first->campaign_name;
-                $ad->adset_name = $first->adset_name ?? null;
-                $ad->ad_account_name = $first->ad_account_name ?? null;
-                $ad->ad_link = $first->ad_link ?? null;
-                $ad->thumbnail_url = $first->thumbnail_url ?? null;
+                $out = (object) [
+                    'ad_id'           => $base->ad_id,
+                    'ad_name'         => $base->ad_name,
+                    'campaign_name'   => $base->campaign_name,
+                    'adset_name'      => $base->adset_name,
+                    'ad_account_name' => $base->ad_account_name,
+                    'ad_link'         => $base->ad_link,
+                    'thumbnail_url'   => $base->thumbnail_url,
 
-                $ad->spend_current = round($current->sum('spend'), 2);
-                $ad->roas_current = round($current->avg('roas'), 2);
-                $ad->cpa_current = round($current->avg('cpa'), 2);
-                $ad->ctr_current = round($current->avg('ctr'), 2);
+                    // current 3‑day window
+                    'spend_current' => round($current->sum('spend'), 2),
+                    'roas_current'  => round($current->avg('roas'), 2),
+                    'cpa_current'   => round($current->avg('cpa'), 2),
+                    'ctr_current'   => round($current->avg('ctr'), 2),
 
-                $ad->spend_previous = round($previous->sum('spend'), 2);
-                $ad->roas_previous = round($previous->avg('roas'), 2);
-                $ad->cpa_previous = round($previous->avg('cpa'), 2);
-                $ad->ctr_previous = round($previous->avg('ctr'), 2);
+                    // previous 3‑day window
+                    'spend_previous' => round($previous->sum('spend'), 2),
+                    'roas_previous'  => round($previous->avg('roas'), 2),
+                    'cpa_previous'   => round($previous->avg('cpa'), 2),
+                    'ctr_previous'   => round($previous->avg('ctr'), 2),
+                ];
 
-                $ad->spend_diff = $ad->spend_previous > 0
-                    ? round(($ad->spend_current - $ad->spend_previous) / $ad->spend_previous * 100, 1)
+                // % deltas (guard against ÷0)
+                $out->spend_diff = $out->spend_previous > 0
+                    ? round(($out->spend_current - $out->spend_previous) / $out->spend_previous * 100, 1)
+                    : null;
+                $out->roas_diff  = $out->roas_previous  > 0
+                    ? round(($out->roas_current  - $out->roas_previous ) / $out->roas_previous  * 100, 1)
+                    : null;
+                $out->cpa_diff   = $out->cpa_previous   > 0
+                    ? round(($out->cpa_current   - $out->cpa_previous  ) / $out->cpa_previous   * 100, 1)
+                    : null;
+                $out->ctr_diff   = $out->ctr_previous   > 0
+                    ? round(($out->ctr_current   - $out->ctr_previous  ) / $out->ctr_previous   * 100, 1)
                     : null;
 
-                $ad->roas_diff = $ad->roas_previous > 0
-                    ? round(($ad->roas_current - $ad->roas_previous) / $ad->roas_previous * 100, 1)
-                    : null;
-                    $ad->previous = $previous->map(function ($row) {
-                        return [
-                            'date' => Carbon::parse($row->start_date)->toDateString(),
-                            'spend' => round($row->spend, 2),
-                            'roas' => round($row->roas, 2),
-                            'cpa' => round($row->cpa, 2),
-                            'ctr' => round($row->ctr, 2),
-                        ];
-                    })->values();
-                    $ad->current = $current->map(function ($row) {
-                        return [
-                            'date' => Carbon::parse($row->start_date)->toDateString(),
-                            'spend' => round($row->spend, 2),
-                            'roas' => round($row->roas, 2),
-                            'cpa' => round($row->cpa, 2),
-                            'ctr' => round($row->ctr, 2),
-                        ];
-                    })->values();
-                $ad->cpa_diff = $ad->cpa_previous > 0
-                    ? round(($ad->cpa_current - $ad->cpa_previous) / $ad->cpa_previous * 100, 1)
-                    : null;
+                // raw rows for optional drill‑down in the email blade
+                $format = fn ($r) => [
+                    'date'  => Carbon::parse($r->start_date)->toDateString(),
+                    'spend' => round($r->spend, 2),
+                    'roas'  => round($r->roas , 2),
+                    'cpa'   => round($r->cpa  , 2),
+                    'ctr'   => round($r->ctr  , 2),
+                ];
+                $out->current_rows  = $current ->values()->map($format);
+                $out->previous_rows = $previous->values()->map($format);
 
-                $ad->ctr_diff = $ad->ctr_previous > 0
-                    ? round(($ad->ctr_current - $ad->ctr_previous) / $ad->ctr_previous * 100, 1)
-                    : null;
+                return $out;
+            })->filter();  // drop nulls
 
-                $ad->current_dates = $current->pluck('start_date')->sort()->values()->toArray();
-                $ad->previous_dates = $previous->pluck('start_date')->sort()->values()->toArray();
-                
-                return $ad;
-            })->filter(fn ($item) => $item !== null);
+            //------------------------------------------------------------------
+            // 4. Pick the top 20 by spend
+            //------------------------------------------------------------------
+            $topAds = $grouped->sortByDesc('spend_current')->take(20)->values();
 
-            $topAds = $grouped->sortByDesc('spend_current')->take(100)->values();
-
-            Log::info('Selected Top 20 Ads', [
+            Log::info('Top ads selected', [
                 'count' => $topAds->count(),
-                'ids' => $topAds->pluck('ad_id')->toArray(),
+                'ids'   => $topAds->pluck('ad_id'),
             ]);
 
-            Mail::to('razakkhanafridi1995@gmail.com')->send(
-                new FacebookAdInsightsEmail($topAds, $currentStart, $now)
-            );
+            //------------------------------------------------------------------
+            // 5. Send (or just log) the email
+            //------------------------------------------------------------------
+            if ($topAds->isEmpty()) {
+                $this->warn('No data for the current 3‑day window; email not sent.');
+                return;
+            }
 
-            $this->info('Email sent with top ad insights.');
-            Log::info('Email successfully sent.');
+            if ($this->option('dry-run')) {
+                $this->info('[DRY‑RUN] Email skipped; data logged.');
+                Log::info('[DRY‑RUN] Email would have been sent.', ['ads' => $topAds]);
+                return;
+            }
 
-        } catch (\Exception $e) {
-            Log::error('Error in email:facebook-ad-insights job', [
-                'message' => $e->getMessage(),
+            Mail::to(config('mail.insights_to', 'razakkhanafridi1995@gmail.com'))
+                ->send(new FacebookAdInsightsEmail($topAds, $currentStart, $currentEnd));
+
+            $this->info('Ad‑insights email sent successfully.');
+            Log::info('EmailFacebookAdInsights completed.');
+
+        } catch (\Throwable $e) {
+            Log::error('EmailFacebookAdInsights failed', [
+                'msg'   => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            $this->error('Failed to send ad insights email: ' . $e->getMessage());
+            $this->error('Failed: ' . $e->getMessage());
         }
     }
 }
