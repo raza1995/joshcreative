@@ -7,15 +7,15 @@
             <small style="color:#555;">ID {{ $ad->ad_id }}</small><br>
             <small>Campaign: {{ $ad->campaign_name }}</small>
         </td>
-
+@php $label = $windowDays.'d'; @endphp
         <td colspan="5" style="padding:10px;border-top:2px solid #ccc;">
             <table width="100%" cellpadding="6" cellspacing="0" border="1"
                    style="border-collapse:collapse;font-size:14px;">
                 <thead style="background:#f3f3f3;">
                     <tr>
                         <th>Metric</th>
-                        <th>Now (3 d)</th>
-                        <th>Prev (3 d)</th>
+                        <th>Now ({{ $label }})</th>
+                        <th>Prev ({{ $label }})</th>
                         <th>Δ %</th>
                     </tr>
                 </thead>

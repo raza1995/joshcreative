@@ -50,7 +50,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('facebook:aggregate-custom-metrics --days=300')->weeklyOn(0, '6:00');
         $schedule->command('facebook:aggregate-custom-metrics --days=330')->weeklyOn(0, '7:15');
         $schedule->command('facebook:aggregate-custom-metrics --days=360')->weeklyOn(0, '8:30');
-        $schedule->command('email:facebook-ad-insights')
+        $schedule->command('email:facebook-ad-insights --days=3')
         ->cron('0 8 */3 * *');
 
         // Run twice a month: 1st and 15th
