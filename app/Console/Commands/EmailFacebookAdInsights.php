@@ -100,7 +100,7 @@ class EmailFacebookAdInsights extends Command
                 return $ad;
             })->filter(fn ($item) => $item !== null);
 
-            $topAds = $grouped->sortByDesc('spend_current')->take(20)->values();
+            $topAds = $grouped->sortByDesc('spend_current')->take(100)->values();
 
             Log::info('Selected Top 20 Ads', [
                 'count' => $topAds->count(),
