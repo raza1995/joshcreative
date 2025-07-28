@@ -1,5 +1,6 @@
 <?php
 
+
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
@@ -12,25 +13,18 @@ class FacebookAdInsightsEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    /** @var Collection<array|object> */
     public Collection $ads;
-
     public Carbon $startDate;
     public Carbon $endDate;
-    public int    $windowDays;   // <-- NEW
+    public int    $windowDays;
 
-    /**
-     * @param Collection $ads          Aggregated ads from the command
-     * @param Carbon     $startDate    Beginning of the "current" window
-     * @param Carbon     $endDate      End of the "current" window
-     * @param int        $windowDays   Size of each comparison window (e.g. 30)
-     */
-    public function __construct(Collection $ads, Carbon $startDate, Carbon $endDate, int $windowDays = 30)
+    public function __construct(Collection $ads, Carbon $startDate, Carbon $endDate, int $windowDays)
     {
-        $this->ads        = $ads;
-        $this->startDate  = $startDate;
-        $this->endDate    = $endDate;
+        $this->ads = $ads;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
         $this->windowDays = $windowDays;
+        
     }
 
     public function build()
@@ -50,3 +44,4 @@ class FacebookAdInsightsEmail extends Mailable
                 ]);
     }
 }
+
