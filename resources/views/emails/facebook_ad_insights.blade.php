@@ -1,144 +1,140 @@
-<?php
+<tbody>
+@foreach ($ads as $ad)
+    {{--  ───────────  HEADER ROW (AD META + 4‑METRIC SUMMARY)  ───────────  --}}
+    <tr>
+        <td colspan="1" style="font-weight:bold;padding:10px;border-top:2px solid #ccc;">
+            {{ $ad->ad_name ?: 'Unnamed Ad' }}<br>
+            <small style="color:#555;">ID {{ $ad->ad_id }}</small><br>
+            <small>Campaign: {{ $ad->campaign_name }}</small>
+        </td>
 
-namespace App\Console\Commands;
+        <td colspan="5" style="padding:10px;border-top:2px solid #ccc;">
+            <table width="100%" cellpadding="6" cellspacing="0" border="1"
+                   style="border-collapse:collapse;font-size:14px;">
+                <thead style="background:#f3f3f3;">
+                    <tr>
+                        <th>Metric</th>
+                        <th>Now (3 d)</th>
+                        <th>Prev (3 d)</th>
+                        <th>Δ %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{-- Spend --}}
+                    <tr>
+                        <td>Spend</td>
+                        <td>${{ number_format($ad->spend_current, 2) }}</td>
+                        <td>${{ number_format($ad->spend_previous, 2) }}</td>
+                        <td>
+                            @if(!is_null($ad->spend_diff))
+                                <span style="color:{{ $ad->spend_diff >= 0 ? 'green' : 'red' }};">
+                                    {{ $ad->spend_diff >= 0 ? '↑' : '↓' }}{{ abs($ad->spend_diff) }}%
+                                </span>
+                            @else – @endif
+                        </td>
+                    </tr>
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Carbon;
-use App\Mail\FacebookAdInsightsEmail;
-use App\Models\FacebookAdStat;
+                    {{-- ROAS --}}
+                    <tr>
+                        <td>ROAS</td>
+                        <td>{{ number_format($ad->roas_current, 2) }}</td>
+                        <td>{{ number_format($ad->roas_previous, 2) }}</td>
+                        <td>
+                            @if(!is_null($ad->roas_diff))
+                                <span style="color:{{ $ad->roas_diff >= 0 ? 'green' : 'red' }};">
+                                    {{ $ad->roas_diff >= 0 ? '↑' : '↓' }}{{ abs($ad->roas_diff) }}%
+                                </span>
+                            @else – @endif
+                        </td>
+                    </tr>
 
-class EmailFacebookAdInsights extends Command
-{
-    /**  
-     * --days=n  -> size of each window (default 30)  
-     * --dry-run -> skip sending the e‑mail, just log  
-     */
-    protected $signature = 'email:facebook-ad-insights
-                            {--days=30 : Window size in days}
-                            {--dry-run  : Log only, don’t mail}';
+                    {{-- CPA (lower is better) --}}
+                    <tr>
+                        <td>CPA</td>
+                        <td>{{ number_format($ad->cpa_current, 2) }}</td>
+                        <td>{{ number_format($ad->cpa_previous, 2) }}</td>
+                        <td>
+                            @if(!is_null($ad->cpa_diff))
+                                <span style="color:{{ $ad->cpa_diff <= 0 ? 'green' : 'red' }};">
+                                    {{ $ad->cpa_diff <= 0 ? '↓' : '↑' }}{{ abs($ad->cpa_diff) }}%
+                                </span>
+                            @else – @endif
+                        </td>
+                    </tr>
 
-    protected $description = 'Email top‑spend Facebook ads — current window vs previous window.';
+                    {{-- CTR --}}
+                    <tr>
+                        <td>CTR</td>
+                        <td>{{ number_format($ad->ctr_current, 2) }}%</td>
+                        <td>{{ number_format($ad->ctr_previous, 2) }}%</td>
+                        <td>
+                            @if(!is_null($ad->ctr_diff))
+                                <span style="color:{{ $ad->ctr_diff >= 0 ? 'green' : 'red' }};">
+                                    {{ $ad->ctr_diff >= 0 ? '↑' : '↓' }}{{ abs($ad->ctr_diff) }}%
+                                </span>
+                            @else – @endif
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </td>
+    </tr>
 
-    public function handle(): void
-    {
-        try {
-            // ------------------------------------------------------------------
-            // 1. Window boundaries (exclude today to avoid partial data)
-            // ------------------------------------------------------------------
-            $days         = max(1, (int) $this->option('days'));      // safety clamp
-            $today        = Carbon::now(config('app.timezone'))->startOfDay();
-            $currentEnd   = $today->copy()->subDay();                 // yesterday
-            $currentStart = $currentEnd->copy()->subDays($days - 1);  // inclusive
+    {{--  ───────────  DAILY BREAKDOWN ROW  ───────────  --}}
+    <tr>
+        <td colspan="6" style="padding:10px;">
+            <table width="100%" cellpadding="6" cellspacing="0" border="1"
+                   style="border-collapse:collapse;font-size:13px;">
+                <thead style="background:#eee;">
+                    <tr>
+                        <th>Date</th>
+                        <th>Spend Prev</th>
+                        <th>ROAS Prev</th>
+                        <th>CPA Prev</th>
+                        <th>CTR Prev</th>
 
-            $previousEnd   = $currentStart->copy()->subDay();
-            $previousStart = $previousEnd->copy()->subDays($days - 1);
+                        <th>Spend Now</th>
+                        <th>ROAS Now</th>
+                        <th>CPA Now</th>
+                        <th>CTR Now</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                        // line up both 3‑day blocks by date key so the rows stay in order
+                        $rows = collect($ad->previous_rows)
+                                ->keyBy('date')
+                                ->merge(
+                                    collect($ad->current_rows)->keyBy('date')
+                                )
+                                ->sortKeys();   // Asc order (older → newer)
+                    @endphp
 
-            Log::info('FacebookAdInsights windows', [
-                'days'     => $days,
-                'previous' => [$previousStart->toDateString(), $previousEnd->toDateString()],
-                'current'  => [$currentStart->toDateString(),  $currentEnd->toDateString()],
-            ]);
+                    @foreach ($rows as $date => $null)
+                        @php
+                            $prev = collect($ad->previous_rows)->firstWhere('date',$date);
+                            $curr = collect($ad->current_rows )->firstWhere('date',$date);
+                        @endphp
+                        <tr>
+                            {{-- Date Col --}}
+                            <td>{{ date('M j', strtotime($date)) }}</td>
 
-            // ------------------------------------------------------------------
-            // 2. Pull stats covering BOTH windows
-            // ------------------------------------------------------------------
-            $ads = FacebookAdStat::query()
-                ->where('status',  'active')
-                ->where('interval','daily')
-                ->whereBetween('start_date', [$previousStart, $currentEnd])
-                ->get();
+                            {{-- Previous window --}}
+                            <td>{{ $prev ? '$'.number_format($prev['spend'],2) : '–' }}</td>
+                            <td>{{ $prev ? number_format($prev['roas'],2) : '–' }}</td>
+                            <td>{{ $prev ? number_format($prev['cpa'],2)  : '–' }}</td>
+                            <td>{{ $prev ? number_format($prev['ctr'],2).'%' : '–' }}</td>
 
-            // ------------------------------------------------------------------
-            // 3. Aggregate per ad_id
-            // ------------------------------------------------------------------
-            $grouped = $ads->groupBy('ad_id')->map(function ($rows) use (
-                $previousStart, $previousEnd, $currentStart, $currentEnd
-            ) {
-                $current  = $rows->whereBetween('start_date', [$currentStart,  $currentEnd]);
-                if ($current->isEmpty()) {
-                    return null;                   // skip ads with no data in latest window
-                }
-                $previous = $rows->whereBetween('start_date', [$previousStart, $previousEnd]);
-
-                $base = $rows->first();
-
-                $out = (object) [
-                    // ---------- meta ----------
-                    'ad_id'           => $base->ad_id,
-                    'ad_name'         => $base->ad_name,
-                    'campaign_name'   => $base->campaign_name,
-                    'adset_name'      => $base->adset_name,
-                    'ad_account_name' => $base->ad_account_name,
-                    'ad_link'         => $base->ad_link,
-                    'thumbnail_url'   => $base->thumbnail_url,
-
-                    // ---------- aggregates ----------
-                    'spend_current' => round($current->sum('spend'), 2),
-                    'roas_current'  => round($current->avg('roas'), 2),
-                    'cpa_current'   => round($current->avg('cpa'), 2),
-                    'ctr_current'   => round($current->avg('ctr'), 2),
-
-                    'spend_previous' => round($previous->sum('spend'), 2),
-                    'roas_previous'  => round($previous->avg('roas'), 2),
-                    'cpa_previous'   => round($previous->avg('cpa'), 2),
-                    'ctr_previous'   => round($previous->avg('ctr'), 2),
-                ];
-
-                // ---------- percentage deltas ----------
-                foreach (['spend','roas','cpa','ctr'] as $metric) {
-                    $prev = $out->{$metric.'_previous'};
-                    $curr = $out->{$metric.'_current'};
-                    $out->{$metric.'_diff'} = $prev > 0
-                        ? round(($curr - $prev) / $prev * 100, 1)
-                        : null;
-                }
-
-                // ---------- raw rows for drill‑down ----------
-                $fmt = fn ($r) => [
-                    'date'  => Carbon::parse($r->start_date)->toDateString(),
-                    'spend' => round($r->spend, 2),
-                    'roas'  => round($r->roas , 2),
-                    'cpa'   => round($r->cpa  , 2),
-                    'ctr'   => round($r->ctr  , 2),
-                ];
-                $out->current_rows  = $current ->values()->map($fmt);
-                $out->previous_rows = $previous->values()->map($fmt);
-
-                return $out;
-            })->filter();
-
-            // ------------------------------------------------------------------
-            // 4. Top 20 by spend
-            // ------------------------------------------------------------------
-            $topAds = $grouped->sortByDesc('spend_current')->take(20)->values();
-
-            if ($topAds->isEmpty()) {
-                $this->warn('No data for current window; email not sent.');
-                return;
-            }
-
-            // ------------------------------------------------------------------
-            // 5. Send (or skip) the e‑mail
-            // ------------------------------------------------------------------
-            if ($this->option('dry-run')) {
-                $this->info('[DRY‑RUN] Skipped sending email, logged data instead.');
-                Log::info('[DRY‑RUN] Email payload', ['ads' => $topAds]);
-                return;
-            }
-
-            Mail::to(config('mail.insights_to', 'razakkhanafridi1995@gmail.com'))
-                ->send(new FacebookAdInsightsEmail($topAds, $currentStart, $currentEnd, $days));
-
-            $this->info("Ad‑insights email sent (window: {$days} days).");
-
-        } catch (\Throwable $e) {
-            Log::error('EmailFacebookAdInsights failed', [
-                'msg'   => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            $this->error('Failed: '.$e->getMessage());
-        }
-    }
-}
+                            {{-- Current window --}}
+                            <td>{{ $curr ? '$'.number_format($curr['spend'],2) : '–' }}</td>
+                            <td>{{ $curr ? number_format($curr['roas'],2) : '–' }}</td>
+                            <td>{{ $curr ? number_format($curr['cpa'],2)  : '–' }}</td>
+                            <td>{{ $curr ? number_format($curr['ctr'],2).'%' : '–' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </td>
+    </tr>
+@endforeach
+</tbody>
