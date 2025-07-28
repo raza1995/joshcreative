@@ -13,7 +13,8 @@ class EmailFacebookAdInsights extends Command
 {
     /** @var string */
     protected $signature = 'email:facebook-ad-insights
-                            {--dry-run : Log everything but don’t send the email}';
+                            {--days=30 : Window size in days}
+                            {--dry-run  : Log only, don’t mail}';
 
     /** @var string */
     protected $description = 'Email the top‑spend Facebook ads — last 3 full days vs the 3 days prior.';
