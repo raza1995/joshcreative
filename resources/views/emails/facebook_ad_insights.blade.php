@@ -1,152 +1,127 @@
-<tbody>
-@foreach ($ads as $ad)
-    {{--  ───────────  HEADER ROW (AD META + 4‑METRIC SUMMARY)  ───────────  --}}
-    <tr>
-    <td colspan="1" style="font-weight:bold;padding:10px;border-top:2px solid #ccc;">
-    {{ $ad->ad_name ?: 'Unnamed Ad' }}<br>
-    <small style="color:#555;">ID {{ $ad->ad_id }}</small><br>
-    <small>Campaign: {{ $ad->campaign_name }}</small><br><br>
-
-    @if (!empty($ad->thumbnail_url))
-        <a href="{{ $ad->ad_link }}" target="_blank" style="display:inline-block;">
-            <img src="{{ $ad->thumbnail_url }}"
-                 alt="Ad Image"
-                 style="max-width:150px; max-height:150px; object-fit:contain; border:1px solid #ccc;">
-        </a>
-    @else
-        <small style="color: #999;">No image</small>
-    @endif
-</td>
-
-
-@php $label = $windowDays.'d'; @endphp
-        <td colspan="5" style="padding:10px;border-top:2px solid #ccc;">
-            <table width="100%" cellpadding="6" cellspacing="0" border="1"
-                   style="border-collapse:collapse;font-size:14px;">
-                <thead style="background:#f3f3f3;">
+<table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; font-size: 14px; border-collapse: collapse;">
+    <tbody>
+    @foreach ($ads as $ad)
+        {{-- ───── AD HEADER ROW ───── --}}
+        <tr>
+            <td colspan="6" style="padding: 15px; border-top: 2px solid #ccc;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
                     <tr>
-                        <th>Metric</th>
-                        <th>Now ({{ $label }})</th>
-                        <th>Prev ({{ $label }})</th>
-                        <th>Δ %</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{-- Spend --}}
-                    <tr>
-                        <td>Spend</td>
-                        <td>${{ number_format($ad->spend_current, 2) }}</td>
-                        <td>${{ number_format($ad->spend_previous, 2) }}</td>
-                        <td>
-                            @if(!is_null($ad->spend_diff))
-                                <span style="color:{{ $ad->spend_diff >= 0 ? 'green' : 'red' }};">
-                                    {{ $ad->spend_diff >= 0 ? '↑' : '↓' }}{{ abs($ad->spend_diff) }}%
-                                </span>
-                            @else – @endif
+                        {{-- Meta Info --}}
+                        <td valign="top" style="width: 70%;">
+                            <strong style="font-size: 16px;">{{ $ad->ad_name ?: 'Unnamed Ad' }}</strong><br>
+                            <span style="color: #555;">Ad ID: {{ $ad->ad_id }}</span><br>
+                            <span>Campaign: {{ $ad->campaign_name }}</span>
+                        </td>
+                        {{-- Thumbnail --}}
+                        <td align="right" valign="top" style="width: 30%;">
+                            @if (!empty($ad->thumbnail_url))
+                                <a href="{{ $ad->ad_link }}" target="_blank">
+                                    <img src="{{ $ad->thumbnail_url }}"
+                                         alt="Ad Image"
+                                         style="max-width: 120px; max-height: 120px; object-fit: contain; border: 1px solid #ccc;">
+                                </a>
+                            @else
+                                <span style="color: #aaa;">No Image</span>
+                            @endif
                         </td>
                     </tr>
+                </table>
+            </td>
+        </tr>
 
-                    {{-- ROAS --}}
-                    <tr>
-                        <td>ROAS</td>
-                        <td>{{ number_format($ad->roas_current, 2) }}</td>
-                        <td>{{ number_format($ad->roas_previous, 2) }}</td>
-                        <td>
-                            @if(!is_null($ad->roas_diff))
-                                <span style="color:{{ $ad->roas_diff >= 0 ? 'green' : 'red' }};">
-                                    {{ $ad->roas_diff >= 0 ? '↑' : '↓' }}{{ abs($ad->roas_diff) }}%
-                                </span>
-                            @else – @endif
-                        </td>
-                    </tr>
-
-                    {{-- CPA (lower is better) --}}
-                    <tr>
-                        <td>CPA</td>
-                        <td>{{ number_format($ad->cpa_current, 2) }}</td>
-                        <td>{{ number_format($ad->cpa_previous, 2) }}</td>
-                        <td>
-                            @if(!is_null($ad->cpa_diff))
-                                <span style="color:{{ $ad->cpa_diff <= 0 ? 'green' : 'red' }};">
-                                    {{ $ad->cpa_diff <= 0 ? '↓' : '↑' }}{{ abs($ad->cpa_diff) }}%
-                                </span>
-                            @else – @endif
-                        </td>
-                    </tr>
-
-                    {{-- CTR --}}
-                    <tr>
-                        <td>CTR</td>
-                        <td>{{ number_format($ad->ctr_current, 2) }}%</td>
-                        <td>{{ number_format($ad->ctr_previous, 2) }}%</td>
-                        <td>
-                            @if(!is_null($ad->ctr_diff))
-                                <span style="color:{{ $ad->ctr_diff >= 0 ? 'green' : 'red' }};">
-                                    {{ $ad->ctr_diff >= 0 ? '↑' : '↓' }}{{ abs($ad->ctr_diff) }}%
-                                </span>
-                            @else – @endif
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </td>
-    </tr>
-
-    {{--  ───────────  DAILY BREAKDOWN ROW  ───────────  --}}
-    <tr>
-        <td colspan="6" style="padding:10px;">
-            <table width="100%" cellpadding="6" cellspacing="0" border="1"
-                   style="border-collapse:collapse;font-size:13px;">
-                <thead style="background:#eee;">
-                    <tr>
-                        <th>Date</th>
-                        <th>Spend Prev</th>
-                        <th>ROAS Prev</th>
-                        <th>CPA Prev</th>
-                        <th>CTR Prev</th>
-
-                        <th>Spend Now</th>
-                        <th>ROAS Now</th>
-                        <th>CPA Now</th>
-                        <th>CTR Now</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @php
-                        // line up both 3‑day blocks by date key so the rows stay in order
-                        $rows = collect($ad->previous_rows)
-                                ->keyBy('date')
-                                ->merge(
-                                    collect($ad->current_rows)->keyBy('date')
-                                )
-                                ->sortKeys();   // Asc order (older → newer)
-                    @endphp
-
-                    @foreach ($rows as $date => $null)
-                        @php
-                            $prev = collect($ad->previous_rows)->firstWhere('date',$date);
-                            $curr = collect($ad->current_rows )->firstWhere('date',$date);
-                        @endphp
+        {{-- ───── AGGREGATE METRICS ROW ───── --}}
+        <tr>
+            <td colspan="6" style="padding: 0 15px 15px 15px;">
+                <table width="100%" cellpadding="6" cellspacing="0" border="1" style="border-collapse: collapse; font-size: 13px; width: 100%;">
+                    <thead style="background-color: #f3f3f3;">
                         <tr>
-                            {{-- Date Col --}}
-                            <td>{{ date('M j', strtotime($date)) }}</td>
-
-                            {{-- Previous window --}}
-                            <td>{{ $prev ? '$'.number_format($prev['spend'],2) : '–' }}</td>
-                            <td>{{ $prev ? number_format($prev['roas'],2) : '–' }}</td>
-                            <td>{{ $prev ? number_format($prev['cpa'],2)  : '–' }}</td>
-                            <td>{{ $prev ? number_format($prev['ctr'],2).'%' : '–' }}</td>
-
-                            {{-- Current window --}}
-                            <td>{{ $curr ? '$'.number_format($curr['spend'],2) : '–' }}</td>
-                            <td>{{ $curr ? number_format($curr['roas'],2) : '–' }}</td>
-                            <td>{{ $curr ? number_format($curr['cpa'],2)  : '–' }}</td>
-                            <td>{{ $curr ? number_format($curr['ctr'],2).'%' : '–' }}</td>
+                            <th align="left">Metric</th>
+                            <th>Now ({{ $windowDays }}d)</th>
+                            <th>Prev ({{ $windowDays }}d)</th>
+                            <th>Δ %</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </td>
-    </tr>
-@endforeach
-</tbody>
+                    </thead>
+                    <tbody>
+                        {{-- Spend --}}
+                        <tr>
+                            <td>Spend</td>
+                            <td>${{ number_format($ad->spend_current, 2) }}</td>
+                            <td>${{ number_format($ad->spend_previous, 2) }}</td>
+                            <td>{!! $ad->spend_diff !== null ? '<span style="color:' . ($ad->spend_diff >= 0 ? 'green' : 'red') . ';">' . ($ad->spend_diff >= 0 ? '↑' : '↓') . abs($ad->spend_diff) . '%</span>' : '–' !!}</td>
+                        </tr>
+
+                        {{-- ROAS --}}
+                        <tr>
+                            <td>ROAS</td>
+                            <td>{{ number_format($ad->roas_current, 2) }}</td>
+                            <td>{{ number_format($ad->roas_previous, 2) }}</td>
+                            <td>{!! $ad->roas_diff !== null ? '<span style="color:' . ($ad->roas_diff >= 0 ? 'green' : 'red') . ';">' . ($ad->roas_diff >= 0 ? '↑' : '↓') . abs($ad->roas_diff) . '%</span>' : '–' !!}</td>
+                        </tr>
+
+                        {{-- CPA --}}
+                        <tr>
+                            <td>CPA</td>
+                            <td>{{ number_format($ad->cpa_current, 2) }}</td>
+                            <td>{{ number_format($ad->cpa_previous, 2) }}</td>
+                            <td>{!! $ad->cpa_diff !== null ? '<span style="color:' . ($ad->cpa_diff <= 0 ? 'green' : 'red') . ';">' . ($ad->cpa_diff <= 0 ? '↓' : '↑') . abs($ad->cpa_diff) . '%</span>' : '–' !!}</td>
+                        </tr>
+
+                        {{-- CTR --}}
+                        <tr>
+                            <td>CTR</td>
+                            <td>{{ number_format($ad->ctr_current, 2) }}%</td>
+                            <td>{{ number_format($ad->ctr_previous, 2) }}%</td>
+                            <td>{!! $ad->ctr_diff !== null ? '<span style="color:' . ($ad->ctr_diff >= 0 ? 'green' : 'red') . ';">' . ($ad->ctr_diff >= 0 ? '↑' : '↓') . abs($ad->ctr_diff) . '%</span>' : '–' !!}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+
+        {{-- ───── DAILY DRILLDOWN ───── --}}
+        <tr>
+            <td colspan="6" style="padding: 0 15px 30px 15px;">
+                <table width="100%" cellpadding="6" cellspacing="0" border="1" style="border-collapse: collapse; font-size: 12px;">
+                    <thead style="background-color: #eee;">
+                        <tr>
+                            <th>Date</th>
+                            <th>Spend Prev</th>
+                            <th>ROAS Prev</th>
+                            <th>CPA Prev</th>
+                            <th>CTR Prev</th>
+                            <th>Spend Now</th>
+                            <th>ROAS Now</th>
+                            <th>CPA Now</th>
+                            <th>CTR Now</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php
+                            $dates = collect($ad->previous_rows)->pluck('date')->merge(collect($ad->current_rows)->pluck('date'))->unique()->sort();
+                        @endphp
+
+                        @foreach ($dates as $date)
+                            @php
+                                $prev = collect($ad->previous_rows)->firstWhere('date', $date);
+                                $curr = collect($ad->current_rows)->firstWhere('date', $date);
+                            @endphp
+                            <tr>
+                                <td>{{ \Carbon\Carbon::parse($date)->format('M j') }}</td>
+                                <td>{{ $prev ? '$' . number_format($prev['spend'], 2) : '–' }}</td>
+                                <td>{{ $prev ? number_format($prev['roas'], 2) : '–' }}</td>
+                                <td>{{ $prev ? number_format($prev['cpa'], 2) : '–' }}</td>
+                                <td>{{ $prev ? number_format($prev['ctr'], 2) . '%' : '–' }}</td>
+
+                                <td>{{ $curr ? '$' . number_format($curr['spend'], 2) : '–' }}</td>
+                                <td>{{ $curr ? number_format($curr['roas'], 2) : '–' }}</td>
+                                <td>{{ $curr ? number_format($curr['cpa'], 2) : '–' }}</td>
+                                <td>{{ $curr ? number_format($curr['ctr'], 2) . '%' : '–' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    @endforeach
+    </tbody>
+</table>
