@@ -2,11 +2,23 @@
 @foreach ($ads as $ad)
     {{--  ───────────  HEADER ROW (AD META + 4‑METRIC SUMMARY)  ───────────  --}}
     <tr>
-        <td colspan="1" style="font-weight:bold;padding:10px;border-top:2px solid #ccc;">
-            {{ $ad->ad_name ?: 'Unnamed Ad' }}<br>
-            <small style="color:#555;">ID {{ $ad->ad_id }}</small><br>
-            <small>Campaign: {{ $ad->campaign_name }}</small>
-        </td>
+    <td colspan="1" style="font-weight:bold;padding:10px;border-top:2px solid #ccc;">
+    {{ $ad->ad_name ?: 'Unnamed Ad' }}<br>
+    <small style="color:#555;">ID {{ $ad->ad_id }}</small><br>
+    <small>Campaign: {{ $ad->campaign_name }}</small><br><br>
+
+    @if (!empty($ad->thumbnail_url))
+        <a href="{{ $ad->ad_link }}" target="_blank" style="display:inline-block;">
+            <img src="{{ $ad->thumbnail_url }}"
+                 alt="Ad Image"
+                 style="max-width:150px; max-height:150px; object-fit:contain; border:1px solid #ccc;">
+        </a>
+    @else
+        <small style="color: #999;">No image</small>
+    @endif
+</td>
+
+
 @php $label = $windowDays.'d'; @endphp
         <td colspan="5" style="padding:10px;border-top:2px solid #ccc;">
             <table width="100%" cellpadding="6" cellspacing="0" border="1"
