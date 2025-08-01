@@ -28,6 +28,8 @@ class FacebookAdMetric extends Model
         'view_content',
         'start_date',
         'end_date',
+        'reach',
+        'frequency'
     ];
 
     protected $casts = [

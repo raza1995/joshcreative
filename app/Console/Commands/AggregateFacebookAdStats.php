@@ -47,10 +47,10 @@ class AggregateFacebookAdStats extends Command
                 $spend = $metrics->sum('spend');
                 $clicks = $metrics->sum('clicks');
                 $impressions = $metrics->sum('impressions');
-                
+                $reach = $metrics->sum('reach');
                 $ctr = $metrics->pluck('ctr')->filter()->avg();
                 $cpa = $metrics->pluck('cpa')->filter()->avg();
-    
+                $frequency = $metrics->pluck('frequency')->filter()->avg();
                 $roasData = $metrics->map(function ($metric) {
                     $values = json_decode($metric->purchase_roas, true);
                     return [
@@ -87,6 +87,8 @@ class AggregateFacebookAdStats extends Command
                     'ctr' => $ctr ? round($ctr, 2) : null,
                     'cpa' => $cpa ? round($cpa, 2) : null,
                     'roas' => $roas,
+                    'reach' => $reach,
+                    'frequency' => $frequency ? round($frequency, 3) : null,
                 ]);
             }
         }

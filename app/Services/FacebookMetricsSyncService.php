@@ -71,6 +71,8 @@ class FacebookMetricsSyncService
                 'start_date' => $range['start'],
                 'end_date' => $range['end'],
                 'impressions' => $metrics['impressions'] ?? 0,
+                'reach' => $metrics['reach'] ?? 0,
+                'frequency' => $metrics['frequency'] ?? null,
                 'clicks' => $metrics['clicks'] ?? 0,
                 'ctr' => $metrics['ctr'] ?? null,
                 'cpc' => $metrics['cpc'] ?? null,

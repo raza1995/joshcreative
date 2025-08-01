@@ -201,8 +201,9 @@ class FacebookAdsService
         Log::info("Fetching {$type} insights for ID: {$id} from {$startDate} to {$endDate}");
     
         $fields = [
-            'impressions', 'clicks', 'ctr', 'cpc',
-            'spend', 'cpm', 'purchase_roas', 'actions', 'conversions', 'ad_id', 'adset_id', 'campaign_id', 'updated_time'
+            'impressions', 'reach', 'frequency', 'clicks', 'ctr', 'cpc',
+            'spend', 'cpm', 'purchase_roas', 'actions', 'conversions',
+            'ad_id', 'adset_id', 'campaign_id', 'updated_time'
         ];
     
         $timeRange = [
@@ -217,6 +218,7 @@ class FacebookAdsService
         ]);
      
         $data = $response->json()['data'][0] ?? [];
+       
         Log::info("Fetched {$type} insights: " . json_encode($data));
         return $data;
     }

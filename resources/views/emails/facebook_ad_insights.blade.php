@@ -73,6 +73,20 @@
                             <td>{{ number_format($ad->ctr_previous, 2) }}%</td>
                             <td>{!! $ad->ctr_diff !== null ? '<span style="color:' . ($ad->ctr_diff >= 0 ? 'green' : 'red') . ';">' . ($ad->ctr_diff >= 0 ? '↑' : '↓') . abs($ad->ctr_diff) . '%</span>' : '–' !!}</td>
                         </tr>
+                        {{-- Reach --}}
+                        <tr>
+                            <td>Reach</td>
+                            <td>{{ number_format($ad->reach_current) }}</td>
+                            <td>{{ number_format($ad->reach_previous) }}</td>
+                            <td>{!! $ad->reach_diff !== null ? '<span style="color:' . ($ad->reach_diff >= 0 ? 'green' : 'red') . ';">' . ($ad->reach_diff >= 0 ? '↑' : '↓') . abs($ad->reach_diff) . '%</span>' : '–' !!}</td>
+                        </tr>
+                        {{-- Frequency --}}
+                        <tr>
+                            <td>Frequency</td>
+                            <td>{{ number_format($ad->frequency_current, 2) }}</td>
+                            <td>{{ number_format($ad->frequency_previous, 2) }}</td>
+                            <td>{!! $ad->frequency_diff !== null ? '<span style="color:' . ($ad->frequency_diff >= 0 ? 'red' : 'green') . ';">' . ($ad->frequency_diff >= 0 ? '↑' : '↓') . abs($ad->frequency_diff) . '%</span>' : '–' !!}</td>
+                        </tr>
                     </tbody>
                 </table>
             </td>
@@ -89,10 +103,14 @@
                             <th>ROAS Prev</th>
                             <th>CPA Prev</th>
                             <th>CTR Prev</th>
+                            <th>Reach Prev</th>
+                            <th>Freq Prev</th>
                             <th>Spend Now</th>
                             <th>ROAS Now</th>
                             <th>CPA Now</th>
                             <th>CTR Now</th>
+                            <th>Reach Now</th>
+                            <th>Freq Now</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -105,17 +123,21 @@
                                 $prev = collect($ad->previous_rows)->firstWhere('date', $date);
                                 $curr = collect($ad->current_rows)->firstWhere('date', $date);
                             @endphp
-                            <tr>
+                           <tr>
                                 <td>{{ \Carbon\Carbon::parse($date)->format('M j') }}</td>
                                 <td>{{ $prev ? '$' . number_format($prev['spend'], 2) : '–' }}</td>
                                 <td>{{ $prev ? number_format($prev['roas'], 2) : '–' }}</td>
                                 <td>{{ $prev ? number_format($prev['cpa'], 2) : '–' }}</td>
                                 <td>{{ $prev ? number_format($prev['ctr'], 2) . '%' : '–' }}</td>
+                                <td>{{ $prev ? number_format($prev['reach']) : '–' }}</td>
+                                <td>{{ $prev ? number_format($prev['frequency'], 2) : '–' }}</td>
 
                                 <td>{{ $curr ? '$' . number_format($curr['spend'], 2) : '–' }}</td>
                                 <td>{{ $curr ? number_format($curr['roas'], 2) : '–' }}</td>
                                 <td>{{ $curr ? number_format($curr['cpa'], 2) : '–' }}</td>
                                 <td>{{ $curr ? number_format($curr['ctr'], 2) . '%' : '–' }}</td>
+                                <td>{{ $curr ? number_format($curr['reach']) : '–' }}</td>
+                                <td>{{ $curr ? number_format($curr['frequency'], 2) : '–' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

@@ -71,7 +71,10 @@ class EmailFacebookAdInsights extends Command
                     'ad_account_name' => $base->ad_account_name,
                     'ad_link'         => $base->ad_link,
                     'thumbnail_url'   => $base->thumbnail_url,
-
+                    'reach_current'   => round($current->sum('reach'), 2),
+                    'frequency_current' => round($current->avg('frequency'), 2),
+                    'reach_previous'  => round($previous->sum('reach'), 2),
+                    'frequency_previous' => round($previous->avg('frequency'), 2),
                     // ---------- aggregates ----------
                     'spend_current' => round($current->sum('spend'), 2),
                     'roas_current'  => round($current->avg('roas'), 2),
@@ -85,7 +88,7 @@ class EmailFacebookAdInsights extends Command
                 ];
 
                 // ---------- percentage deltas ----------
-                foreach (['spend','roas','cpa','ctr'] as $metric) {
+                foreach (['spend','roas','cpa','ctr','reach','frequency'] as $metric) {
                     $prev = $out->{$metric.'_previous'};
                     $curr = $out->{$metric.'_current'};
                     $out->{$metric.'_diff'} = $prev > 0
@@ -95,11 +98,13 @@ class EmailFacebookAdInsights extends Command
 
                 // ---------- raw rows for drill‑down ----------
                 $fmt = fn ($r) => [
-                    'date'  => Carbon::parse($r->start_date)->toDateString(),
-                    'spend' => round($r->spend, 2),
-                    'roas'  => round($r->roas , 2),
-                    'cpa'   => round($r->cpa  , 2),
-                    'ctr'   => round($r->ctr  , 2),
+                    'date'      => Carbon::parse($r->start_date)->toDateString(),
+                    'spend'     => round($r->spend, 2),
+                    'roas'      => round($r->roas , 2),
+                    'cpa'       => round($r->cpa  , 2),
+                    'ctr'       => round($r->ctr  , 2),
+                    'reach'     => (int) $r->reach,
+                    'frequency' => round($r->frequency, 3),
                 ];
                 $out->current_rows  = $current ->values()->map($fmt);
                 $out->previous_rows = $previous->values()->map($fmt);

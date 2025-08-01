@@ -36,6 +36,8 @@ class FacebookAdStat extends Model
         'ctr',
         'cpa',
         'roas',
+        'reach',
+        'frequency'
     ];
 
     protected $casts = [
