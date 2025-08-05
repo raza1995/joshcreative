@@ -60,12 +60,19 @@ class ShopifyWebhookController extends Controller
 
             $landingSite = $orderData['landing_site'] ?? '';
             $parsedAdId = null;
-
+            
             if ($landingSite) {
                 $query = parse_url($landingSite, PHP_URL_QUERY);
                 parse_str($query, $utm);
-                $parsedAdId = $utm['ad_id'] ?? $utm['utm_content'] ?? $utm['utm_term'] ?? null;
+            
+                // Check for 'ad_id' first, then 'utm_content' if missing
+                if (!empty($utm['ad_id']) && preg_match('/^\d{10,30}$/', $utm['ad_id'])) {
+                    $parsedAdId = $utm['ad_id'];
+                } elseif (!empty($utm['utm_content']) && preg_match('/^\d{10,30}$/', $utm['utm_content'])) {
+                    $parsedAdId = $utm['utm_content'];
+                }
             }
+            
 
 
             ShopifyOrder::updateOrCreate(
