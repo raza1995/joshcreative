@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShopifyWebhookController;
 use App\Http\Controllers\ShopifyWebhookControllerMycolean;
+use App\Http\Controllers\KlaviyoKpiController;
 use App\Services\GmailShopifyInvoiceService;
 
 /*
@@ -171,6 +172,12 @@ Route::post('/email-draft/bulk-approve', [EmailDraftController::class, 'bulkAppr
 Route::get('/email-draft/create', [EmailDraftController::class, 'create'])->name('email-draft.create');
 Route::post('/email-draft/store', [EmailDraftController::class, 'store'])->name('email-draft.store');
 Route::get('/shopify-orders', [EmailDraftController::class, 'getShopifyOrders'])->name('shopify.orders');
+
+
+Route::get('/klaviyo/kpis', [KlaviyoKpiController::class, 'index'])->name('klaviyo.kpis');
+Route::get('/klaviyo/options', [KlaviyoKpiController::class, 'options'])->name('klaviyo.options'); // lists campaigns & segments
+Route::post('/klaviyo/kpis/campaigns', [KlaviyoKpiController::class, 'campaignKpis'])->name('klaviyo.kpis.campaigns');
+Route::post('/klaviyo/kpis/segments', [KlaviyoKpiController::class, 'segmentKpis'])->name('klaviyo.kpis.segments');
 
 });
 

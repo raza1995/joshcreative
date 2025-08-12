@@ -35,5 +35,11 @@ return [
     ],
     'fb_accounts' => json_decode(env('FB_ACCOUNTS', '{}'), true),
 
+    'klaviyo' => [
+    'private_key'     => env('KLAVIYO_PRIVATE_KEY'),
+    'revision_stable' => env('KLAVIYO_REVISION_STABLE', '2025-07-15'),
+    'revision_beta'   => env('KLAVIYO_REVISION_BETA', '2024-07-15.pre'),
+],
+
 
 ];
