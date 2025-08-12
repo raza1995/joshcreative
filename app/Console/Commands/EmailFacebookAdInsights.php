@@ -131,8 +131,13 @@ class EmailFacebookAdInsights extends Command
                 return;
             }
 
-            Mail::to(config('mail.insights_to', 'razakkhanafridi1995@gmail.com'))
-                ->send(new FacebookAdInsightsEmail($topAds, $currentStart, $currentEnd, $days));
+            Mail::to([
+                config('mail.insights_to', 'razakkhanafridi1995@gmail.com'),
+                'josh@inviscus.com',
+                'Jakobmesina@gmail.com'
+            ])
+            ->send(new FacebookAdInsightsEmail($topAds, $currentStart, $currentEnd, $days));
+        
 
             $this->info("Ad‑insights email sent (window: {$days} days).");
 
