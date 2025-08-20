@@ -89,7 +89,7 @@ class ShopifyService
                     $productTitle = $item['title'] ?? 'Untitled';
     
                     // Upsert based on order_number
-                    ShopifyOrder::updateOrCreate(
+                    $result = ShopifyOrder::updateOrCreate(
                         ['order_number' => $orderId],
                         [
                             'order_date'      => $createdAt,
@@ -107,6 +107,11 @@ class ShopifyService
                             'updated_at'      => now(),
                         ]
                     );
+
+                    if (app()->runningInConsole()) {
+                        $action = $result ? 'Created or Updated' : 'No change';
+                        echo "[{$createdAt}] {$action} order #{$orderId} ({$productTitle})\n";
+                    }
                 }
             }
     
