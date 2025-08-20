@@ -95,6 +95,7 @@ class ShopifyOrdersDataTable extends DataTable
     {
         return $model->newQuery()
             ->orderByDesc('order_date')
+            ->distinct('order_number')
             ->limit(1000); // guard; tune/replace with real pagination later
     }
 
