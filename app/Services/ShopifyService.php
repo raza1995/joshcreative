@@ -344,25 +344,36 @@ class ShopifyService
     
                 $wasExisting = ShopifyOrder::where('order_number', $orderId)->exists();
     
-                ShopifyOrder::updateOrCreate(
-                    ['order_number' => $orderId],
-                    [
-                        'order_date'      => $createdAt,
-                        'customer_name'   => $customerName,
-                        'email_address'   => $email,
-                        'paid_amount'     => $totalPrice,
-                        'discount'        => $totalDisc,
-                        'number_of_items' => $itemsCount,
-                        'tracking_number' => $trackingNumber,
-                        'tracking_url'    => $trackingUrl,
-                        'coupon'          => $couponCode,
-                        'anon_id'         => $anonId,
-                        'ad_id'           => $adId,
-                        'raw_json'        => $rawJson,
-                        'line_items_json' => json_encode($lineItemsBrief),
-                        'updated_at'      => now(),
-                    ]
-                );
+                $updatedRowCount = ShopifyOrder::where('order_number', $orderId)
+                ->whereNull('raw_json') // only update if raw_json is missing
+                ->update([
+                    'order_date'      => $createdAt,
+                    'customer_name'   => $customerName,
+                    'email_address'   => $email,
+                    'paid_amount'     => $totalPrice,
+                    'discount'        => $totalDisc,
+                    'number_of_items' => $itemsCount,
+                    'tracking_number' => $trackingNumber,
+                    'tracking_url'    => $trackingUrl,
+                    'coupon'          => $couponCode,
+                    'anon_id'         => $anonId,
+                    'ad_id'           => $adId,
+                    'raw_json'        => $rawJson,
+                    'line_items_json' => json_encode($lineItemsBrief),
+                    'updated_at'      => now(),
+                ]);
+            
+            if ($updatedRowCount > 0) {
+                $updated++;
+                if (app()->runningInConsole()) {
+                    echo "[{$createdAt}] Updated order {$orderNumber}\n";
+                }
+            } else {
+                $skipped++;
+                if (app()->runningInConsole()) {
+                    echo "[{$createdAt}] Skipped order {$orderNumber} (no match or raw_json already exists)\n";
+                }
+            }
     
                 if ($wasExisting) {
                     $updated++;
