@@ -69,7 +69,23 @@ document.addEventListener('DOMContentLoaded', function () {
     { data: 'tracking', name: 'tracking', orderable: false, searchable: false },
     { data: 'order_date_formatted', name: 'order_date' }
   ],
-  order: [[11, 'desc']]
+  order: [[11, 'desc']],
+  dom: 'Bfrtip',
+  buttons: [
+    {
+      extend: 'csvHtml5',
+      text: 'Export CSV',
+      title: 'Orders_' + new Date().toISOString().slice(0, 10),
+      exportOptions: {
+        columns: ':visible'
+      }
+    },
+    {
+      extend: 'print',
+      text: 'Print'
+    }
+    // You can also add 'excelHtml5', 'pdfHtml5' if needed
+  ]
   });
 
   document.querySelector('#apply').addEventListener('click', () => table.ajax.reload());
