@@ -38,10 +38,24 @@ class ShopifyOrder extends Model
 
 public function scopeByProduct($query, $productName)
 {
-    return $query->where('product_name', $productName)
-                 ->orWhere(function ($q) use ($productName) {
-                     // Search in raw_json line_items[*].title
-                     $q->whereRaw('JSON_SEARCH(raw_json, "one", ?, NULL, "$.line_items[*].title") IS NOT NULL', [$productName]);
-                 });
+    $table = $query->getModel()->getTable();
+
+    return $query->whereIn('id', function ($sub) use ($table, $productName) {
+        $sub->from("$table as t")
+            ->selectRaw('MIN(t.id) as id')
+            ->where('t.product_name', $productName)
+            ->orWhereRaw("
+                EXISTS (
+                  SELECT 1
+                  FROM JSON_TABLE(CAST(t.raw_json AS JSON), '$.line_items[*]'
+                       COLUMNS (sku VARCHAR(255) PATH '$.sku')) li
+                  WHERE li.sku = ?
+                )
+            ", [$productName])
+            ->groupBy('t.order_number');
+    });
 }
+
+
+
 }

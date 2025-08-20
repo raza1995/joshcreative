@@ -27,6 +27,8 @@
           <th>Paid</th>
           <th>Shipping</th>
           <th>Ship Cost</th>
+          <th>Discount Codes</th>    
+          <th>Total Discount</th>    
           <th>Tracking</th>
           <th>Order Date</th>
         </tr>
@@ -54,18 +56,20 @@ document.addEventListener('DOMContentLoaded', function () {
       dataSrc: 'data'
     },
     columns: [
-      { data: 'order_number', name: 'order_number' },
-      { data: 'full_name', name: 'full_name', orderable: false, searchable: false },
-      { data: 'email', name: 'email' },
-      { data: 'product_name', name: 'product_name' },
-      { data: 'number_of_items', name: 'number_of_items' },
-      { data: 'order_total', name: 'order_total', orderable: false, searchable: false },
-      { data: 'shipping_method', name: 'shipping_method' },
-      { data: 'shipping_cost', name: 'shipping_cost', orderable: false, searchable: false },
-      { data: 'tracking', name: 'tracking', orderable: false, searchable: false },
-      { data: 'order_date_formatted', name: 'order_date' }
-    ],
-    order: [[9, 'desc']]
+    { data: 'order_number', name: 'order_number' },
+    { data: 'full_name', name: 'full_name', orderable: false, searchable: false },
+    { data: 'email', name: 'email' },
+    { data: 'product_name', name: 'product_name' },
+    { data: 'number_of_items', name: 'number_of_items' },
+    { data: 'order_total', name: 'order_total', orderable: false, searchable: false },
+    { data: 'shipping_method', name: 'shipping_method' },
+    { data: 'shipping_cost', name: 'shipping_cost', orderable: false, searchable: false },
+    { data: 'discount_codes', name: 'discount_codes', orderable: false, searchable: true }, // NEW
+    { data: 'total_discount', name: 'total_discount', orderable: false, searchable: false }, // NEW
+    { data: 'tracking', name: 'tracking', orderable: false, searchable: false },
+    { data: 'order_date_formatted', name: 'order_date' }
+  ],
+  order: [[11, 'desc']]
   });
 
   document.querySelector('#apply').addEventListener('click', () => table.ajax.reload());
