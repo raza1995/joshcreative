@@ -27,8 +27,8 @@ class ShopifyService
         $from_date = now()->subDays(10)->format('Y-m-d');
         $to_date = now()->format('Y-m-d');
     }
-    $sinceIso = Carbon::parse('2025-08-05 02:28:37', 'UTC')->toIso8601String();
-    $maxIso   = now('UTC')->toIso8601String();
+    $sinceIso = now('UTC')->subDays(30)->startOfDay()->toIso8601String();
+    $maxIso   = now('UTC')->endOfDay()->toIso8601String();
     // Shopify API base URL
     $base_url = "https://{$this->shopifyDomain}/admin/api/2025-07/orders.json";
     $params = [
