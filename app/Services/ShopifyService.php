@@ -205,203 +205,122 @@ class ShopifyService
 
 
     public function fetchOrders($from_date = null, $to_date = null)
-    {
-        // Use date range if provided, otherwise default to last 30 days
-        $from = $from_date ? Carbon::parse($from_date)->startOfDay() : now()->subDays(30)->startOfDay();
-        $to   = $to_date   ? Carbon::parse($to_date)->endOfDay()      : now()->endOfDay();
-    
-        // Preload order_numbers that already have raw_json filled in this window
-        $skipOrderNumbers = ShopifyOrder::query()
-            ->whereNotNull('raw_json')
-            ->whereBetween('order_date', [$from, $to])
-            ->pluck('order_number')
-            ->all();
-    
-        $skip = [];
-        foreach ($skipOrderNumbers as $orderNumber) {
-            $skip[$orderNumber] = true;
+{
+    $from = $from_date ? Carbon::parse($from_date)->startOfDay() : now()->subDays(30)->startOfDay();
+    $to   = $to_date   ? Carbon::parse($to_date)->endOfDay()      : now()->endOfDay();
+
+    // Get only order_numbers that are missing raw_json
+    $ordersToUpdate = ShopifyOrder::query()
+        ->whereNull('raw_json')
+        ->whereBetween('order_date', [$from, $to])
+        ->pluck('order_number') // This should store Shopify Order ID, e.g., "6780597829942"
+        ->map(fn ($id) => (string) $id)
+        ->all();
+
+    $updated = 0;
+    $skipped = 0;
+
+    foreach ($ordersToUpdate as $orderId) {
+        $url = "https://{$this->shopifyDomain}/admin/api/2025-07/orders/{$orderId}.json";
+
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $this->accessToken,
+        ])->retry(3, 2)->get($url);
+
+        if (!$response->successful()) {
+            Log::warning("Shopify fetch failed for order {$orderId}", [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+            $skipped++;
+            continue;
         }
-    
-        $baseUrl = "https://{$this->shopifyDomain}/admin/api/2025-07/orders.json";
-        $params = [
-            'status'          => 'any',
-            'created_at_min'  => $from->toIso8601String(),
-            'created_at_max'  => $to->toIso8601String(),
-            'limit'           => 250,
-            'fields'          => 'id,name,email,created_at,line_items,customer,fulfillments,total_price,total_discounts,discount_codes,landing_site,note_attributes',
-            'order'           => 'created_at asc',
-        ];
-    
-        $nextUrl = null;
-        $created = 0;
-        $updated = 0;
-        $skipped = 0;
-    
-        do {
-            $url = $nextUrl ?: $baseUrl;
-    
-            // Retry logic
-            $attempts = 0; $response = null;
-            while ($attempts < 3) {
-                $attempts++;
-                $response = Http::withHeaders([
-                    'X-Shopify-Access-Token' => $this->accessToken,
-                ])->get($url, $nextUrl ? [] : $params);
-    
-                if ($response->successful()) break;
-    
-                $status = $response->status();
-                if ($status == 429 || ($status >= 500 && $status < 600)) {
-                    sleep(max(2, (int)($response->header('Retry-After') ?? 2)));
-                    continue;
-                }
-    
-                Log::error('Shopify Order Fetch Failed', ['status' => $status, 'body' => $response->body()]);
-                return 'Fetch failed!';
-            }
-    
-            if (!$response || !$response->successful()) {
-                Log::error('Shopify Order Fetch Failed after retries', [
-                    'status' => optional($response)->status(),
-                    'body'   => optional($response)->body(),
-                ]);
-                return 'Fetch failed after retries!';
-            }
-    
-            $orders = $response->json('orders') ?? [];
-    
-            foreach ($orders as $order) {
-                $orderId     = (string)($order['id'] ?? '');
-                $orderNumber = $order['name'] ?? '';
-                $createdAt   = isset($order['created_at']) ? Carbon::parse($order['created_at']) : now();
-    
-                // Skip if already stored with raw_json
-                if (isset($skip[$orderId])) {
-                    $skipped++;
-                    if (app()->runningInConsole()) {
-                        echo "[{$createdAt}] Skipping order {$orderId} (already has raw_json)\n";
-                    }
-                    continue;
-                }
-    
-                $rawJson      = json_encode($order);
-                $email        = $order['email'] ?? null;
-                $customerName = trim(
-                    ($order['customer']['first_name'] ?? '') . ' ' . ($order['customer']['last_name'] ?? '')
-                ) ?: 'Unknown Customer';
-    
-                $couponCode = $order['discount_codes'][0]['code'] ?? null;
-                $totalPrice = (float)($order['total_price'] ?? 0);
-                $totalDisc  = (float)($order['total_discounts'] ?? 0);
-                $itemsCount = count($order['line_items'] ?? []);
-    
-                // Track fulfillment info
-                $trackingNumber = null;
-                $trackingUrl    = null;
-                if (!empty($order['fulfillments'])) {
-                    usort($order['fulfillments'], fn($a, $b) =>
-                        strtotime($b['created_at'] ?? '') <=> strtotime($a['created_at'] ?? '')
-                    );
-                    foreach ($order['fulfillments'] as $f) {
-                        $tn = $f['tracking_number'] ?? null;
-                        $tu = $f['tracking_urls'][0] ?? ($f['tracking_url'] ?? null);
-                        if ($tn || $tu) {
-                            $trackingNumber = $tn;
-                            $trackingUrl = $tu;
-                            break;
-                        }
-                    }
-                }
-    
-                // Extract anon_id from note_attributes
-                $anonId = null;
-                foreach ($order['note_attributes'] ?? [] as $attr) {
-                    if (($attr['name'] ?? '') === '_anon_id') {
-                        $anonId = $attr['value'] ?? null;
-                        break;
-                    }
-                }
-    
-                // Extract ad_id from landing_site
-                $adId = null;
-                if (!empty($order['landing_site'])) {
-                    if ($query = parse_url($order['landing_site'], PHP_URL_QUERY)) {
-                        parse_str($query, $utm);
-                        $adId = $utm['ad_id'] ?? ($utm['utm_content'] ?? ($utm['utm_term'] ?? null));
-                    }
-                }
-    
-                // Condensed line items
-                $lineItemsBrief = collect($order['line_items'] ?? [])->map(fn($li) => [
-                    'line_item_id'  => $li['id']            ?? null,
-                    'title'         => $li['title']         ?? null,
-                    'sku'           => $li['sku']           ?? null,
-                    'variant_id'    => $li['variant_id']    ?? null,
-                    'variant_title' => $li['variant_title'] ?? null,
-                    'quantity'      => $li['quantity']      ?? null,
-                    'price'         => $li['price']         ?? null,
-                ])->values()->all();
-    
-                $wasExisting = ShopifyOrder::where('order_number', $orderId)->exists();
-    
-                $updatedRowCount = ShopifyOrder::where('order_number', $orderId)
-                ->whereNull('raw_json') // only update if raw_json is missing
-                ->update([
-                    'order_date'      => $createdAt,
-                    'customer_name'   => $customerName,
-                    'email_address'   => $email,
-                    'paid_amount'     => $totalPrice,
-                    'discount'        => $totalDisc,
-                    'number_of_items' => $itemsCount,
-                    'tracking_number' => $trackingNumber,
-                    'tracking_url'    => $trackingUrl,
-                    'coupon'          => $couponCode,
-                    'anon_id'         => $anonId,
-                    'ad_id'           => $adId,
-                    'raw_json'        => $rawJson,
-                    'updated_at'      => now(),
-                ]);
-            
-            if ($updatedRowCount > 0) {
-                $updated++;
-                if (app()->runningInConsole()) {
-                    echo "[{$createdAt}] Updated order {$orderNumber}\n";
-                }
-            } else {
-                $skipped++;
-                if (app()->runningInConsole()) {
-                    echo "[{$createdAt}] Skipped order {$orderNumber} (no match or raw_json already exists)\n";
+
+        $order = $response->json('order');
+
+        if (!$order) {
+            Log::warning("Empty order response for ID: {$orderId}");
+            $skipped++;
+            continue;
+        }
+
+        $createdAt     = Carbon::parse($order['created_at'] ?? now());
+        $rawJson       = json_encode($order);
+        $email         = $order['email'] ?? null;
+        $customerName  = trim(($order['customer']['first_name'] ?? '') . ' ' . ($order['customer']['last_name'] ?? '')) ?: 'Unknown Customer';
+        $couponCode    = $order['discount_codes'][0]['code'] ?? null;
+        $totalPrice    = (float)($order['total_price'] ?? 0);
+        $totalDisc     = (float)($order['total_discounts'] ?? 0);
+        $itemsCount    = count($order['line_items'] ?? []);
+        $anonId        = collect($order['note_attributes'] ?? [])->firstWhere('name', '_anon_id')['value'] ?? null;
+
+        // Fulfillment tracking
+        $trackingNumber = null;
+        $trackingUrl    = null;
+        if (!empty($order['fulfillments'])) {
+            usort($order['fulfillments'], fn($a, $b) =>
+                strtotime($b['created_at'] ?? '') <=> strtotime($a['created_at'] ?? '')
+            );
+            foreach ($order['fulfillments'] as $f) {
+                $tn = $f['tracking_number'] ?? null;
+                $tu = $f['tracking_urls'][0] ?? ($f['tracking_url'] ?? null);
+                if ($tn || $tu) {
+                    $trackingNumber = $tn;
+                    $trackingUrl    = $tu;
+                    break;
                 }
             }
-    
-                if ($wasExisting) {
-                    $updated++;
-                } else {
-                    $created++;
-                }
-    
-                if (app()->runningInConsole()) {
-                    echo "[{$createdAt}] " . ($wasExisting ? 'Updated' : 'Created') . " order {$orderId}\n";
-                }
+        }
+
+        // ad_id from landing_site
+        $adId = null;
+        if (!empty($order['landing_site'])) {
+            if ($query = parse_url($order['landing_site'], PHP_URL_QUERY)) {
+                parse_str($query, $utm);
+                $adId = $utm['ad_id'] ?? ($utm['utm_content'] ?? ($utm['utm_term'] ?? null));
             }
-    
-            // Handle pagination
-            $nextUrl = null;
-            $link = $response->header('Link');
-            if ($link && str_contains($link, 'rel="next"') && preg_match('/<([^>]+)>;\s*rel="next"/', $link, $m)) {
-                $nextUrl = $m[1];
-                Log::info('Fetching next page', ['next' => $nextUrl]);
+        }
+
+        // Update only if raw_json is still null
+        $updatedRowCount = ShopifyOrder::where('order_number', $orderId)
+            ->whereNull('raw_json')
+            ->update([
+                'order_date'      => $createdAt,
+                'customer_name'   => $customerName,
+                'email_address'   => $email,
+                'paid_amount'     => $totalPrice,
+                'discount'        => $totalDisc,
+                'number_of_items' => $itemsCount,
+                'tracking_number' => $trackingNumber,
+                'tracking_url'    => $trackingUrl,
+                'coupon'          => $couponCode,
+                'anon_id'         => $anonId,
+                'ad_id'           => $adId,
+                'raw_json'        => $rawJson,
+                'updated_at'      => now(),
+            ]);
+
+        if ($updatedRowCount > 0) {
+            $updated++;
+            if (app()->runningInConsole()) {
+                echo "[{$createdAt}] ✅ Updated order {$orderId}\n";
             }
-        } while ($nextUrl);
-    
-        Log::info('Shopify orders upsert complete', [
-            'created' => $created,
-            'updated' => $updated,
-            'skipped' => $skipped
-        ]);
-    
-        return "Orders fetched. Created: {$created}, Updated: {$updated}, Skipped (already had raw_json): {$skipped}.";
+        } else {
+            $skipped++;
+            if (app()->runningInConsole()) {
+                echo "[{$createdAt}] ⏭️ Skipped order {$orderId} (already updated or not found)\n";
+            }
+        }
     }
+
+    Log::info('Shopify selective order sync complete', [
+        'updated' => $updated,
+        'skipped' => $skipped,
+    ]);
+
+    return "Done. Updated: {$updated}, Skipped: {$skipped}.";
+}
+
     
 
     
