@@ -359,7 +359,6 @@ class ShopifyService
                     'anon_id'         => $anonId,
                     'ad_id'           => $adId,
                     'raw_json'        => $rawJson,
-                    'line_items_json' => json_encode($lineItemsBrief),
                     'updated_at'      => now(),
                 ]);
             
