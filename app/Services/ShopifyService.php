@@ -276,10 +276,10 @@ class ShopifyService
                 $createdAt   = isset($order['created_at']) ? Carbon::parse($order['created_at']) : now();
     
                 // Skip if already stored with raw_json
-                if (isset($skip[$orderNumber])) {
+                if (isset($skip[$orderId])) {
                     $skipped++;
                     if (app()->runningInConsole()) {
-                        echo "[{$createdAt}] Skipping order {$orderNumber} (already has raw_json)\n";
+                        echo "[{$createdAt}] Skipping order {$orderId} (already has raw_json)\n";
                     }
                     continue;
                 }
@@ -342,10 +342,10 @@ class ShopifyService
                     'price'         => $li['price']         ?? null,
                 ])->values()->all();
     
-                $wasExisting = ShopifyOrder::where('order_number', $orderNumber)->exists();
+                $wasExisting = ShopifyOrder::where('order_number', $orderId)->exists();
     
                 ShopifyOrder::updateOrCreate(
-                    ['order_number' => $orderNumber],
+                    ['order_number' => $orderId],
                     [
                         'order_date'      => $createdAt,
                         'customer_name'   => $customerName,
@@ -371,7 +371,7 @@ class ShopifyService
                 }
     
                 if (app()->runningInConsole()) {
-                    echo "[{$createdAt}] " . ($wasExisting ? 'Updated' : 'Created') . " order {$orderNumber}\n";
+                    echo "[{$createdAt}] " . ($wasExisting ? 'Updated' : 'Created') . " order {$orderId}\n";
                 }
             }
     
