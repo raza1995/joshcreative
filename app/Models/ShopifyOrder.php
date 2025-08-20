@@ -36,25 +36,39 @@ class ShopifyOrder extends Model
     return $this->belongsTo(FacebookAd::class, 'ad_id', 'ad_id');
 }
 
-public function scopeByProduct($query, $productName)
+public function scopeByProduct($query, $sku)
 {
-    $table = $query->getModel()->getTable();
+    // collect one id per order_number that has a matching line_items[*].sku === $sku
+    $idsByOrder = [];
 
-    return $query->whereIn('id', function ($sub) use ($table, $productName) {
-        $sub->from("$table as t")
-            ->selectRaw('MIN(t.id) as id')
-            ->where('t.product_name', $productName)
-            ->orWhereRaw("
-                EXISTS (
-                  SELECT 1
-                  FROM JSON_TABLE(CAST(t.raw_json AS JSON), '$.line_items[*]'
-                       COLUMNS (sku VARCHAR(255) PATH '$.sku')) li
-                  WHERE li.sku = ?
-                )
-            ", [$productName])
-            ->groupBy('t.order_number');
-    });
+    static::select('id', 'order_number', 'product_name', 'raw_json')
+        ->orderBy('id')
+        ->chunkById(1000, function ($chunk) use (&$idsByOrder, $sku) {
+            foreach ($chunk as $row) {
+                // decode safely whether it's cast or a JSON string
+                $raw = is_array($row->raw_json)
+                    ? $row->raw_json
+                    : (is_string($row->raw_json) ? (json_decode($row->raw_json, true) ?: []) : []);
+
+                foreach (($raw['line_items'] ?? []) as $li) {
+                    if (($li['sku'] ?? null) === $sku) {
+                        // keep a single row per order_number (pick smallest id)
+                        if (!isset($idsByOrder[$row->order_number]) || $row->id < $idsByOrder[$row->order_number]) {
+                            $idsByOrder[$row->order_number] = $row->id;
+                        }
+                        break; // next row
+                    }
+                }
+            }
+        });
+
+    if (empty($idsByOrder)) {
+        return $query->whereRaw('1=0'); // no matches
+    }
+
+    return $query->whereIn('id', array_values($idsByOrder));
 }
+
 
 
 

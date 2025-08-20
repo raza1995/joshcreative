@@ -35,13 +35,34 @@ public function index()
     {
         $product = (string) $request->get('product', 'WATERMELON WAVE');
     
-        $query = ShopifyOrder::byProduct($product)
-            ->select([
-                'id','order_number','order_date','product_name','customer_name','email_address',
-                'tracking_number','paid_amount','number_of_items','raw_json','coupon','discount'
-            ]);
+      
+
+    // grab what you need, then filter in PHP
+    $rows = ShopifyOrder::select([
+        'id','order_number','order_date','product_name','customer_name','email_address',
+        'tracking_number','paid_amount','number_of_items','raw_json','coupon','discount'
+    ])->latest('order_date')->get();
+
+    if ($product !== '') {
+        $rows = $rows->filter(function ($o) use ($product) {
+            $raw = is_array($o->raw_json)
+                ? $o->raw_json
+                : (is_string($o->raw_json) ? (json_decode($o->raw_json, true) ?: []) : []);
+
+            foreach (($raw['line_items'] ?? []) as $li) {
+                if (($li['sku'] ?? null) === $product) {
+                    // optional: tie to this row's product_name
+                    // if (($li['title'] ?? '') !== $o->product_name) continue;
+                    return true;
+                }
+            }
+            return false;
+        })
+        ->unique('order_number') // distinct by order_number
+        ->values();
+    }
     
-        return datatables()->of($query)
+        return datatables()->of($rows)
             ->addColumn('full_name', function (ShopifyOrder $order) {
                 $fallback = trim(($order->raw_json['customer']['first_name'] ?? '') . ' ' . ($order->raw_json['customer']['last_name'] ?? ''));
                 return e($order->customer_name ?: $fallback);
@@ -105,82 +126,81 @@ public function index()
 
     public function exportCsv(Request $request)
     {
-        $product = (string) $request->get('product', 'WATERMELON WAVE');
+        $sku = (string) $request->get('product', '');
     
-        return response()->streamDownload(function () use ($product) {
+        $rows = ShopifyOrder::select([
+            'id','order_number','order_date','product_name','customer_name','email_address',
+            'tracking_number','paid_amount','number_of_items','raw_json','coupon','discount'
+        ])->latest('order_date')->get();
+    
+        if ($sku !== '') {
+            $rows = $rows->filter(function ($o) use ($sku) {
+                $raw = is_array($o->raw_json) ? $o->raw_json : (json_decode($o->raw_json, true) ?: []);
+                foreach (($raw['line_items'] ?? []) as $li) {
+                    if (($li['sku'] ?? null) === $sku) return true;
+                }
+                return false;
+            })
+            ->unique('order_number')
+            ->values();
+        }
+    
+        return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-    
-            // Added "Discount Codes" and "Total Discount"
             fputcsv($out, [
                 'Order #','Customer Name','Email','Product','Quantity','Paid Amount',
                 'Shipping Method','Shipping Cost','Discount Codes','Total Discount',
                 'Tracking Number','Order Date','Coupon'
             ]);
     
-            ShopifyOrder::byProduct($product)
-                ->orderBy('order_date', 'desc')
-                ->chunk(200, function ($orders) use ($out) {
-                    foreach ($orders as $o) {
-                        // raw_json may be cast to array or stored as JSON string — handle both
-                        $raw = is_array($o->raw_json)
-                            ? $o->raw_json
-                            : (is_string($o->raw_json) ? (json_decode($o->raw_json, true) ?: []) : []);
+            foreach ($rows as $o) {
+                $raw = is_array($o->raw_json) ? $o->raw_json : (json_decode($o->raw_json, true) ?: []);
     
-                        $customerName = $o->customer_name
-                            ?: trim(($raw['customer']['first_name'] ?? '') . ' ' . ($raw['customer']['last_name'] ?? ''));
+                $customerName   = $o->customer_name ?: trim(($raw['customer']['first_name'] ?? '').' '.($raw['customer']['last_name'] ?? ''));
+                $email          = $o->email_address ?: ($raw['email'] ?? '');
+                $shippingMethod = $raw['shipping_lines'][0]['title'] ?? '';
+                $shippingCost   = (float)($raw['shipping_lines'][0]['price'] ?? 0);
+                $trackingNumber = $o->tracking_number ?: ($raw['fulfillments'][0]['tracking_number'] ?? '');
     
-                        $email = $o->email_address ?: ($raw['email'] ?? '');
-    
-                        $shippingMethod = $raw['shipping_lines'][0]['title'] ?? '';
-                        $shippingCost   = (float)($raw['shipping_lines'][0]['price'] ?? 0);
-    
-                        // Prefer first fulfillment; adjust if you want most recent
-                        $trackingNumber = $o->tracking_number ?: ($raw['fulfillments'][0]['tracking_number'] ?? '');
-    
-                        // Build discount codes display: "CODE (type) $amount, ..."
-                        $codesArr = $raw['discount_codes'] ?? [];
-                        if (!empty($codesArr)) {
-                            $parts = [];
-                            foreach ($codesArr as $d) {
-                                $code   = $d['code']  ?? '';
-                                $type   = $d['type']  ?? '';
-                                $amount = array_key_exists('amount', $d)
-                                    ? '$' . number_format((float)$d['amount'], 2, '.', '')
-                                    : '';
-                                $label = trim($code);
-                                if ($type !== '')   $label .= ' (' . $type . ')';
-                                if ($amount !== '') $label .= ' ' . $amount;
-                                $parts[] = $label;
-                            }
-                            $discountCodes = implode(', ', $parts);
-                        } else {
-                            // Fallback to normalized coupon column if Shopify array is empty
-                            $discountCodes = $o->coupon ?? '—';
-                        }
-    
-                        // Total discount: Shopify truth first, fallback to normalized column
-                        $totalDiscount = (float)($raw['total_discounts'] ?? $o->discount ?? 0);
-    
-                        fputcsv($out, [
-                            $o->order_number,
-                            $customerName,
-                            $email,
-                            $o->product_name,
-                            (int)($o->number_of_items ?? 0),
-                            number_format((float)($o->paid_amount ?? 0), 2, '.', ''),
-                            $shippingMethod,
-                            number_format($shippingCost, 2, '.', ''),
-                            $discountCodes,
-                            '$' . number_format($totalDiscount, 2, '.', ''),
-                            $trackingNumber,
-                            optional($o->order_date)->format('Y-m-d H:i:s'),
-                            // Keep old Coupon column for parity
-                            $o->coupon ?: ($raw['discount_codes'][0]['code'] ?? ''),
-                        ]);
+                $codesArr = $raw['discount_codes'] ?? [];
+                $discountCodes = '—';
+                if (!empty($codesArr)) {
+                    $parts = [];
+                    foreach ($codesArr as $d) {
+                        $code   = $d['code']  ?? '';
+                        $type   = $d['type']  ?? '';
+                        $amount = array_key_exists('amount', $d) ? '$' . number_format((float)$d['amount'], 2, '.', '') : '';
+                        $label  = trim($code);
+                        if ($type !== '')   $label .= ' ('.$type.')';
+                        if ($amount !== '') $label .= ' '.$amount;
+                        $parts[] = $label;
                     }
-                });
+                    $discountCodes = implode(', ', $parts);
+                } elseif (!empty($o->coupon)) {
+                    $discountCodes = $o->coupon;
+                }
+    
+                $totalDiscount = (float)($raw['total_discounts'] ?? $o->discount ?? 0);
+    
+                fputcsv($out, [
+                    $o->order_number,
+                    $customerName,
+                    $email,
+                    $o->product_name,
+                    (int)($o->number_of_items ?? 0),
+                    number_format((float)($o->paid_amount ?? 0), 2, '.', ''),
+                    $shippingMethod,
+                    number_format($shippingCost, 2, '.', ''),
+                    $discountCodes,
+                    '$' . number_format($totalDiscount, 2, '.', ''),
+                    $trackingNumber,
+                    optional($o->order_date)->format('Y-m-d H:i:s'),
+                    $o->coupon ?: ($raw['discount_codes'][0]['code'] ?? ''),
+                ]);
+            }
     
             fclose($out);
-        }, sprintf('%s_orders_%s.csv', Str::slug($product, '_'), now()->format('Y-m-d')));
+        }, 'orders_'.now()->format('Y-m-d').'.csv');
     }
+    
 }
