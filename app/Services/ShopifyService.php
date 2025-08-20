@@ -75,7 +75,16 @@ class ShopifyService
             }
     
             $orders = $response->json('orders') ?? [];
-    
+            $existsWithRaw = ShopifyOrder::where('order_number', $orderId)
+            ->whereNotNull('raw_json')
+            ->exists();
+        
+        if ($existsWithRaw) {
+            if (app()->runningInConsole()) {
+                echo "[{$createdAt}] Skipping order #{$orderId} (raw_json already stored)\n";
+            }
+            continue; // Skip to next order
+        }
             foreach ($orders as $order) {
                 $rawJson     = json_encode($order);
                 $orderId     = (string)($order['id'] ?? '');
