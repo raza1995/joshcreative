@@ -27,13 +27,14 @@ class ShopifyService
         $from_date = now()->subDays(10)->format('Y-m-d');
         $to_date = now()->format('Y-m-d');
     }
-
+    $sinceIso = Carbon::parse('2025-08-05 02:28:37', 'UTC')->toIso8601String();
+    $maxIso   = now('UTC')->toIso8601String();
     // Shopify API base URL
-    $base_url = "https://{$this->shopifyDomain}/admin/api/2024-01/orders.json";
+    $base_url = "https://{$this->shopifyDomain}/admin/api/2025-07/orders.json";
     $params = [
         'status' => 'any',
-        'created_at_min' => now()->subMonths(2)->format('Y-m-d') . 'T00:00:00Z',
-        'created_at_max' => now()->format('Y-m-d') . 'T23:59:59Z',
+        'created_at_min'  => $sinceIso,
+        'created_at_max'  => $maxIso,
         'limit' => 250, // Fetch max records per page
         'fields' => 'id,name,email,created_at,line_items,customer,fulfillments,total_price,total_discounts,discount_codes'
     ];

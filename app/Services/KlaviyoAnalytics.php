@@ -122,7 +122,7 @@ public function listCampaigns(
     
         for ($i = 0; $i < 50 && $url && count($out) < $limit; $i++) {
             $res = $this->http($this->stableRev)->get($url, $params)->json();
-            dd($res);
+     
             foreach (data_get($res, 'data', []) as $row) {
                 $out[] = [
                     'id'            => $row['id'] ?? null,
