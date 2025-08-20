@@ -135,6 +135,14 @@ Route::post('/shopify/webhook/orders', [ShopifyWebhookController::class, 'handle
      
     });
 Route::middleware(['auth'])->group(function () {
+ // routes/web.php
+
+
+Route::get('/shopify-orders-view', [ShopifyOrderController::class, 'index'])->name('shopify.index');        // Blade page
+Route::get('/shopify-orders/data', [ShopifyOrderController::class, 'data'])->name('shopify.data');     // AJAX
+Route::get('/shopify-orders/export', [ShopifyOrderController::class, 'exportCsv'])->name('shopify.exportCsv');
+
+
     Route::get('/dashboard/sales', [DashboardController::class, 'index']);
     Route::get('/dashboard/filter', [DashboardController::class, 'filter'])->name('dashboard.filter');
     Route::get('/dashboard/profit', [DashboardController::class, 'profit'])->name('dashboard.profit');

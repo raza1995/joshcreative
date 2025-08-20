@@ -35,4 +35,13 @@ class ShopifyOrder extends Model
 {
     return $this->belongsTo(FacebookAd::class, 'ad_id', 'ad_id');
 }
+
+public function scopeByProduct($query, $productName)
+{
+    return $query->where('product_name', $productName)
+                 ->orWhere(function ($q) use ($productName) {
+                     // Search in raw_json line_items[*].title
+                     $q->whereRaw('JSON_SEARCH(raw_json, "one", ?, NULL, "$.line_items[*].title") IS NOT NULL', [$productName]);
+                 });
+}
 }
