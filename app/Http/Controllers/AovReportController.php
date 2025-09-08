@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ShopifyOrder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AovReportController extends Controller
 {
@@ -46,11 +47,16 @@ class AovReportController extends Controller
         $fromDt = Carbon::parse($from)->startOfDay();
         $toDt = Carbon::parse($to)->endOfDay();
 
-        $rows = ShopifyOrder::query()
+        // Build distinct orders subquery to avoid duplicate rows skewing AOV
+        $distinctOrdersSub = ShopifyOrder::query()
             ->whereBetween('order_date', [$fromDt, $toDt])
             ->whereNotNull('email_address')
-            // landing_site contains utm_campaign
-            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_medium=' . $campaign . '%'])
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_campaign=' . $campaign . '%'])
+            ->selectRaw('email_address, order_number, MAX(paid_amount) as paid_amount')
+            ->groupBy('email_address', 'order_number');
+
+        $rows = DB::query()
+            ->fromSub($distinctOrdersSub, 'o')
             ->selectRaw('email_address, COUNT(*) as orders_count, AVG(paid_amount) as aov, SUM(paid_amount) as total_spend')
             ->groupBy('email_address')
             ->get();
@@ -58,16 +64,18 @@ class AovReportController extends Controller
         $customers70Plus = $rows->where('aov', '>=', 70)->count();
         $customers69OrLess = $rows->where('aov', '<=', 69)->count();
 
-        // Orders count for the selected campaign within date range
+        // Orders count for the selected campaign within date range (distinct orders)
         $campaignOrders = ShopifyOrder::query()
             ->whereBetween('order_date', [$fromDt, $toDt])
-            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_medium=' . $campaign . '%'])
-            ->count();
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_campaign=' . $campaign . '%'])
+            ->distinct('order_number')
+            ->count('order_number');
 
-        // Total orders in the selected date range (regardless of campaign)
+        // Total orders in the selected date range (regardless of campaign) - distinct orders
         $totalOrders = ShopifyOrder::query()
             ->whereBetween('order_date', [$fromDt, $toDt])
-            ->count();
+            ->distinct('order_number')
+            ->count('order_number');
 
         $summary = [
             'customers_70_plus' => $customers70Plus,
