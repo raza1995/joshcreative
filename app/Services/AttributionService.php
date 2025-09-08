@@ -63,9 +63,11 @@ class AttributionService
         if (str_contains($s, 'google') || isset($params['gclid']) || isset($params['gbraid']) || isset($params['gad_campaignid']) || (isset($params['tw_source']) && strtolower($params['tw_source']) === 'google') || (isset($params['fl_adsrc']) && strtolower($params['fl_adsrc']) === 'google') || in_array($m, ['cpc','ppc'])) {
             return 'Google Ads';
         }
-        if (str_contains($s, 'facebook') || str_contains($s, 'instagram') || str_contains($refL, 'facebook') || str_contains($refL, 'instagram') || isset($params['fbclid']) || isset($params['ad_id']) || isset($params['campaign_id'])) {
+        // Facebook/Meta: rely primarily on fbclid per requirement
+        if (isset($params['fbclid'])) {
             return 'Meta Ads';
         }
+        // (Do not infer solely by utm_source name for Facebook per instruction)
         if (str_contains($s, 'tiktok') || str_contains($refL, 'tiktok')) {
             return 'TikTok Ads';
         }
@@ -84,4 +86,3 @@ class AttributionService
         return preg_match('/^\d{10,30}$/', $val) === 1;
     }
 }
-

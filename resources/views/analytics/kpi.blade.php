@@ -61,6 +61,15 @@
     </div>
   </div>
 
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <div class="card text-bg-info"><div class="card-body"><div>New Customers</div><div class="display-6">{{ number_format($summary['new_customers']) }}</div></div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card text-bg-dark text-white"><div class="card-body"><div>Returning Customers</div><div class="display-6">{{ number_format($summary['returning_customers']) }}</div></div></div>
+    </div>
+  </div>
+
   <div class="row">
     <div class="col">
       <div class="card">

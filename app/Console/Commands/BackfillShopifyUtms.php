@@ -92,8 +92,8 @@ class BackfillShopifyUtms extends Command
         if (str_contains($s, 'google') || isset($params['gclid']) || isset($params['gbraid']) || isset($params['gad_campaignid']) || (isset($params['tw_source']) && strtolower($params['tw_source']) === 'google') || (isset($params['fl_adsrc']) && strtolower($params['fl_adsrc']) === 'google') || in_array($m, ['cpc','ppc'])) {
             return 'Google Ads';
         }
-        // Meta Ads
-        if (str_contains($s, 'facebook') || str_contains($s, 'instagram') || str_contains($refL, 'facebook') || str_contains($refL, 'instagram') || isset($params['fbclid']) || isset($params['ad_id']) || isset($params['campaign_id'])) {
+        // Meta Ads: rely on fbclid per requirement (do not classify by utm_source text alone)
+        if (isset($params['fbclid'])) {
             return 'Meta Ads';
         }
         if (str_contains($s, 'tiktok') || str_contains($refL, 'tiktok')) {

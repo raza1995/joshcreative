@@ -101,6 +101,32 @@ class KpiReportController extends Controller
             ->selectRaw('COUNT(*) as orders, COUNT(DISTINCT email_address) as customers, SUM(paid_amount) as revenue, AVG(paid_amount) as aov')
             ->first();
 
+        // New vs Returning customers within filtered set
+        $emailsInSet = DB::query()->fromSub($ordersSub, 'o')
+            ->select('email_address')
+            ->distinct()
+            ->pluck('email_address');
+
+        $firsts = collect();
+        $newCustomers = 0; $returningCustomers = 0;
+        if ($emailsInSet->count() > 0) {
+            $firsts = ShopifyOrder::query()
+                ->selectRaw('email_address, MIN(order_date) as first_date')
+                ->whereIn('email_address', $emailsInSet)
+                ->groupBy('email_address')
+                ->get()
+                ->keyBy('email_address');
+
+            foreach ($emailsInSet as $email) {
+                $first = optional($firsts->get($email))->first_date;
+                if ($first && $first >= $fromDt && $first <= $toDt) {
+                    $newCustomers++;
+                } else {
+                    $returningCustomers++;
+                }
+            }
+        }
+
         // By channel
         $channels = DB::query()->fromSub($ordersSub, 'o')
             ->selectRaw('COALESCE(channel, "(unknown)") as channel, COUNT(*) as orders, COUNT(DISTINCT email_address) as customers, SUM(paid_amount) as revenue, AVG(paid_amount) as aov')
@@ -136,6 +162,8 @@ class KpiReportController extends Controller
                 'customers' => (int) ($summary->customers ?? 0),
                 'revenue' => (float) ($summary->revenue ?? 0),
                 'aov' => (float) ($summary->aov ?? 0),
+                'new_customers' => (int) $newCustomers,
+                'returning_customers' => (int) $returningCustomers,
             ],
             $channels,
             $sources,

@@ -42,10 +42,12 @@ class ShopifyWebhookController extends Controller
         // Check previous orders from DB
         $previousOrders = ShopifyOrder::where('email_address', $customerEmail)->count();
         $isFirstTimeBuyer = $previousOrders === 0;
+        $isReturningCustomer = !$isFirstTimeBuyer;
         $identityProps = [
             '$device_id' => $anonId,
             '$user_id' => $customerEmail,
             'distinct_id' => $customerEmail,
+            'Returning Customer' => $isReturningCustomer,
         ];
         // LTV calculation (only if stored in DB)
         $currentOrderAmount = (float) $orderData['total_price'];
@@ -148,47 +150,7 @@ class ShopifyWebhookController extends Controller
             'anon_id' => $anonId,
             'email' => $customerEmail
         ]);
-        // Track full order
-        $mixpanelService->trackUserEvent($customerEmail, 'Order Created', array_merge($identityProps, [
-            'Order ID' => $orderData['id'],
-            'Order Name' => $orderData['name'],
-            'Order Date' => $createdAt,
-            'Currency' => $orderData['currency'],
-            'Financial Status' => $orderData['financial_status'],
-            'Fulfillment Status' => $orderData['fulfillment_status'] ?? 'unfulfilled',
-            'Total Price' => (float) $orderData['total_price'],
-            'Subtotal Price' => (float) $orderData['subtotal_price'] ?? 0.0,
-            'Total Discount' => (float) $orderData['total_discounts'] ?? 0.0,
-            'Coupon Code' => $couponCode ?? 'None',
-            'Tax' => $orderData['total_tax'] ?? 0.0,
-            'Shipping Price' => $orderData['total_shipping_price_set']['shop_money']['amount'] ?? 0.0,
-            'Items Count' => count($orderData['line_items']),
-            'Tags' => $orderData['tags'] ?? null,
-        
-            // Customer Info
-            'Customer Name' => $customerName,
-            'email' => $customerEmail,  
-            'Customer Phone' => $orderData['customer']['phone'] ?? null,
-            'Customer ID' => $orderData['customer']['id'] ?? null,
-            'Customer Note' => $orderData['note'] ?? null,
-        
-            // Address Info
-            'Shipping Address' => $orderData['shipping_address']['address1'] ?? null,
-            'Shipping City' => $orderData['shipping_address']['city'] ?? null,
-            'Shipping Province' => $orderData['shipping_address']['province'] ?? null,
-            'Shipping Country' => $orderData['shipping_address']['country'] ?? null,
-            'Shipping Zip' => $orderData['shipping_address']['zip'] ?? null,
-            'Billing Address' => $orderData['billing_address']['address1'] ?? null,
-            'Billing City' => $orderData['billing_address']['city'] ?? null,
-            'Billing Province' => $orderData['billing_address']['province'] ?? null,
-            'Billing Country' => $orderData['billing_address']['country'] ?? null,
-            'Billing Zip' => $orderData['billing_address']['zip'] ?? null,
-            
-            // Attribution
-            'UTM Source' => $utm_source,
-            'Used Discount' => $usedDiscount,
-            'First-Time Buyer' => $isFirstTimeBuyer,
-        ]));
+        // Mixpanel purchase (Order Created) event disabled per requirement
     
     
         if ($customerEmail) {
@@ -199,6 +161,7 @@ class ShopifyWebhookController extends Controller
                 'name' => $customerName,
                 'email' => $customerEmail,
                 'First-Time Buyer' => $isFirstTimeBuyer,
+                'Returning Customer' => $isReturningCustomer,
                 'Total Orders' => $previousOrders + 1,
                 'Total Spend' => $totalSpend,
                 'Last Order Date' => $createdAt,
