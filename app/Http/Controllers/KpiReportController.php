@@ -172,6 +172,23 @@ class KpiReportController extends Controller
             }
         }
 
+        // Determine worst (min) conversion rate and label channels as Best/Good/Worst
+        $minRate = null;
+        foreach ($channels as $ch) {
+            if ($minRate === null || $ch->conversion_rate < $minRate) {
+                $minRate = $ch->conversion_rate;
+            }
+        }
+        foreach ($channels as $ch) {
+            if ($ch->conversion_rate === $bestRate) {
+                $ch->rank_label = 'Best';
+            } elseif ($ch->conversion_rate === $minRate) {
+                $ch->rank_label = 'Worst';
+            } else {
+                $ch->rank_label = 'Good';
+            }
+        }
+
         // By source
         $sources = DB::query()->fromSub($ordersSub, 'o')
             ->selectRaw('COALESCE(utm_source, "(unknown)") as utm_source, COUNT(*) as orders, COUNT(DISTINCT email_address) as customers, SUM(paid_amount) as revenue, AVG(paid_amount) as aov')

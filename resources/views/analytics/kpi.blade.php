@@ -87,6 +87,7 @@
           <table class="table table-striped table-bordered align-middle">
             <thead>
               <tr>
+                <th>Rank</th>
                 <th>Channel</th>
                 <th class="text-end">Orders</th>
                 <th class="text-end">Customers</th>
@@ -99,6 +100,13 @@
             <tbody>
               @foreach($channels as $c)
               <tr>
+                <td>
+                  @php
+                    $label = $c->rank_label ?? 'Good';
+                    $class = $label === 'Best' ? 'success' : ($label === 'Worst' ? 'danger' : 'secondary');
+                  @endphp
+                  <span class="badge bg-{{ $class }}">{{ $label }}</span>
+                </td>
                 <td>{{ $c->channel }}</td>
                 <td class="text-end">{{ number_format($c->orders) }}</td>
                 <td class="text-end">{{ number_format($c->customers) }}</td>
