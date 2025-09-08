@@ -128,7 +128,7 @@ class AovReportController extends Controller
         if ($orderNumbersInSet->count() > 0) {
             ShopifyOrder::query()
                 ->whereIn('order_number', $orderNumbersInSet)
-                ->select('order_number', 'raw_json')
+                ->select('id', 'order_number', 'raw_json')
                 ->orderBy('id')
                 ->chunkById(1000, function ($chunk) use (&$skuStats) {
                     foreach ($chunk as $o) {
