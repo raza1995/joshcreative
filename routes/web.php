@@ -26,6 +26,7 @@ use App\Http\Controllers\ShopifyWebhookControllerMycolean;
 use App\Http\Controllers\KlaviyoKpiController;
 use App\Services\GmailShopifyInvoiceService;
 use App\Http\Controllers\AovReportController;
+use App\Http\Controllers\KpiReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -193,4 +194,5 @@ Route::post('/klaviyo/kpis/segments', [KlaviyoKpiController::class, 'segmentKpis
 // AOV Analytics (order_date-filtered, by utm_campaign)
 Route::get('/analytics/aov', [AovReportController::class, 'index'])->name('analytics.aov');
 Route::get('/analytics/aov/data', [AovReportController::class, 'data'])->name('analytics.aov.data');
-
+Route::get('/analytics/kpi', [KpiReportController::class, 'index'])->name('analytics.kpi');
+Route::get('/analytics/kpi/data', [KpiReportController::class, 'data'])->name('analytics.kpi.data');
