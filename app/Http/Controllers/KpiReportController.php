@@ -14,13 +14,20 @@ class KpiReportController extends Controller
         $from = (string) $request->get('from', now()->subMonth()->startOfMonth()->toDateString());
         $to = (string) $request->get('to', now()->subMonth()->endOfMonth()->toDateString());
         $ui = (bool) $request->boolean('ui', false);
+        $channel = (string) $request->get('channel', '');
+        $source = (string) $request->get('utm_source', '');
+        $medium = (string) $request->get('utm_medium', '');
+        $campaign = (string) $request->get('utm_campaign', '');
 
         $summary = null;
         $channels = collect();
+        $sources = collect();
+        $mediums = collect();
+        $campaigns = collect();
 
-        [$summary, $channels] = $this->compute($from, $to, $ui);
+        [$summary, $channels, $sources, $mediums, $campaigns] = $this->compute($from, $to, $ui, $channel, $source, $medium, $campaign);
 
-        return view('analytics.kpi', compact('from','to','ui','summary','channels'));
+        return view('analytics.kpi', compact('from','to','ui','channel','source','medium','campaign','summary','channels','sources','mediums','campaigns'));
     }
 
     public function data(Request $request)
@@ -30,18 +37,43 @@ class KpiReportController extends Controller
             'to'   => 'required|date',
         ]);
 
-        [$summary, $channels] = $this->compute($request->from, $request->to, $request->boolean('ui', false));
+        [$summary, $channels, $sources, $mediums, $campaigns] = $this->compute(
+            $request->from,
+            $request->to,
+            $request->boolean('ui', false),
+            (string) $request->get('channel', ''),
+            (string) $request->get('utm_source', ''),
+            (string) $request->get('utm_medium', ''),
+            (string) $request->get('utm_campaign', ''),
+        );
 
         return response()->json([
             'from' => $request->from,
             'to' => $request->to,
             'ui' => (bool) $request->boolean('ui', false),
+            'filters' => [
+                'channel' => (string) $request->get('channel', ''),
+                'utm_source' => (string) $request->get('utm_source', ''),
+                'utm_medium' => (string) $request->get('utm_medium', ''),
+                'utm_campaign' => (string) $request->get('utm_campaign', ''),
+            ],
             'summary' => $summary,
             'channels' => $channels,
+            'sources' => $sources,
+            'mediums' => $mediums,
+            'campaigns' => $campaigns,
         ]);
     }
 
-    private function compute(string $from, string $to, bool $uiFilters = false): array
+    private function compute(
+        string $from,
+        string $to,
+        bool $uiFilters = false,
+        string $channel = '',
+        string $source = '',
+        string $medium = '',
+        string $campaign = ''
+    ): array
     {
         $fromDt = Carbon::parse($from)->startOfDay();
         $toDt = Carbon::parse($to)->endOfDay();
@@ -53,10 +85,16 @@ class KpiReportController extends Controller
                  ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.financial_status')) = 'paid'");
         }
 
+        // Optional precise filters
+        if ($channel !== '')   $base->where('channel', $channel);
+        if ($source !== '')    $base->where('utm_source', $source);
+        if ($medium !== '')    $base->where('utm_medium', $medium);
+        if ($campaign !== '')  $base->where('utm_campaign', $campaign);
+
         // Distinct orders with paid_amount for aggregation
         $ordersSub = (clone $base)
-            ->selectRaw('order_number, channel, email_address, MAX(paid_amount) as paid_amount')
-            ->groupBy('order_number','channel','email_address');
+            ->selectRaw('order_number, channel, utm_source, utm_medium, utm_campaign, email_address, MAX(paid_amount) as paid_amount')
+            ->groupBy('order_number','channel','utm_source','utm_medium','utm_campaign','email_address');
 
         // Summary across all channels
         $summary = DB::query()->fromSub($ordersSub, 'o')
@@ -70,6 +108,28 @@ class KpiReportController extends Controller
             ->orderByDesc('revenue')
             ->get();
 
+        // By source
+        $sources = DB::query()->fromSub($ordersSub, 'o')
+            ->selectRaw('COALESCE(utm_source, "(unknown)") as utm_source, COUNT(*) as orders, COUNT(DISTINCT email_address) as customers, SUM(paid_amount) as revenue, AVG(paid_amount) as aov')
+            ->groupBy('utm_source')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // By medium
+        $mediums = DB::query()->fromSub($ordersSub, 'o')
+            ->selectRaw('COALESCE(utm_medium, "(unknown)") as utm_medium, COUNT(*) as orders, COUNT(DISTINCT email_address) as customers, SUM(paid_amount) as revenue, AVG(paid_amount) as aov')
+            ->groupBy('utm_medium')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // By campaign
+        $campaigns = DB::query()->fromSub($ordersSub, 'o')
+            ->selectRaw('COALESCE(utm_campaign, "(unknown)") as utm_campaign, COUNT(*) as orders, COUNT(DISTINCT email_address) as customers, SUM(paid_amount) as revenue, AVG(paid_amount) as aov')
+            ->groupBy('utm_campaign')
+            ->orderByDesc('revenue')
+            ->limit(50)
+            ->get();
+
         return [
             [
                 'orders' => (int) ($summary->orders ?? 0),
@@ -78,7 +138,9 @@ class KpiReportController extends Controller
                 'aov' => (float) ($summary->aov ?? 0),
             ],
             $channels,
+            $sources,
+            $mediums,
+            $campaigns,
         ];
     }
 }
-
