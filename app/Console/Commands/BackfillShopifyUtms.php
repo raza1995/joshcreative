@@ -45,7 +45,8 @@ class BackfillShopifyUtms extends Command
                     $gbraid       = $norm['gbraid']       ?? null;
                     $fbclid       = $norm['fbclid']       ?? null;
                     $utm_id       = $norm['utm_id']       ?? null;
-                    $campaign_id  = $norm['campaign_id']  ?? ($norm['gad_campaignid'] ?? ($norm['tw_campaign'] ?? null));
+                    // Per requirement: utm_medium is the campaign id
+                    $campaign_id  = $utm_medium ?? ($norm['campaign_id']  ?? ($norm['gad_campaignid'] ?? ($norm['tw_campaign'] ?? null)));
 
                     // Prefer ad_id if present, else utm_content if looks like numeric id, else tw_adid/fl_adid
                     $adIdParam = $norm['ad_id']

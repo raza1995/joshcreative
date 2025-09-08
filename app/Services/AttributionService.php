@@ -26,7 +26,8 @@ class AttributionService
         $utm_term     = $p['utm_term']     ?? null;
 
         $utm_id       = $p['utm_id']       ?? null;
-        $campaign_id  = $p['campaign_id']  ?? ($p['gad_campaignid'] ?? ($p['tw_campaign'] ?? null));
+        // Per requirement: treat utm_medium as the campaign id if present
+        $campaign_id  = $p['utm_medium']   ?? ($p['campaign_id']  ?? ($p['gad_campaignid'] ?? ($p['tw_campaign'] ?? null)));
         $gclid        = $p['gclid']        ?? ($p['gbraid'] ?? null);
         $fbclid       = $p['fbclid']       ?? null;
 

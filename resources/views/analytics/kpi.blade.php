@@ -30,8 +30,8 @@
               <input type="text" name="utm_source" class="form-control" value="{{ $source }}" placeholder="e.g. google">
             </div>
             <div class="col-md-2">
-              <label class="form-label">UTM Medium</label>
-              <input type="text" name="utm_medium" class="form-control" value="{{ $medium }}" placeholder="e.g. cpc">
+              <label class="form-label">Campaign ID (utm_medium)</label>
+              <input type="text" name="utm_medium" class="form-control" value="{{ $medium }}" placeholder="e.g. 120227205541980749">
             </div>
             <div class="col-md-2">
               <label class="form-label">UTM Campaign</label>
