@@ -134,6 +134,44 @@ class KpiReportController extends Controller
             ->orderByDesc('revenue')
             ->get();
 
+        // Enhance channels with conversion_rate (orders/customer) and new customer rate
+        $channelEmails = DB::query()->fromSub($ordersSub, 'o')
+            ->select('channel','email_address')
+            ->distinct()
+            ->get();
+
+        $emailsByChannel = [];
+        foreach ($channelEmails as $row) {
+            $ch = $row->channel ?? '(unknown)';
+            if (!isset($emailsByChannel[$ch])) $emailsByChannel[$ch] = [];
+            $emailsByChannel[$ch][$row->email_address] = true;
+        }
+
+        $bestChannel = null; $bestRate = 0.0;
+        foreach ($channels as $ch) {
+            $customers = max(1, (int) $ch->customers);
+            $ch->conversion_rate = round(((int) $ch->orders) / $customers, 4); // orders per customer
+            // compute new customers within this channel using firsts map
+            $newInChannel = 0; $totalEmails = 0;
+            $list = $emailsByChannel[$ch->channel] ?? [];
+            foreach ($list as $email => $_) {
+                $totalEmails++;
+                $first = optional($firsts->get($email))->first_date;
+                if ($first && $first >= $fromDt && $first <= $toDt) {
+                    $newInChannel++;
+                }
+            }
+            $ch->new_customers = $newInChannel;
+            $ch->new_rate = $totalEmails > 0 ? round(($newInChannel / $totalEmails) * 100, 2) : 0.0;
+            $ch->returning_customers = max(0, $totalEmails - $newInChannel);
+            $ch->returning_rate = $totalEmails > 0 ? round((($totalEmails - $newInChannel) / $totalEmails) * 100, 2) : 0.0;
+
+            if ($ch->conversion_rate > $bestRate) {
+                $bestRate = $ch->conversion_rate;
+                $bestChannel = $ch->channel;
+            }
+        }
+
         // By source
         $sources = DB::query()->fromSub($ordersSub, 'o')
             ->selectRaw('COALESCE(utm_source, "(unknown)") as utm_source, COUNT(*) as orders, COUNT(DISTINCT email_address) as customers, SUM(paid_amount) as revenue, AVG(paid_amount) as aov')
@@ -164,6 +202,10 @@ class KpiReportController extends Controller
                 'aov' => (float) ($summary->aov ?? 0),
                 'new_customers' => (int) $newCustomers,
                 'returning_customers' => (int) $returningCustomers,
+                'new_pct' => ($summary->customers ?? 0) > 0 ? round(($newCustomers / $summary->customers) * 100, 2) : 0.0,
+                'returning_pct' => ($summary->customers ?? 0) > 0 ? round(($returningCustomers / $summary->customers) * 100, 2) : 0.0,
+                'best_conversion_channel' => $bestChannel,
+                'best_conversion_rate' => $bestRate,
             ],
             $channels,
             $sources,

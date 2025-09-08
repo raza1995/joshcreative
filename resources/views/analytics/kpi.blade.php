@@ -54,7 +54,7 @@
       <div class="card text-bg-light"><div class="card-body"><div>Customers</div><div class="display-6">{{ number_format($summary['customers']) }}</div></div></div>
     </div>
     <div class="col-md-3">
-      <div class="card text-bg-light"><div class="card-body"><div>Revenue</div><div class="display-6">${{ number_format($summary['revenue'], 2) }}</div></div></div>
+      <div class="card text-bg-light"><div class="card-body"><div>Total Revenue</div><div class="display-6">${{ number_format($summary['revenue'], 2) }}</div></div></div>
     </div>
     <div class="col-md-3">
       <div class="card text-bg-light"><div class="card-body"><div>AOV</div><div class="display-6">${{ number_format($summary['aov'], 2) }}</div></div></div>
@@ -63,10 +63,19 @@
 
   <div class="row mb-3">
     <div class="col-md-6">
-      <div class="card text-bg-info"><div class="card-body"><div>New Customers</div><div class="display-6">{{ number_format($summary['new_customers']) }}</div></div></div>
+      <div class="card text-bg-info"><div class="card-body"><div>New Customers</div><div class="display-6">{{ number_format($summary['new_customers']) }} <small class="text-white-50">({{ number_format($summary['new_pct'], 2) }}%)</small></div></div></div>
     </div>
     <div class="col-md-6">
-      <div class="card text-bg-dark text-white"><div class="card-body"><div>Returning Customers</div><div class="display-6">{{ number_format($summary['returning_customers']) }}</div></div></div>
+      <div class="card text-bg-dark text-white"><div class="card-body"><div>Returning Customers</div><div class="display-6">{{ number_format($summary['returning_customers']) }} <small class="text-white-50">({{ number_format($summary['returning_pct'], 2) }}%)</small></div></div></div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col">
+      <div class="alert alert-success">
+        <strong>Best Conversion Channel:</strong> {{ $summary['best_conversion_channel'] ?? 'N/A' }}
+        <span class="ms-2">(Orders/Customer: {{ number_format($summary['best_conversion_rate'] ?? 0, 2) }})</span>
+      </div>
     </div>
   </div>
 
@@ -81,8 +90,10 @@
                 <th>Channel</th>
                 <th class="text-end">Orders</th>
                 <th class="text-end">Customers</th>
-                <th class="text-end">Revenue ($)</th>
+                <th class="text-end">Total Revenue ($)</th>
                 <th class="text-end">AOV ($)</th>
+                <th class="text-end">Conv. Rate</th>
+                <th class="text-end">New %</th>
               </tr>
             </thead>
             <tbody>
@@ -93,6 +104,8 @@
                 <td class="text-end">{{ number_format($c->customers) }}</td>
                 <td class="text-end">{{ number_format($c->revenue, 2) }}</td>
                 <td class="text-end">{{ number_format($c->aov, 2) }}</td>
+                <td class="text-end">{{ number_format($c->conversion_rate, 2) }}</td>
+                <td class="text-end">{{ number_format($c->new_rate, 2) }}%</td>
               </tr>
               @endforeach
             </tbody>
@@ -113,7 +126,7 @@
                 <th>Source</th>
                 <th class="text-end">Orders</th>
                 <th class="text-end">Customers</th>
-                <th class="text-end">Revenue ($)</th>
+                <th class="text-end">Total Revenue ($)</th>
                 <th class="text-end">AOV ($)</th>
               </tr>
             </thead>
@@ -145,7 +158,7 @@
                 <th>Medium</th>
                 <th class="text-end">Orders</th>
                 <th class="text-end">Customers</th>
-                <th class="text-end">Revenue ($)</th>
+                <th class="text-end">Total Revenue ($)</th>
                 <th class="text-end">AOV ($)</th>
               </tr>
             </thead>
@@ -177,7 +190,7 @@
                 <th>Campaign</th>
                 <th class="text-end">Orders</th>
                 <th class="text-end">Customers</th>
-                <th class="text-end">Revenue ($)</th>
+                <th class="text-end">Total Revenue ($)</th>
                 <th class="text-end">AOV ($)</th>
               </tr>
             </thead>
