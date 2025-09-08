@@ -91,13 +91,22 @@ class ShopifyOrdersDataTable extends DataTable
     /**
      * MUST return an Eloquent Builder (not a Collection).
      */
-    public function query(ShopifyOrder $model): QueryBuilder
-    {
-        return $model->newQuery()
-            ->orderByDesc('order_date')
-            ->distinct('order_number')
-            ->limit(1000); // guard; tune/replace with real pagination later
+   public function query(ShopifyOrder $model): QueryBuilder
+{
+    $query = $model->newQuery()
+        ->orderByDesc('order_date');
+
+    // Optional filter – safe here, because it doesn't "explode" rows
+    if ($sku = $this->request()->get('product')) {
+        $query->whereRaw(
+            "JSON_SEARCH(raw_json, 'one', ?, NULL, '$.line_items[*].sku') IS NOT NULL",
+            [$sku]
+        );
     }
+
+    return $query;
+}
+
 
     public function html(): HtmlBuilder
     {
