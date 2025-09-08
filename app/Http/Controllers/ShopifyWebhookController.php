@@ -223,15 +223,13 @@ class ShopifyWebhookController extends Controller
         $recipientLastName = $fulfillmentData['recipient']['last_name'] ?? '';
         $customerName = trim($recipientFirstName . ' ' . $recipientLastName) ?: $order->customer_name;
     
-        // Update DB record
+        // Update DB record (do NOT change order_number; keep Shopify Order ID stable)
         $order->update([
-            'product_name' => $fulfillmentData['title'],
+            'product_name' => $fulfillmentData['title'] ?? $order->product_name,
             'customer_name' => $customerName,
-            'email_address' => $fulfillmentData['email'], 
+            'email_address' => $fulfillmentData['email'] ?? $order->email_address,
             'tracking_number' => $trackingNumber,
             'tracking_url' => $trackingUrl,
-            'order_number' => $fulfillmentData['id'],
-
         ]);
     
         // Track event in Mixpanel
