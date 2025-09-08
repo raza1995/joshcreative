@@ -8,8 +8,8 @@
         <div class="card-body">
           <form method="get" action="{{ route('analytics.aov') }}" class="row g-3 align-items-end">
             <div class="col-md-4">
-              <label class="form-label">UTM Campaign</label>
-              <input type="text" name="utm_campaign" class="form-control" value="{{ $campaign }}" placeholder="e.g. 120227205541980749" required>
+              <label class="form-label">UTM Medium (Campaign ID)</label>
+              <input type="text" name="utm_medium" class="form-control" value="{{ $medium }}" placeholder="e.g. 120227205541980749" required>
             </div>
             <div class="col-md-3">
               <label class="form-label">From (order_date)</label>

@@ -11,38 +11,38 @@ class AovReportController extends Controller
 {
     public function index(Request $request)
     {
-        $campaign = (string) $request->get('utm_campaign', '');
+        $medium = (string) $request->get('utm_medium', '');
         $from = (string) $request->get('from', now()->subMonth()->startOfMonth()->toDateString());
         $to = (string) $request->get('to', now()->subMonth()->endOfMonth()->toDateString());
 
         $summary = null;
         $rows = collect();
 
-        if ($campaign !== '') {
-            [$summary, $rows] = $this->compute($campaign, $from, $to);
+        if ($medium !== '') {
+            [$summary, $rows] = $this->compute($medium, $from, $to);
         }
 
-        return view('analytics.aov', compact('campaign', 'from', 'to', 'summary', 'rows'));
+        return view('analytics.aov', compact('medium', 'from', 'to', 'summary', 'rows'));
     }
 
     public function data(Request $request)
     {
         $request->validate([
-            'utm_campaign' => 'required|string',
+            'utm_medium' => 'required|string',
             'from' => 'required|date',
             'to' => 'required|date',
         ]);
 
-        [$summary, $rows] = $this->compute($request->utm_campaign, $request->from, $request->to);
+        [$summary, $rows] = $this->compute($request->utm_medium, $request->from, $request->to);
 
         return response()->json(array_merge([
-            'campaign' => $request->utm_campaign,
+            'utm_medium' => $request->utm_medium,
             'from' => $request->from,
             'to' => $request->to,
         ], $summary));
     }
 
-    private function compute(string $campaign, string $from, string $to): array
+    private function compute(string $utmMedium, string $from, string $to): array
     {
         $fromDt = Carbon::parse($from)->startOfDay();
         $toDt = Carbon::parse($to)->endOfDay();
@@ -51,7 +51,7 @@ class AovReportController extends Controller
         $distinctOrdersSub = ShopifyOrder::query()
             ->whereBetween('order_date', [$fromDt, $toDt])
             ->whereNotNull('email_address')
-            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_campaign=' . $campaign . '%'])
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_medium=' . $utmMedium . '%'])
             ->selectRaw('email_address, order_number, MAX(paid_amount) as paid_amount')
             ->groupBy('email_address', 'order_number');
 
@@ -64,10 +64,10 @@ class AovReportController extends Controller
         $customers70Plus = $rows->where('aov', '>=', 70)->count();
         $customers69OrLess = $rows->where('aov', '<=', 69)->count();
 
-        // Orders count for the selected campaign within date range (distinct orders)
+        // Orders count for the selected utm_medium within date range (distinct orders)
         $campaignOrders = ShopifyOrder::query()
             ->whereBetween('order_date', [$fromDt, $toDt])
-            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_campaign=' . $campaign . '%'])
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_medium=' . $utmMedium . '%'])
             ->distinct('order_number')
             ->count('order_number');
 
