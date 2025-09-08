@@ -56,6 +56,25 @@
     </div>
   </div>
 
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title mb-1">Total Orders (Campaign)</h6>
+          <div class="display-6">{{ number_format($summary['campaign_orders']) }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title mb-1">Total Orders (All)</h6>
+          <div class="display-6">{{ number_format($summary['total_orders']) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row">
     <div class="col">
       <div class="card">
@@ -87,4 +106,3 @@
   @endif
 </div>
 @endsection
-

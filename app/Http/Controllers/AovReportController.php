@@ -50,7 +50,7 @@ class AovReportController extends Controller
             ->whereBetween('order_date', [$fromDt, $toDt])
             ->whereNotNull('email_address')
             // landing_site contains utm_campaign
-            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_campaign=' . $campaign . '%'])
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_medium=' . $campaign . '%'])
             ->selectRaw('email_address, COUNT(*) as orders_count, AVG(paid_amount) as aov, SUM(paid_amount) as total_spend')
             ->groupBy('email_address')
             ->get();
@@ -58,13 +58,25 @@ class AovReportController extends Controller
         $customers70Plus = $rows->where('aov', '>=', 70)->count();
         $customers69OrLess = $rows->where('aov', '<=', 69)->count();
 
+        // Orders count for the selected campaign within date range
+        $campaignOrders = ShopifyOrder::query()
+            ->whereBetween('order_date', [$fromDt, $toDt])
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.landing_site')) LIKE ?", ['%utm_medium=' . $campaign . '%'])
+            ->count();
+
+        // Total orders in the selected date range (regardless of campaign)
+        $totalOrders = ShopifyOrder::query()
+            ->whereBetween('order_date', [$fromDt, $toDt])
+            ->count();
+
         $summary = [
             'customers_70_plus' => $customers70Plus,
             'customers_69_or_less' => $customers69OrLess,
             'total_customers' => $rows->count(),
+            'campaign_orders' => $campaignOrders,
+            'total_orders' => $totalOrders,
         ];
 
         return [$summary, $rows];
     }
 }
-
