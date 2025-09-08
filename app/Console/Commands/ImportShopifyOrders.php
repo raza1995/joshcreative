@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\ShopifyOrder;
 use Carbon\Carbon;
+use App\Services\AttributionService;
 
 class ImportShopifyOrders extends Command
 {
@@ -88,6 +89,7 @@ class ImportShopifyOrders extends Command
         }
 
         foreach ($orderData['line_items'] as $item) {
+            $attr = AttributionService::extract($orderData);
             ShopifyOrder::updateOrCreate(
                 ['order_number' => $orderData['id']],
                 [
@@ -103,7 +105,18 @@ class ImportShopifyOrders extends Command
                     'paid_amount' => (float) $orderData['total_price'],
                     'discount' => $orderData['total_discounts'] ?? 0.00,
                     'number_of_items' => count($orderData['line_items']),
-                    'ad_id' => $parsedAdId,
+                    'ad_id' => $attr['ad_id'] ?? $parsedAdId ?? null,
+                    // UTM + channel fields
+                    'utm_source'   => $attr['utm_source']   ?? null,
+                    'utm_medium'   => $attr['utm_medium']   ?? null,
+                    'utm_campaign' => $attr['utm_campaign'] ?? null,
+                    'utm_content'  => $attr['utm_content']  ?? null,
+                    'utm_term'     => $attr['utm_term']     ?? null,
+                    'utm_id'       => $attr['utm_id']       ?? null,
+                    'campaign_id'  => $attr['campaign_id']  ?? null,
+                    'gclid'        => $attr['gclid']        ?? null,
+                    'fbclid'       => $attr['fbclid']       ?? null,
+                    'channel'      => $attr['channel']      ?? null,
                 ]
             );
         }

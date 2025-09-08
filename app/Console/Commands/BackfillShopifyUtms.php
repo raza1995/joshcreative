@@ -16,7 +16,7 @@ class BackfillShopifyUtms extends Command
         $this->info(($force ? '[FORCE] ' : '') . 'Backfilling UTM parameters and channel...');
 
         $updated = 0; $scanned = 0;
-        ShopifyOrder::select('id','raw_json','utm_source','utm_medium','utm_campaign','utm_content','utm_term','channel')
+        ShopifyOrder::select('id','raw_json','utm_source','utm_medium','utm_campaign','utm_content','utm_term','channel','ad_id')
             ->orderBy('id')
             ->chunkById(2000, function ($chunk) use (&$updated, &$scanned, $force) {
                 foreach ($chunk as $o) {
@@ -30,14 +30,29 @@ class BackfillShopifyUtms extends Command
                         $qs = parse_url($landing, PHP_URL_QUERY);
                         if ($qs) parse_str($qs, $params);
                     }
+                    // normalize keys to lowercase for robust lookups
+                    $norm = [];
+                    foreach ($params as $k => $v) { $norm[strtolower($k)] = $v; }
 
-                    $utm_source   = $params['utm_source']   ?? null;
-                    $utm_medium   = $params['utm_medium']   ?? null;
-                    $utm_campaign = $params['utm_campaign'] ?? null;
-                    $utm_content  = $params['utm_content']  ?? null;
-                    $utm_term     = $params['utm_term']     ?? null;
+                    $utm_source   = $norm['utm_source']   ?? null;
+                    $utm_medium   = $norm['utm_medium']   ?? null;
+                    $utm_campaign = $norm['utm_campaign'] ?? null;
+                    $utm_content  = $norm['utm_content']  ?? null;
+                    $utm_term     = $norm['utm_term']     ?? null;
 
-                    $channel = $this->inferChannel($utm_source, $utm_medium, $params, $ref);
+                    // extract ids
+                    $gclid        = $norm['gclid']        ?? null;
+                    $gbraid       = $norm['gbraid']       ?? null;
+                    $fbclid       = $norm['fbclid']       ?? null;
+                    $utm_id       = $norm['utm_id']       ?? null;
+                    $campaign_id  = $norm['campaign_id']  ?? ($norm['gad_campaignid'] ?? ($norm['tw_campaign'] ?? null));
+
+                    // Prefer ad_id if present, else utm_content if looks like numeric id, else tw_adid/fl_adid
+                    $adIdParam = $norm['ad_id']
+                        ?? ($this->looksLikeId($utm_content) ? $utm_content : null)
+                        ?? ($norm['tw_adid'] ?? ($norm['fl_adid'] ?? null));
+
+                    $channel = $this->inferChannel($utm_source, $utm_medium, $norm, $ref);
 
                     $data = [];
                     if ($force || is_null($o->utm_source))   $data['utm_source']   = $utm_source;
@@ -46,6 +61,11 @@ class BackfillShopifyUtms extends Command
                     if ($force || is_null($o->utm_content))  $data['utm_content']  = $utm_content;
                     if ($force || is_null($o->utm_term))     $data['utm_term']     = $utm_term;
                     if ($force || is_null($o->channel))      $data['channel']      = $channel;
+                    if ($adIdParam && ($force || empty($o->ad_id))) $data['ad_id'] = (string) $adIdParam;
+                    if ($utm_id !== null)       $data['utm_id'] = $utm_id;
+                    if ($campaign_id !== null)  $data['campaign_id'] = $campaign_id;
+                    if ($gclid !== null)        $data['gclid'] = $gclid;
+                    if ($fbclid !== null)       $data['fbclid'] = $fbclid;
 
                     if (!empty($data)) {
                         ShopifyOrder::where('id', $o->id)->update($data);
@@ -64,13 +84,16 @@ class BackfillShopifyUtms extends Command
         $m = strtolower((string) $medium);
         $refL = strtolower($ref);
 
-        if (str_contains($s, 'klaviyo') || $m === 'email' || str_contains($refL, 'klaviyo')) {
+        // Klaviyo: source=klaviyo OR medium=email/campaign with klaviyo hints
+        if (str_contains($s, 'klaviyo') || $m === 'email' || $m === 'campaign' || str_contains($refL, 'klaviyo') || isset($params['msg_type'])) {
             return 'Klaviyo Email';
         }
-        if (str_contains($s, 'google') && ($m === 'cpc' || $m === 'ppc' || isset($params['gclid']))) {
+        // Google Ads: source=google OR gclid/gbraid/gad_* OR tw/fl hints
+        if (str_contains($s, 'google') || isset($params['gclid']) || isset($params['gbraid']) || isset($params['gad_campaignid']) || (isset($params['tw_source']) && strtolower($params['tw_source']) === 'google') || (isset($params['fl_adsrc']) && strtolower($params['fl_adsrc']) === 'google') || in_array($m, ['cpc','ppc'])) {
             return 'Google Ads';
         }
-        if (str_contains($s, 'facebook') || str_contains($s, 'instagram') || str_contains($refL, 'facebook') || str_contains($refL, 'instagram')) {
+        // Meta Ads
+        if (str_contains($s, 'facebook') || str_contains($s, 'instagram') || str_contains($refL, 'facebook') || str_contains($refL, 'instagram') || isset($params['fbclid']) || isset($params['ad_id']) || isset($params['campaign_id'])) {
             return 'Meta Ads';
         }
         if (str_contains($s, 'tiktok') || str_contains($refL, 'tiktok')) {
@@ -84,5 +107,10 @@ class BackfillShopifyUtms extends Command
         }
         return 'Organic/Other';
     }
-}
 
+    private function looksLikeId(?string $val): bool
+    {
+        if ($val === null) return false;
+        return preg_match('/^\d{10,30}$/', $val) === 1;
+    }
+}
