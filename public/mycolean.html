@@ -1,0 +1,465 @@
+<!-- Mycolean — Monthly Sober Tracker (Shopify-safe embed with email + API) -->
+<div id="mycolean" data-week-start="sun" data-api-base="https://joshcreative.test/api/mycolean">
+  <style>
+    /* ---------- Mycolean Scoped Styles (no globals) ---------- */
+    #mycolean {
+      --bg: #0b0e12;
+      --card: #12151c;
+      --accent: #3fe0c2;
+      --accent-2: #ff4fa3;
+      --text: #e7eef7;
+      --muted: #9fb0c5;
+      --ok: #19c37d;
+      --warn: #ffb020;
+      --err: #ff5d5d;
+      --grid-gap: 10px;
+      --shadow-1: 0 10px 40px rgba(0,0,0,.35);
+      --shadow-2: 0 6px 18px rgba(0,0,0,.35);
+      position: relative;
+      padding: 28px 16px 40px;
+      color: var(--text);
+      font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% -10%, #1a2030 0, var(--bg) 60%);
+    }
+    #mycolean *, #mycolean *::before, #mycolean *::after { box-sizing: border-box; }
+
+    #mycolean .mc-app { width: min(980px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 22px; }
+    @media (min-width: 900px) { #mycolean .mc-app { grid-template-columns: 380px 1fr; align-items: start; } }
+
+    #mycolean .mc-card { background: linear-gradient(180deg, #151a24, var(--card)); border: 1px solid rgba(255,255,255,.06); border-radius: 16px; box-shadow: var(--shadow-1); }
+    #mycolean .mc-pad { padding: 18px; }
+
+    #mycolean .mc-h1 { margin: 0 0 4px; font-size: clamp(20px, 2.2vw + 8px, 28px); font-weight: 800; letter-spacing: .2px; }
+    #mycolean .mc-sub { color: var(--muted); font-size: 14px; }
+
+    /* Bottle */
+    #mycolean .mc-bottle-wrap { margin: 10px auto 0; width: min(360px, 92%); aspect-ratio: 360 / 560; position: relative; user-select: none; }
+    #mycolean .mc-bottle-outline, #mycolean .mc-bottle-fill { position: absolute; inset: 0; background-repeat: no-repeat; background-position: center; background-size: contain; filter: drop-shadow(0 8px 18px rgba(0,0,0,.55)); }
+    #mycolean .mc-bottle-outline { background-image: url('https://cdn.shopify.com/s/files/1/0871/0501/2022/files/RANDOM_ASSETS_1.png?v=1759208336'); opacity: .95; }
+    #mycolean .mc-bottle-fill { background-image: url('https://cdn.shopify.com/s/files/1/0871/0501/2022/files/RANDOM_ASSETS.png?v=1759208333'); clip-path: inset(var(--inset-top, 100%) 0 0 0 round 2px); transition: clip-path .35s ease-in-out; }
+
+    /* Meter */
+    #mycolean .mc-meter { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 0; font-weight: 600; }
+    #mycolean .mc-meter .mc-bar { flex: 1; height: 10px; border-radius: 999px; background: #0f1320; outline: 1px solid rgba(255,255,255,.06); position: relative; overflow: hidden; }
+    #mycolean .mc-meter .mc-bar::after { content: ""; position: absolute; inset: 0; width: var(--w, 0%); background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .35s ease-in-out; }
+
+    /* Controls */
+    #mycolean .mc-controls { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+    @media (min-width: 420px) { #mycolean .mc-controls { grid-template-columns: 1fr 1fr; } }
+    #mycolean .mc-btn { appearance: none; border: none; border-radius: 12px; padding: 12px 14px; font-weight: 700; letter-spacing: .2px; color: #0b0e12; background: linear-gradient(90deg, var(--accent), var(--accent-2)); cursor: pointer; box-shadow: var(--shadow-2); transition: transform .08s ease, filter .15s ease; }
+    #mycolean .mc-btn:active { transform: translateY(1px) scale(.995); }
+    #mycolean .mc-btn[disabled] { filter: grayscale(.7) brightness(.85); cursor: not-allowed; }
+    #mycolean .mc-btn-ghost { background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,.12); }
+
+    /* Stats */
+    #mycolean .mc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+    #mycolean .mc-stat { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 10px; text-align: center; }
+    #mycolean .mc-stat .mc-k { font-size: 20px; font-weight: 800; }
+    #mycolean .mc-stat .mc-l { color: var(--muted); font-size: 12px; }
+
+    /* Calendar */
+    #mycolean .mc-cal { padding-top: 6px; }
+    #mycolean .mc-cal .mc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    #mycolean .mc-cal .mc-month { font-weight: 800; letter-spacing: .3px; }
+    #mycolean .mc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--grid-gap); }
+    #mycolean .mc-dow { color: var(--muted); font-size: 12px; text-align: center; }
+    #mycolean .mc-day { aspect-ratio: 1 / 1; display: grid; place-items: center; border-radius: 12px; background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.05); font-weight: 700; cursor: pointer; transition: background .15s ease, border-color .15s ease, transform .06s ease; user-select: none; }
+    #mycolean .mc-day:hover { background: rgba(255,255,255,.05); }
+    #mycolean .mc-day:active { transform: translateY(1px) scale(.995); }
+    #mycolean .mc-day.mc-off { opacity: .35; pointer-events: none; }
+    #mycolean .mc-day.mc-marked { background: linear-gradient(180deg, rgba(63,224,194,.2), rgba(255,79,163,.2)); border-color: rgba(63,224,194,.55); box-shadow: inset 0 0 0 2px rgba(63,224,194,.35); }
+    #mycolean .mc-day.mc-today { outline: 2px dashed rgba(255,255,255,.18); }
+
+    #mycolean .mc-legend { margin-top: 10px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+    #mycolean .mc-key { width: 14px; height: 14px; border-radius: 4px; display: inline-block; vertical-align: middle; }
+    #mycolean .mc-key.mc-mark { background: linear-gradient(180deg, rgba(63,224,194,.35), rgba(255,79,163,.35)); border: 1px solid rgba(63,224,194,.8); }
+    #mycolean .mc-foot { color: var(--muted); font-size: 12px; margin-top: 10px; }
+
+    /* Email gate overlay */
+    #mycolean .mc-gate { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(11,14,18,.85); backdrop-filter: blur(2px); }
+    #mycolean .mc-gate-card { width: min(520px, 92%); background: linear-gradient(180deg, #151a24, var(--card)); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; box-shadow: var(--shadow-1); padding: 18px; }
+    #mycolean .mc-gate-title { margin: 0 0 6px; font-size: 20px; font-weight: 800; }
+    #mycolean .mc-gate-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+    @media (min-width: 520px) { #mycolean .mc-gate-row { grid-template-columns: 1fr auto; } }
+    #mycolean .mc-input { width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: #0f1320; color: var(--text); padding: 12px 12px; }
+    #mycolean .mc-help { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    #mycolean .mc-err { color: var(--err); font-size: 12px; margin-top: 6px; }
+  </style>
+
+  <main class="mc-app" role="region" aria-label="Mycolean Sober Tracker">
+    <section class="mc-card mc-pad" aria-label="Bottle progress">
+      <h2 class="mc-h1">Mycolean Sober Month</h2>
+      <div class="mc-sub">Each sober day reveals more of the bottle.</div>
+
+      <div class="mc-bottle-wrap" aria-hidden="true">
+        <div class="mc-bottle-outline"></div>
+        <div class="mc-bottle-fill" data-el="bottleFill"></div>
+      </div>
+
+      <div class="mc-meter">
+        <div data-el="percentLabel">0%</div>
+        <div class="mc-bar" data-el="meterBar"></div>
+      </div>
+
+      <div class="mc-controls">
+        <button class="mc-btn" data-el="markBtn" type="button">Mark Today Sober</button>
+        <button class="mc-btn mc-btn-ghost" data-el="undoBtn" type="button" disabled>Undo Today</button>
+      </div>
+
+      <div class="mc-stats">
+        <div class="mc-stat"><div class="mc-k" data-el="daysSober">0</div><div class="mc-l">Days Sober</div></div>
+        <div class="mc-stat"><div class="mc-k" data-el="currentStreak">0</div><div class="mc-l">Current Streak</div></div>
+        <div class="mc-stat"><div class="mc-k" data-el="bestStreak">0</div><div class="mc-l">Best Streak (month)</div></div>
+        <div class="mc-stat"><div class="mc-k" data-el="daysLeft">0</div><div class="mc-l">Days Left</div></div>
+      </div>
+    </section>
+
+    <section class="mc-card mc-pad mc-cal" aria-label="Calendar">
+      <div class="mc-head">
+        <div class="mc-month" data-el="monthLabel">Month YYYY</div>
+        <div class="mc-nav" style="display:flex;gap:8px;align-items:center">
+          <button class="mc-btn mc-btn-ghost" data-el="prevBtn" type="button" aria-label="Previous month">‹</button>
+          <button class="mc-btn mc-btn-ghost" data-el="todayBtn" type="button">Today</button>
+          <button class="mc-btn mc-btn-ghost" data-el="nextBtn" type="button" aria-label="Next month">›</button>
+        </div>
+      </div>
+      <div class="mc-sub">Tap a past day to toggle. Today can be marked once.</div>
+
+      <div class="mc-grid" data-el="dowRow" aria-hidden="true"></div>
+      <div class="mc-grid" data-el="calendarGrid"></div>
+
+      <div class="mc-legend">
+        <span class="mc-key mc-mark"></span> Marked Sober | Click past days to toggle.
+      </div>
+
+      <div class="mc-foot">Data syncs to your email via our API and is also cached locally on your device.</div>
+    </section>
+  </main>
+
+  <!-- Email gate overlay -->
+  <div class="mc-gate" data-el="gate" aria-modal="true" role="dialog" aria-labelledby="mcGateTitle">
+    <div class="mc-gate-card">
+      <div id="mcGateTitle" class="mc-gate-title">Enter your email to sync progress</div>
+      <div class="mc-sub">We’ll keep your monthly progress synced across devices. You can continue offline too.</div>
+      <div class="mc-gate-row">
+        <input class="mc-input" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" data-el="emailInput" />
+        <button class="mc-btn" data-el="startBtn" type="button">Start</button>
+      </div>
+      <div class="mc-help">By continuing, you agree to store your sober days for this month linked to your email.</div>
+      <div class="mc-err" data-el="gateErr" style="display:none"></div>
+    </div>
+  </div>
+
+  <script>
+    (function initMycolean(rootId) {
+      const root = document.getElementById(rootId);
+      if (!root) return;
+
+      let API_BASE = root.dataset.apiBase || '/api/mycolean';
+      // Local override for developer testing
+      try {
+        const host = (location && location.hostname) ? location.hostname.toLowerCase() : '';
+        if (host === 'joshcreative.test' || host.endsWith('.joshcreative.test')) {
+          API_BASE = '/api/mycolean';
+        }
+      } catch (_) {}
+      const SUNDAY_FIRST = (root.dataset.weekStart || 'sun').toLowerCase() !== 'mon';
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const host = (location && location.host) ? location.host : 'local';
+
+      // Elements
+      const els = {
+        bottleFill: root.querySelector('[data-el="bottleFill"]'),
+        meterBar: root.querySelector('[data-el="meterBar"]'),
+        percentLabel: root.querySelector('[data-el="percentLabel"]'),
+        markBtn: root.querySelector('[data-el="markBtn"]'),
+        undoBtn: root.querySelector('[data-el="undoBtn"]'),
+        monthLabel: root.querySelector('[data-el="monthLabel"]'),
+        dowRow: root.querySelector('[data-el="dowRow"]'),
+        grid: root.querySelector('[data-el="calendarGrid"]'),
+        daysSober: root.querySelector('[data-el="daysSober"]'),
+        currentStreak: root.querySelector('[data-el="currentStreak"]'),
+        bestStreak: root.querySelector('[data-el="bestStreak"]'),
+        daysLeft: root.querySelector('[data-el="daysLeft"]'),
+        gate: root.querySelector('[data-el="gate"]'),
+        emailInput: root.querySelector('[data-el="emailInput"]'),
+        startBtn: root.querySelector('[data-el="startBtn"]'),
+        gateErr: root.querySelector('[data-el="gateErr"]'),
+      };
+
+      // Dates
+      const now = new Date();
+      const nowYear = now.getFullYear();
+      const nowMonth = now.getMonth() + 1; // 1-based for API
+      const nowDay = now.getDate();
+      let viewYear = nowYear;
+      let viewMonth = nowMonth; // 1-based
+      function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+      function makeMonthKey(y, m) { return `${y}-${String(m).padStart(2,'0')}`; }
+      function isCurrentView() { return viewYear === nowYear && viewMonth === nowMonth; }
+
+      // Local storage keys
+      const EMAIL_KEY = `mycolean:${host}:email`;
+      function localKeyFor(y, m) { return `mycolean:${host}:${makeMonthKey(y,m)}`; }
+
+      // State
+      let state = { days: Array(daysInMonth(viewYear, viewMonth)).fill(false), createdAt: new Date().toISOString() };
+      let email = localStorage.getItem(EMAIL_KEY) || '';
+      let todayMarked = false;
+      let nextEligibleAt = null;
+      let countdownTimer = null;
+
+      // UI setup
+      function setMonthLabel() {
+        els.monthLabel.textContent = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(viewYear, viewMonth-1, 1));
+      }
+      setMonthLabel();
+      // DOW row
+      const dNames = [];
+      for (let d = 0; d < 7; d++) {
+        const name = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(2023, 0, d + (SUNDAY_FIRST ? 1 : 2)));
+        dNames.push(name);
+      }
+      const order = SUNDAY_FIRST ? [0,1,2,3,4,5,6] : [1,2,3,4,5,6,0];
+      order.forEach(idx => { const el = document.createElement('div'); el.className = 'mc-dow'; el.textContent = dNames[idx]; els.dowRow.appendChild(el); });
+
+      function saveLocal() { try { localStorage.setItem(localKeyFor(viewYear, viewMonth), JSON.stringify(state)); } catch(_) {} }
+      function loadLocal() {
+        try {
+          const raw = localStorage.getItem(localKeyFor(viewYear, viewMonth));
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed.days) && parsed.days.length === daysInMonth(viewYear, viewMonth)) return parsed;
+          }
+        } catch(_) {}
+        return { days: Array(daysInMonth(viewYear, viewMonth)).fill(false), createdAt: new Date().toISOString() };
+      }
+
+      function setBottleFill(pct) {
+        const topInset = Math.max(0, 100 - Math.round(pct * 100));
+        els.bottleFill.style.setProperty('--inset-top', `${topInset}%`);
+        els.meterBar.style.setProperty('--w', `${Math.round(pct*100)}%`);
+        els.percentLabel.textContent = `${Math.round(pct*100)}%`;
+      }
+
+      function computeStats() {
+        const days = state.days;
+        const dim = daysInMonth(viewYear, viewMonth);
+        const count = days.filter(Boolean).length;
+        let current = 0;
+        if (isCurrentView()) {
+          for (let i = Math.min(nowDay, dim) - 1; i >= 0; i--) { if (days[i]) current++; else break; }
+        } else {
+          for (let i = dim - 1; i >= 0; i--) { if (days[i]) current++; else break; }
+        }
+        let best = 0, run = 0; for (let i = 0; i < dim; i++) { if (days[i]) { run++; best = Math.max(best, run); } else run = 0; }
+        return { count, current, best };
+      }
+
+      function renderCountdown() {
+        if (!isCurrentView()) { els.markBtn.textContent = 'Mark Today Sober'; els.markBtn.disabled = true; return; }
+        if (!todayMarked || !nextEligibleAt) { els.markBtn.textContent = 'Mark Today Sober'; els.markBtn.disabled = false; return; }
+        function tick() {
+          const now = Date.now();
+          const ms = Math.max(0, new Date(nextEligibleAt).getTime() - now);
+          const hh = String(Math.floor(ms/3600000)).padStart(2,'0');
+          const mm = String(Math.floor((ms%3600000)/60000)).padStart(2,'0');
+          const ss = String(Math.floor((ms%60000)/1000)).padStart(2,'0');
+          els.markBtn.textContent = `Next mark in ${hh}:${mm}:${ss}`;
+          els.markBtn.disabled = true;
+          if (ms <= 0) { clearInterval(countdownTimer); countdownTimer = null; todayMarked = false; els.markBtn.disabled = false; els.markBtn.textContent = 'Mark Today Sober'; }
+        }
+        if (countdownTimer) clearInterval(countdownTimer);
+        tick();
+        countdownTimer = setInterval(tick, 1000);
+      }
+
+      function buildCalendar() {
+        els.grid.textContent = '';
+        const today = new Date();
+        const dim = daysInMonth(viewYear, viewMonth);
+        const firstDow = (new Date(viewYear, viewMonth-1, 1).getDay()); // 0=Sun
+        const startOffset = SUNDAY_FIRST ? firstDow : (firstDow === 0 ? 6 : firstDow - 1);
+        const totalCells = startOffset + dim;
+        for (let i = 0; i < totalCells; i++) {
+          const cell = document.createElement('div');
+          if (i < startOffset) { cell.className = 'mc-day mc-off'; cell.setAttribute('aria-hidden','true'); els.grid.appendChild(cell); continue; }
+          const dayNum = i - startOffset + 1;
+          const date = new Date(viewYear, viewMonth-1, dayNum);
+          let future = false;
+          if (viewYear > nowYear || (viewYear === nowYear && viewMonth > nowMonth)) future = true;
+          else if (isCurrentView() && dayNum > nowDay) future = true;
+          const isToday = (isCurrentView() && dayNum === nowDay);
+
+          cell.className = 'mc-day';
+          cell.textContent = dayNum;
+          if (state.days[dayNum-1]) cell.classList.add('mc-marked');
+          if (future) cell.classList.add('mc-off');
+          if (isToday) cell.classList.add('mc-today');
+          cell.tabIndex = future ? -1 : 0;
+          cell.setAttribute('role','button');
+          cell.setAttribute('aria-pressed', state.days[dayNum-1] ? 'true' : 'false');
+          cell.title = future ? 'Future days cannot be marked yet' : 'Toggle sober for this day';
+
+          if (!future) {
+            cell.addEventListener('click', () => toggleDay(dayNum));
+            cell.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleDay(dayNum); } });
+          }
+          els.grid.appendChild(cell);
+        }
+      }
+
+      function updateUI() {
+        setMonthLabel();
+        buildCalendar();
+        const { count, current, best } = computeStats();
+        els.daysSober.textContent = count;
+        els.currentStreak.textContent = current;
+        els.bestStreak.textContent = best;
+        const dim = daysInMonth(viewYear, viewMonth);
+        els.daysLeft.textContent = isCurrentView() ? (dim - Math.min(nowDay, dim)) : 0;
+        setBottleFill(state.days.filter(Boolean).length / dim);
+        renderCountdown();
+        // Nav button states
+        const prevBtn = root.querySelector('[data-el="prevBtn"]');
+        const nextBtn = root.querySelector('[data-el="nextBtn"]');
+        if (prevBtn) prevBtn.disabled = false;
+        if (nextBtn) nextBtn.disabled = (viewYear === nowYear && viewMonth === nowMonth);
+        // Mark button enabled only on current view
+        if (!isCurrentView()) { els.markBtn.disabled = true; els.markBtn.textContent = 'Mark Today Sober'; }
+      }
+
+      // API helpers
+      async function apiGet(path, params) {
+        const url = new URL((API_BASE + path), location.origin);
+        Object.entries(params || {}).forEach(([k,v]) => url.searchParams.set(k, v));
+        const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' } });
+        if (!res.ok) throw new Error('API error');
+        return res.json();
+      }
+      async function apiSend(path, method, body) {
+        const res = await fetch(API_BASE + path, { method, headers: { 'Content-Type':'application/json', 'Accept':'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error('API error');
+        return res.json();
+      }
+
+      async function fetchMonthFromApi(y, m) {
+        const data = await apiGet('/month', { email, year: y, month: m, tz });
+        // Update view to requested month or API response
+        if (typeof data.year === 'number') viewYear = data.year;
+        else viewYear = y;
+        if (typeof data.month === 'number') viewMonth = data.month;
+        else viewMonth = m;
+        state.days = data.days || state.days;
+        todayMarked = !!data.todayMarked;
+        nextEligibleAt = data.nextEligibleAt || null;
+        saveLocal();
+        updateUI();
+        return data;
+      }
+
+      async function syncLocalIfNeeded(remote) {
+        // If remote has zero marks and local has marks, push local (only for past days)
+        const remoteCount = (remote.days || []).filter(Boolean).length;
+        const localCount = state.days.filter(Boolean).length;
+          if (localCount > 0 && remoteCount === 0) {
+          const data = await apiSend('/sync-month', 'PUT', { email, year: viewYear, month: viewMonth, days: state.days, tz });
+          state.days = data.days || state.days;
+          todayMarked = !!data.todayMarked; nextEligibleAt = data.nextEligibleAt || null; saveLocal(); updateUI();
+        }
+      }
+
+      async function toggleDay(dayNum) {
+        // Future days not allowed (next months or later this month)
+        if (viewYear > nowYear || (viewYear === nowYear && viewMonth > nowMonth)) return;
+        if (viewYear === nowYear && viewMonth === nowMonth && dayNum > nowDay) return;
+
+        const isToday = (viewYear === nowYear && viewMonth === nowMonth && dayNum === nowDay);
+        // Enforce: today can only be set true; cannot undo today
+        const desired = isToday ? true : !state.days[dayNum-1];
+        try {
+          if (email) {
+            const data = await apiSend('/toggle-day', 'POST', { email, year: viewYear, month: viewMonth, day: dayNum, value: desired, tz });
+            state.days = data.days || state.days; todayMarked = !!data.todayMarked; nextEligibleAt = data.nextEligibleAt || null; saveLocal();
+            updateUI();
+          } else {
+            // Offline/local-only fallback
+            state.days[dayNum-1] = desired; saveLocal(); updateUI();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      async function markToday() {
+        try {
+          if (!email) return; // require email
+          // If not on current month, jump to it first
+          if (viewYear !== nowYear || viewMonth !== nowMonth) {
+            viewYear = nowYear; viewMonth = nowMonth; state = loadLocal(); updateUI();
+          }
+          await apiSend('/mark-today', 'POST', { email, tz });
+          await fetchMonthFromApi(nowYear, nowMonth);
+        } catch (e) { console.error(e); }
+      }
+
+      // Wire buttons
+      els.markBtn.addEventListener('click', markToday);
+      // Undo disabled per requirement
+      els.undoBtn.disabled = true;
+
+      // Month navigation
+      const prevBtn = root.querySelector('[data-el="prevBtn"]');
+      const nextBtn = root.querySelector('[data-el="nextBtn"]');
+      const todayBtn = root.querySelector('[data-el="todayBtn"]');
+      async function goTo(y, m) {
+        viewYear = y; viewMonth = m; state = loadLocal(); updateUI();
+        if (email) {
+          try { const remote = await fetchMonthFromApi(y, m); await syncLocalIfNeeded(remote); } catch (_) {}
+        }
+      }
+      function prevMonth() {
+        const d = new Date(viewYear, viewMonth - 2, 1); // JS month index
+        goTo(d.getFullYear(), d.getMonth() + 1);
+      }
+      function nextMonth() {
+        if (viewYear === nowYear && viewMonth === nowMonth) return; // don't go into the future
+        const d = new Date(viewYear, viewMonth, 1);
+        // Guard against future beyond current month
+        if (d.getFullYear() > nowYear || (d.getFullYear() === nowYear && (d.getMonth()+1) > nowMonth)) return;
+        goTo(d.getFullYear(), d.getMonth() + 1);
+      }
+      function goToday() { goTo(nowYear, nowMonth); }
+      if (prevBtn) prevBtn.addEventListener('click', prevMonth);
+      if (nextBtn) nextBtn.addEventListener('click', nextMonth);
+      if (todayBtn) todayBtn.addEventListener('click', goToday);
+
+      // Email gate
+      function showGate() { els.gate.style.display = 'grid'; els.emailInput.focus(); }
+      function hideGate() { els.gate.style.display = 'none'; }
+      async function startWithEmail() {
+        const val = (els.emailInput.value || '').trim();
+        const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+        if (!ok) { els.gateErr.textContent = 'Please enter a valid email address.'; els.gateErr.style.display = 'block'; return; }
+        els.gateErr.style.display = 'none'; email = val; try { localStorage.setItem(EMAIL_KEY, email); } catch(_) {}
+        hideGate();
+        // Load remote month, then optionally sync local
+        try { const remote = await fetchMonthFromApi(viewYear, viewMonth); await syncLocalIfNeeded(remote); } catch(e) { console.warn('API unavailable, using local only.'); state = loadLocal(); updateUI(); }
+      }
+      els.startBtn.addEventListener('click', startWithEmail);
+      els.emailInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); startWithEmail(); } });
+
+      // Init
+      (function init() {
+        state = loadLocal();
+        updateUI();
+        if (email) {
+          hideGate();
+          fetchMonthFromApi(viewYear, viewMonth).then(syncLocalIfNeeded).catch(() => { /* stay local */ });
+        } else {
+          showGate();
+        }
+      })();
+    })('mycolean');
+  </script>
+</div>

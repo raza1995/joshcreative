@@ -25,3 +25,13 @@ Route::post('/webhook/event', [AnalyticsController::class, 'track']);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+// Mycolean Sober Tracker API
+use App\Http\Controllers\MycoleanController;
+
+Route::prefix('mycolean')->group(function () {
+    Route::get('/month', [MycoleanController::class, 'getMonth']);
+    Route::post('/mark-today', [MycoleanController::class, 'markToday']);
+    Route::post('/toggle-day', [MycoleanController::class, 'toggleDay']);
+    Route::put('/sync-month', [MycoleanController::class, 'syncMonth']);
+});
