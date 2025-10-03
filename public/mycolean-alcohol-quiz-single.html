@@ -1,5 +1,5 @@
 <!-- Mycolean Alcohol Quiz - Shopify Embed Ready -->
-<style>
+  <style>
 /* Mycolean Quiz Standalone Styles - Shopify Safe */
 #mycolean-quiz-app {
   --mycolean-mint: #c8f3e8;
@@ -92,18 +92,32 @@
 
 #mycolean-quiz-app .mycolean-progress {
   width: 100% !important; 
-  height: 10px !important; 
+  height: 12px !important; 
   border-radius: 999px !important; 
   background: #e5e7eb !important; 
   overflow: hidden !important;
   position: relative !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1) !important;
 }
 
 #mycolean-quiz-app .mycolean-progress > div {
   height: 100% !important; 
-  width: 0% !important; 
-  background: linear-gradient(90deg, var(--mycolean-teal), var(--mycolean-purple)) !important;
-  transition: width 0.35s ease !important;
+  background: #4fd1c5 !important;
+  background: linear-gradient(90deg, #4fd1c5, #7f56d9) !important;
+  transition: width 0.5s ease !important;
+  border-radius: 999px !important;
+}
+
+#mycolean-quiz-app .mycolean-progress-bar {
+  height: 100% !important; 
+  background: #4fd1c5 !important;
+  background: linear-gradient(90deg, #4fd1c5 0%, #7f56d9 100%) !important;
+  transition: width 0.5s ease !important;
+  border-radius: 999px !important;
+  min-width: 2px !important;
+  display: block !important;
+  position: relative !important;
 }
 
 #mycolean-quiz-app .mycolean-q-title { 
@@ -258,6 +272,22 @@
   color: var(--mycolean-ink) !important;
 }
 
+/* Ensure white text on gradient backgrounds */
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] * {
+  color: white !important;
+}
+
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] p,
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] h1,
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] h2,
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] h3,
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] h4,
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] h5,
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] h6,
+#mycolean-quiz-app .mycolean-card[style*="background: linear-gradient"] li {
+  color: white !important;
+}
+
 #mycolean-quiz-app ul {
   margin: 0 !important;
   padding-left: 20px !important;
@@ -331,9 +361,9 @@
   <div class="mycolean-container">
     <div id="app"></div>
   </div>
-</div>
+  </div>
 
-<script>
+  <script>
 
 // API Configuration
 const API_BASE = (function() {
@@ -636,28 +666,47 @@ function $(sel){return document.querySelector(sel)};
 function render(){
   const container = $("#app");
   const step = QUIZ[index];
-  const totalSteps = QUIZ.filter(q => q.type==='audit').length;
-  const currentAuditIdx = Math.max(0, QUIZ.slice(0, index+1).filter(q=>q.type==='audit').length);
-
-  let progressPct = Math.round((currentAuditIdx/totalSteps)*100);
+  const totalSteps = QUIZ.filter(q => q.type==='audit').length; // 10 questions
+  const totalQuizSteps = QUIZ.length; // 12 total (gate + demographics + 10 questions)
+  
+  // Calculate progress percentage based on current step
+  let progressPct = 0;
+  let progressText = '';
+  
+  if (step.type === 'gate') {
+    progressPct = 0;
+    progressText = 'Getting Started';
+  } else if (step.type === 'demographics') {
+    progressPct = 8; // 1/12 of total steps
+    progressText = 'Personal Information';
+  } else if (step.type === 'audit') {
+    // Find which audit question we're on (1-10)
+    const auditQuestionNumber = step.id;
+    // Progress from 16% (2/12) to 100% (12/12)
+    progressPct = Math.round(((1 + auditQuestionNumber) / totalQuizSteps) * 100);
+    progressText = `Question ${auditQuestionNumber} of ${totalSteps}`;
+  }
 
   let html = `
-    <div class="mycolean-brand"><div>
+    <div class="mycolean-brand"><div class="mycolean-logo"></div><div>
       <h1>Mycolean Self‑Check</h1>
       <div class="mycolean-subtitle mycolean-small">Based on WHO's 10‑question AUDIT screening tool</div>
     </div></div>
     <div class="mycolean-card">
       <div class="mycolean-progress-wrap">
-        <div class="mycolean-progress"><div style="width:${progressPct}%"></div></div>
-        <div class="mycolean-small">${currentAuditIdx} / ${totalSteps} questions</div>
+        <div class="mycolean-progress">
+          <div class="mycolean-progress-bar" style="width:${progressPct}%; background: linear-gradient(to right, #4fd1c5, #7f56d9) !important;"></div>
+        </div>
+        <div class="mycolean-small">${progressText} (${progressPct}%)</div>
       </div>
       <div id="step">
       </div>
       <div class="mycolean-actions">
-        <button class="mycolean-btn mycolean-btn-ghost" id="back" ${index===0?'disabled':''}>Back</button>
+      
         <div style="display:flex; gap:10px">
           <button class="mycolean-btn mycolean-btn-primary" id="next"></button>
         </div>
+          <button class="mycolean-btn mycolean-btn-ghost" id="back" ${index===0?'disabled':''}>Back</button>
       </div>
       <div class="mycolean-notice mycolean-small">DISCLAIMER: This is a screening tool only, not medical advice. Your answers are completely private and confidential. Results vary by age and gender. For scores of 8+, consider reducing alcohol. For scores of 20+, seek professional help immediately. Developed by the World Health Organisation for healthcare professionals.</div>
     </div>
@@ -834,6 +883,39 @@ async function next(){
 }
 
 async function showResults(){
+  // Show loading state first
+  const container = $("#app");
+  container.innerHTML = `
+    <div class="mycolean-brand"><div class="mycolean-logo"></div><div>
+      <h1>Mycolean Self‑Check Results</h1>
+      <div class="mycolean-subtitle mycolean-small">Analyzing your responses with AI...</div>
+    </div></div>
+    <div class="mycolean-card">
+      <div class="mycolean-progress-wrap">
+        <div class="mycolean-progress">
+          <div class="mycolean-progress-bar" style="width:100%; background: linear-gradient(to right, #4fd1c5, #7f56d9) !important;"></div>
+        </div>
+        <div class="mycolean-small">Processing Results...</div>
+      </div>
+      <div style="text-align: center; padding: 40px 20px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">🧠</div>
+        <h3 style="margin: 0 0 10px 0; color: var(--mycolean-purple);">Evaluating Your Responses</h3>
+        <p style="margin: 0; opacity: 0.7;">Our AI is analyzing your answers and preparing personalized recommendations...</p>
+        <div style="margin-top: 20px;">
+          <div style="display: inline-block; width: 20px; height: 20px; border: 3px solid var(--mycolean-purple); border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite;"></div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  `;
+
+  // Wait a moment for better UX
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
   const sum = Object.values(responses).reduce((a,b)=>a+b,0);
   let risk = riskFrom(sum, userMeta);
   let serverResults = false;
@@ -872,7 +954,7 @@ async function showResults(){
     });
   }
   
-  const container = $("#app");
+  const resultsContainer = $("#app");
   
   // Generate AI analysis section HTML
   let aiAnalysisHTML = '';
@@ -881,42 +963,42 @@ async function showResults(){
     const conversionProb = aiAnalysis.conversion_probability;
     
     aiAnalysisHTML = `
-      <div class="mycolean-card" style="margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <div class="mycolean-card" style="margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; color: white;">
         <div style="text-align: center; margin-bottom: 20px;">
           <h3 style="margin: 0; color: white;">🤖 AI-Powered Personalized Analysis</h3>
-          <p style="margin: 8px 0; opacity: 0.9;">${aiAnalysis.personalized_message}</p>
+          <p style="margin: 8px 0; opacity: 0.9; color: white;">${aiAnalysis.personalized_message}</p>
         </div>
         
         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
           <h4 style="margin: 0 0 10px 0; color: white;">🎯 Your Mycolean Match Score: ${Math.round(mycoleanRec.product_fit_score * 100)}%</h4>
-          <p style="margin: 0; opacity: 0.9;">${mycoleanRec.dosage_suggestion}</p>
+          <p style="margin: 0; opacity: 0.9; color: white;">${mycoleanRec.dosage_suggestion}</p>
         </div>
         
         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
           <h4 style="margin: 0 0 10px 0; color: white;">💡 Recommended for You:</h4>
-          <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
-            ${mycoleanRec.usage_scenarios.map(scenario => `<li>${scenario}</li>`).join('')}
+          <ul style="margin: 0; padding-left: 20px; opacity: 0.9; color: white;">
+            ${mycoleanRec.usage_scenarios.map(scenario => `<li style="color: white;">${scenario}</li>`).join('')}
           </ul>
         </div>
         
         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
           <h4 style="margin: 0 0 10px 0; color: white;">✨ Expected Benefits:</h4>
-          <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
-            ${mycoleanRec.expected_benefits.map(benefit => `<li>${benefit}</li>`).join('')}
+          <ul style="margin: 0; padding-left: 20px; opacity: 0.9; color: white;">
+            ${mycoleanRec.expected_benefits.map(benefit => `<li style="color: white;">${benefit}</li>`).join('')}
           </ul>
         </div>
         
         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
           <h4 style="margin: 0 0 10px 0; color: white;">📈 Your Success Plan:</h4>
-          <p style="margin: 0; opacity: 0.9;">${mycoleanRec.transition_plan}</p>
-          <p style="margin: 8px 0 0 0; opacity: 0.8; font-size: 14px;">Success Probability: ${Math.round(mycoleanRec.success_probability * 100)}%</p>
+          <p style="margin: 0; opacity: 0.9; color: white;">${mycoleanRec.transition_plan}</p>
+          <p style="margin: 8px 0 0 0; opacity: 0.8; font-size: 14px; color: white;">Success Probability: ${Math.round(mycoleanRec.success_probability * 100)}%</p>
         </div>
         
         <div style="text-align: center; margin-top: 20px;">
-          <a href="https://mycolean.com/" target="_blank" style="display: inline-block; background: #ff6b6b; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(255,107,107,0.3); transition: all 0.3s ease;">
+          <a href="https://mycolean.com/products/infused-water-enhancer" target="_blank" style="display: inline-block; background: #ff6b6b; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(255,107,107,0.3); transition: all 0.3s ease;">
             🚀 Try Mycolean Now - ${conversionProb.confidence_level} Match!
           </a>
-          <p style="margin: 10px 0 0 0; opacity: 0.8; font-size: 12px;">
+          <p style="margin: 10px 0 0 0; opacity: 0.8; font-size: 12px; color: white;">
             Based on your responses, you have a ${Math.round(conversionProb.probability * 100)}% likelihood of success with Mycolean
           </p>
         </div>
@@ -927,17 +1009,17 @@ async function showResults(){
     if (aiAnalysis.openai_insights) {
       const openAIInsights = aiAnalysis.openai_insights;
       aiAnalysisHTML += `
-        <div class="mycolean-card" style="margin-top: 20px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white;">
+        <div class="mycolean-card" style="margin-top: 20px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)!important; color: white!important;">
           <div style="text-align: center; margin-bottom: 20px;">
             <h3 style="margin: 0; color: white;">🧠 Personalized AI Insights</h3>
-            <p style="margin: 8px 0; opacity: 0.9;">${openAIInsights.personalized_message || 'Powered by advanced AI analysis'}</p>
+            <p style="margin: 8px 0; opacity: 0.9; color: white;">${openAIInsights.personalized_message || 'Powered by advanced AI analysis'}</p>
           </div>
           
           ${openAIInsights.key_insights ? `
           <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin: 0 0 10px 0; color: white;">💡 Key Insights About You:</h4>
-            <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
-              ${openAIInsights.key_insights.map(insight => `<li>${insight}</li>`).join('')}
+            <ul style="margin: 0; padding-left: 20px; opacity: 0.9; color: white;">
+              ${openAIInsights.key_insights.map(insight => `<li style="color: white;">${insight}</li>`).join('')}
             </ul>
           </div>
           ` : ''}
@@ -945,8 +1027,8 @@ async function showResults(){
           ${openAIInsights.success_tips ? `
           <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin: 0 0 10px 0; color: white;">🎯 Success Tips for You:</h4>
-            <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
-              ${openAIInsights.success_tips.map(tip => `<li>${tip}</li>`).join('')}
+            <ul style="margin: 0; padding-left: 20px; opacity: 0.9; color: white;">
+              ${openAIInsights.success_tips.map(tip => `<li style="color: white;">${tip}</li>`).join('')}
             </ul>
           </div>
           ` : ''}
@@ -954,14 +1036,14 @@ async function showResults(){
           ${openAIInsights.motivation_message ? `
           <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center;">
             <h4 style="margin: 0 0 10px 0; color: white;">💪 Your Motivation:</h4>
-            <p style="margin: 0; opacity: 0.9; font-style: italic;">"${openAIInsights.motivation_message}"</p>
+            <p style="margin: 0; opacity: 0.9; font-style: italic; color: white;">"${openAIInsights.motivation_message}"</p>
           </div>
           ` : ''}
           
           ${openAIInsights.peer_comparison ? `
           <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin: 0 0 10px 0; color: white;">👥 Compared to Similar Users:</h4>
-            <p style="margin: 0; opacity: 0.9;">${openAIInsights.peer_comparison}</p>
+            <p style="margin: 0; opacity: 0.9; color: white;">${openAIInsights.peer_comparison}</p>
           </div>
           ` : ''}
         </div>
@@ -978,7 +1060,7 @@ async function showResults(){
       <div class="mycolean-result-badge" style="background:${risk.color}">
         <span style="font-size:20px">Score: ${sum}</span> • <span>${risk.label}</span>
       </div>
-      <p style="margin-top:16px">${risk.text}</p>
+      <p style="margin-top:16px; color: var(--mycolean-ink);">${risk.text}</p>
       <div class="mycolean-notice mycolean-small">
         Scoring bands: 0–7 low risk, 8–15 increasing risk, 16–19 higher risk, 20+ possible dependence.
       </div>
