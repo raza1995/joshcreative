@@ -35,3 +35,25 @@ Route::prefix('mycolean')->group(function () {
     Route::post('/toggle-day', [MycoleanController::class, 'toggleDay']);
     Route::put('/sync-month', [MycoleanController::class, 'syncMonth']);
 });
+
+// Mycolean Quiz API
+use App\Http\Controllers\QuizController;
+
+Route::prefix('quiz')->group(function () {
+    // Session management
+    Route::post('/start', [QuizController::class, 'startSession']);
+    Route::get('/session/{sessionUuid}', [QuizController::class, 'getSession']);
+    
+    // Quiz data
+    Route::get('/questions', [QuizController::class, 'getQuestions']);
+    
+    // Response handling
+    Route::post('/update-email', [QuizController::class, 'updateEmail']);
+    Route::post('/demographics', [QuizController::class, 'saveDemographics']);
+    Route::post('/response', [QuizController::class, 'saveResponse']);
+    Route::post('/complete', [QuizController::class, 'completeQuiz']);
+    
+    // Analytics
+    Route::post('/track', [QuizController::class, 'trackEvent']);
+    Route::get('/stats', [QuizController::class, 'getStats']);
+});

@@ -1,0 +1,1001 @@
+<!-- Mycolean Alcohol Quiz - Shopify Embed Ready -->
+<style>
+/* Mycolean Quiz Standalone Styles - Shopify Safe */
+#mycolean-quiz-app {
+  --mycolean-mint: #c8f3e8;
+  --mycolean-teal: #4fd1c5;
+  --mycolean-purple: #7f56d9;
+  --mycolean-dark: #0f172a;
+  --mycolean-ink: #111827;
+  --mycolean-bg-start: #e9fbf6;
+  --mycolean-bg-end: #efe7ff;
+  --mycolean-card: #ffffffcc;
+  --mycolean-accent: #1f2937;
+  --mycolean-shadow: 0 10px 30px rgba(0,0,0,.06);
+  --mycolean-radius: 1.25rem;
+  
+  /* Reset and isolate styles */
+  all: initial !important;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif !important;
+  color: var(--mycolean-ink) !important;
+
+  background-attachment: fixed !important;
+  width: 100% !important;
+  min-height: 500px !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+#mycolean-quiz-app * {
+  box-sizing: border-box !important;
+}
+
+#mycolean-quiz-app .mycolean-container { 
+  max-width: 880px !important; 
+  margin: 40px auto !important; 
+  padding: 24px !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+#mycolean-quiz-app .mycolean-brand { 
+  display: flex !important; 
+  align-items: center !important; 
+  gap: 14px !important; 
+  margin-bottom: 18px !important; 
+}
+
+#mycolean-quiz-app .mycolean-logo {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+  background-image: url('https://mycolean.com/cdn/shop/files/Image_20_e3bce3ca-66e7-4885-bce5-5af2f29a208d.png?v=1725603378&width=140') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  box-shadow: var(--mycolean-shadow) !important;
+  flex-shrink: 0 !important;
+}
+
+#mycolean-quiz-app .mycolean-brand h1 { 
+  margin: 0 !important; 
+  font-size: 24px !important; 
+  letter-spacing: 0.2px !important; 
+  font-weight: 600 !important;
+  color: var(--mycolean-ink) !important;
+  line-height: 1.2 !important;
+}
+
+#mycolean-quiz-app .mycolean-card {
+  background: var(--mycolean-card) !important;
+  border-radius: var(--mycolean-radius) !important;
+  box-shadow: var(--mycolean-shadow) !important;
+  padding: 28px !important;
+  backdrop-filter: blur(6px) !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+  position: relative !important;
+  z-index: 3 !important;
+}
+
+#mycolean-quiz-app .mycolean-subtitle {
+  opacity: 0.8 !important; 
+  margin: 0.25rem 0 0 !important;
+  font-size: 14px !important;
+  color: var(--mycolean-ink) !important;
+}
+
+#mycolean-quiz-app .mycolean-progress-wrap {
+  margin: 14px 0 22px !important;
+}
+
+#mycolean-quiz-app .mycolean-progress {
+  width: 100% !important; 
+  height: 10px !important; 
+  border-radius: 999px !important; 
+  background: #e5e7eb !important; 
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+#mycolean-quiz-app .mycolean-progress > div {
+  height: 100% !important; 
+  width: 0% !important; 
+  background: linear-gradient(90deg, var(--mycolean-teal), var(--mycolean-purple)) !important;
+  transition: width 0.35s ease !important;
+}
+
+#mycolean-quiz-app .mycolean-q-title { 
+  font-size: 22px !important; 
+  line-height: 1.3 !important; 
+  margin: 6px 0 14px !important; 
+  font-weight: 600 !important;
+  color: var(--mycolean-ink) !important;
+}
+
+#mycolean-quiz-app .mycolean-options {
+  display: grid !important; 
+  gap: 10px !important;
+}
+
+#mycolean-quiz-app .mycolean-option {
+  display: flex !important; 
+  align-items: center !important; 
+  gap: 12px !important;
+  padding: 14px 16px !important; 
+  border-radius: 14px !important; 
+  border: 1px solid #e5e7eb !important;
+  background: #fff !important; 
+  cursor: pointer !important;
+  transition: transform 0.05s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+  font-size: 16px !important;
+  color: var(--mycolean-ink) !important;
+  text-decoration: none !important;
+}
+
+#mycolean-quiz-app .mycolean-option:hover {
+  border-color: #cbd5e1 !important; 
+  box-shadow: 0 6px 22px rgba(2,6,23,.04) !important;
+  transform: translateY(-1px) !important;
+}
+
+#mycolean-quiz-app .mycolean-option input {
+  accent-color: var(--mycolean-purple) !important; 
+  transform: scale(1.15) !important;
+  margin: 0 !important;
+}
+
+#mycolean-quiz-app .mycolean-meta {
+  opacity: 0.7 !important; 
+  font-size: 0.9rem !important;
+  color: var(--mycolean-ink) !important;
+  margin-bottom: 8px !important;
+}
+
+#mycolean-quiz-app .mycolean-actions {
+  display: flex !important; 
+  justify-content: space-between !important; 
+  gap: 12px !important; 
+  margin-top: 18px !important;
+}
+
+#mycolean-quiz-app .mycolean-btn {
+  border: 0 !important; 
+  padding: 12px 18px !important; 
+  border-radius: 999px !important; 
+  font-weight: 600 !important; 
+  cursor: pointer !important;
+  box-shadow: var(--mycolean-shadow) !important;
+  font-size: 16px !important;
+  text-decoration: none !important;
+  display: inline-block !important;
+  text-align: center !important;
+  transition: all 0.2s ease !important;
+}
+
+#mycolean-quiz-app .mycolean-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 15px 35px rgba(0,0,0,.1) !important;
+}
+
+#mycolean-quiz-app .mycolean-btn-primary {
+  background: linear-gradient(90deg, var(--mycolean-teal), var(--mycolean-purple)) !important; 
+  color: #fff !important;
+}
+
+#mycolean-quiz-app .mycolean-btn-ghost {
+  background: #fff !important;
+  color: var(--mycolean-ink) !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+#mycolean-quiz-app .mycolean-notice {
+  background: #f8fafc !important; 
+  border: 1px solid #e5e7eb !important; 
+  border-radius: 12px !important; 
+  padding: 12px 14px !important; 
+  font-size: 0.95rem !important; 
+  margin-top: 10px !important;
+  color: var(--mycolean-ink) !important;
+  line-height: 1.4 !important;
+}
+
+#mycolean-quiz-app .mycolean-result-badge {
+  display: inline-flex !important; 
+  align-items: center !important; 
+  gap: 10px !important; 
+  padding: 10px 14px !important; 
+  border-radius: 999px !important;
+  background: #111827 !important; 
+  color: #fff !important; 
+  font-weight: 700 !important;
+  font-size: 16px !important;
+}
+
+#mycolean-quiz-app .mycolean-grid-2 {
+  display: grid !important; 
+  grid-template-columns: 1.2fr 0.8fr !important; 
+  gap: 20px !important;
+}
+
+#mycolean-quiz-app .mycolean-small {
+  font-size: 0.9rem !important; 
+  opacity: 0.8 !important;
+  color: var(--mycolean-ink) !important;
+}
+
+#mycolean-quiz-app .mycolean-form-control {
+  width: 100% !important;
+  padding: 12px !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+  margin-top: 6px !important;
+  background: #fff !important;
+  color: var(--mycolean-ink) !important;
+  font-family: inherit !important;
+}
+
+#mycolean-quiz-app .mycolean-form-control:focus {
+  outline: none !important;
+  border-color: var(--mycolean-purple) !important;
+  box-shadow: 0 0 0 3px rgba(127, 86, 217, 0.1) !important;
+}
+
+#mycolean-quiz-app a {
+  color: #6d28d9 !important; 
+  text-decoration: none !important;
+}
+
+#mycolean-quiz-app a:hover {
+  text-decoration: underline !important;
+}
+
+#mycolean-quiz-app p {
+  margin: 16px 0 !important;
+  line-height: 1.5 !important;
+  color: var(--mycolean-ink) !important;
+}
+
+#mycolean-quiz-app ul {
+  margin: 0 !important;
+  padding-left: 20px !important;
+}
+
+#mycolean-quiz-app li {
+  margin-bottom: 4px !important;
+  line-height: 1.4 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  #mycolean-quiz-app .mycolean-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  #mycolean-quiz-app .mycolean-container {
+    padding: 16px !important;
+    margin: 20px auto !important;
+  }
+  
+  #mycolean-quiz-app .mycolean-brand h1 {
+    font-size: 20px !important;
+  }
+  
+  #mycolean-quiz-app .mycolean-card {
+    padding: 20px !important;
+  }
+  
+  #mycolean-quiz-app .mycolean-actions {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #mycolean-quiz-app {
+    padding: 10px !important;
+  }
+  
+  #mycolean-quiz-app .mycolean-container {
+    padding: 8px !important;
+    margin: 10px auto !important;
+  }
+  
+  #mycolean-quiz-app .mycolean-card {
+    padding: 16px !important;
+  }
+}
+
+/* Shopify Theme Overrides */
+#mycolean-quiz-app.shopify-embedded {
+
+  margin: 0 !important;
+  padding: 16px !important;
+}
+
+#mycolean-quiz-app.shopify-embedded .mycolean-container {
+  margin: 0 auto !important;
+  padding: 16px 8px !important;
+}
+
+#mycolean-quiz-app.shopify-embedded .mycolean-card {
+  box-shadow: 0 2px 8px rgba(0,0,0,.1) !important;
+  border: 1px solid #e1e3e5 !important;
+}
+</style>
+
+<!-- Mycolean Quiz Container -->
+<div id="mycolean-quiz-app">
+  <div class="mycolean-container">
+    <div id="app"></div>
+  </div>
+</div>
+
+<script>
+
+// API Configuration
+const API_BASE = (function() {
+  try {
+    const host = (location && location.hostname) ? location.hostname.toLowerCase() : '';
+    if (host === 'joshcreative.test' || host.endsWith('.joshcreative.test')) {
+      return '/api/quiz';
+    }
+    // Production API base - update this to your actual domain
+    return 'https://joshcreative.co/api/quiz';
+  } catch (_) {
+    return '/api/quiz';
+  }
+})();
+
+// Session management
+let sessionUuid = null;
+let startTime = Date.now();
+let questionStartTime = Date.now();
+
+// API helper functions
+async function apiCall(endpoint, method = 'GET', data = null) {
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  };
+  
+  if (data) {
+    options.body = JSON.stringify(data);
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, options);
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
+  }
+}
+
+async function startQuizSession() {
+  try {
+    const shopifyDomain = getShopifyDomain();
+    const result = await apiCall('/start', 'POST', {
+      quiz_type: 'audit',
+      shopify_domain: shopifyDomain,
+      referrer_url: document.referrer || window.location.href,
+      session_metadata: {
+        user_agent: navigator.userAgent,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }
+    });
+    sessionUuid = result.session_uuid;
+    console.log('Quiz session started:', sessionUuid);
+  } catch (error) {
+    console.error('Failed to start quiz session:', error);
+    // Continue with local-only mode
+  }
+}
+
+async function saveDemographics(demographics) {
+  if (!sessionUuid) return;
+  try {
+    await apiCall('/demographics', 'POST', {
+      session_uuid: sessionUuid,
+      demographics: demographics
+    });
+  } catch (error) {
+    console.error('Failed to save demographics:', error);
+  }
+}
+
+async function saveResponse(questionId, score) {
+  if (!sessionUuid) return;
+  try {
+    const timeOnQuestion = Math.round((Date.now() - questionStartTime) / 1000);
+    await apiCall('/response', 'POST', {
+      session_uuid: sessionUuid,
+      question_id: questionId,
+      score: score,
+      time_on_question: timeOnQuestion
+    });
+  } catch (error) {
+    console.error('Failed to save response:', error);
+  }
+}
+
+async function completeQuiz(responses) {
+  if (!sessionUuid) return null;
+  try {
+    return await apiCall('/complete', 'POST', {
+      session_uuid: sessionUuid,
+      responses: responses
+    });
+  } catch (error) {
+    console.error('Failed to complete quiz:', error);
+    return null;
+  }
+}
+
+async function trackEvent(eventType, questionId = null, eventData = {}) {
+  if (!sessionUuid) return;
+  try {
+    await apiCall('/track', 'POST', {
+      session_uuid: sessionUuid,
+      event_type: eventType,
+      question_id: questionId,
+      event_data: eventData
+    });
+  } catch (error) {
+    console.error('Failed to track event:', error);
+  }
+}
+
+function getShopifyDomain() {
+  try {
+    const hostname = window.location.hostname;
+    if (hostname.includes('myshopify.com')) {
+      return hostname;
+    }
+    // Check if we're in a Shopify environment
+    if (window.Shopify && window.Shopify.shop) {
+      return window.Shopify.shop;
+    }
+    // Check for custom domains mapped to Shopify
+    if (window.location.href.includes('shopify')) {
+      return hostname;
+    }
+  } catch (_) {}
+  return null;
+}
+
+// Add Shopify-specific styling and behavior
+function initShopifyIntegration() {
+  const isShopify = getShopifyDomain() !== null;
+  
+  if (isShopify) {
+    // Add Shopify-specific CSS class
+    const quizApp = document.getElementById('mycolean-quiz-app');
+    if (quizApp) {
+      quizApp.classList.add('shopify-embedded');
+    }
+    
+    // Track Shopify-specific events
+    trackEvent('shopify_integration_loaded', null, {
+      domain: getShopifyDomain(),
+      referrer: document.referrer,
+      user_agent: navigator.userAgent
+    });
+    
+    // Add Shopify store branding if available
+    if (window.Shopify && window.Shopify.theme) {
+      trackEvent('shopify_theme_detected', null, {
+        theme_id: window.Shopify.theme.id,
+        theme_name: window.Shopify.theme.name
+      });
+    }
+  }
+}
+
+const QUIZ = [
+  { type: "gate", title: "You must be 18+ to take this quiz", help: "This self-check is informational and not a diagnosis. If you're worried, consider talking to a professional." },
+  { type: "demographics", title: "So we can give more appropriate guidance…" },
+  { type: "audit", id: 1, title: "How often do you have a drink containing alcohol?",
+    options: [
+      {label:"Never", score:0},
+      {label:"Monthly or less", score:1},
+      {label:"2 to 4 times per month", score:2},
+      {label:"2 to 3 times per week", score:3},
+      {label:"4 times or more per week", score:4}
+    ]
+  },
+  { type: "audit", id: 2, title: "How many units of alcohol do you drink on a typical day when you are drinking?",
+    options: [
+      {label:"0 to 2", score:0},
+      {label:"3 to 4", score:1},
+      {label:"5 to 6", score:2},
+      {label:"7 to 9", score:3},
+      {label:"10 or more", score:4}
+    ]
+  },
+  { type: "audit", id: 3, title: "How often have you had 6 or more units (if female), or 8 or more (if male), on a single occasion in the last year?",
+    options: [
+      {label:"Never", score:0},
+      {label:"Less than monthly", score:1},
+      {label:"Monthly", score:2},
+      {label:"Weekly", score:3},
+      {label:"Daily or almost daily", score:4}
+    ]
+  },
+  { type: "audit", id: 4, title: "How often during the last year have you found that you were not able to stop drinking once you had started?",
+    options: [
+      {label:"Never", score:0},
+      {label:"Less than monthly", score:1},
+      {label:"Monthly", score:2},
+      {label:"Weekly", score:3},
+      {label:"Daily or almost daily", score:4}
+    ]
+  },
+  { type: "audit", id: 5, title: "How often during the last year have you failed to do what was normally expected from you because of your drinking?",
+    options: [
+      {label:"Never", score:0},
+      {label:"Less than monthly", score:1},
+      {label:"Monthly", score:2},
+      {label:"Weekly", score:3},
+      {label:"Daily or almost daily", score:4}
+    ]
+  },
+  { type: "audit", id: 6, title: "How often during the last year have you needed a drink in the morning to get yourself going after a heavy drinking session?",
+    options: [
+      {label:"Never", score:0},
+      {label:"Less than monthly", score:1},
+      {label:"Monthly", score:2},
+      {label:"Weekly", score:3},
+      {label:"Daily or almost daily", score:4}
+    ]
+  },
+  { type: "audit", id: 7, title: "How often during the last year have you had a feeling of guilt or remorse after drinking?",
+    options: [
+      {label:"Never", score:0},
+      {label:"Less than monthly", score:1},
+      {label:"Monthly", score:2},
+      {label:"Weekly", score:3},
+      {label:"Daily or almost daily", score:4}
+    ]
+  },
+  { type: "audit", id: 8, title: "How often during the last year have you been unable to remember what happened the night before because you had been drinking?",
+    options: [
+      {label:"Never", score:0},
+      {label:"Less than monthly", score:1},
+      {label:"Monthly", score:2},
+      {label:"Weekly", score:3},
+      {label:"Daily or almost daily", score:4}
+    ]
+  },
+  { type: "audit", id: 9, title: "Have you or somebody else been injured as a result of your drinking?",
+    options: [
+      {label:"No", score:0},
+      {label:"Yes, but not in the last year", score:2},
+      {label:"Yes, during the last year", score:4}
+    ]
+  },
+  { type: "audit", id: 10, title: "Has a relative, friend, or health worker been concerned about your drinking or suggested that you cut down?",
+    options: [
+      {label:"No", score:0},
+      {label:"Yes, but not in the last year", score:2},
+      {label:"Yes, during the last year", score:4}
+    ]
+  }
+];
+
+function riskFrom(score, demographics = {}){
+  const gender = demographics.sex || null;
+  
+  if(score <= 7) {
+    let message = score === 0 
+      ? "Excellent! You appear to be alcohol-free or drink very rarely. This is the healthiest approach."
+      : "Your drinking pattern suggests low risk for alcohol-related harm. Continue to stay within recommended guidelines.";
+    return {label:"Low Risk", color:"#059669", text: message};
+  }
+  
+  if(score <= 15) {
+    let message = "Your score indicates increasing risk for alcohol-related harm. ";
+    message += score >= 12 
+      ? "Consider reducing your alcohol intake significantly. "
+      : "Consider cutting down on your drinking. ";
+    message += "Try having 2-3 alcohol-free days per week and avoid binge drinking.";
+    return {label:"Increasing Risk", color:"#ca8a04", text: message};
+  }
+  
+  if(score <= 19) {
+    return {
+      label:"Higher Risk", 
+      color:"#dc2626", 
+      text:"Your score indicates higher risk for alcohol-related problems. It's recommended to reduce your drinking and consider speaking with a healthcare professional about your alcohol use. You may benefit from brief counseling or support."
+    };
+  }
+  
+  let message = "Your score suggests possible alcohol dependence. ";
+  message += score >= 30 
+    ? "This indicates severe alcohol problems. Please seek professional help immediately from a doctor, counselor, or addiction specialist."
+    : "It's important to speak with a healthcare professional who can provide proper assessment and support. Treatment options are available and effective.";
+    
+  return {label:"Possible Dependence", color:"#7f1d1d", text: message};
+}
+
+let index = 0;
+const responses = {}; // id -> score
+const userMeta = {}; // demographics
+
+function $(sel){return document.querySelector(sel)};
+
+function render(){
+  const container = $("#app");
+  const step = QUIZ[index];
+  const totalSteps = QUIZ.filter(q => q.type==='audit').length;
+  const currentAuditIdx = Math.max(0, QUIZ.slice(0, index+1).filter(q=>q.type==='audit').length);
+
+  let progressPct = Math.round((currentAuditIdx/totalSteps)*100);
+
+  let html = `
+    <div class="mycolean-brand"><div>
+      <h1>Mycolean Self‑Check</h1>
+      <div class="mycolean-subtitle mycolean-small">Based on WHO's 10‑question AUDIT screening tool</div>
+    </div></div>
+    <div class="mycolean-card">
+      <div class="mycolean-progress-wrap">
+        <div class="mycolean-progress"><div style="width:${progressPct}%"></div></div>
+        <div class="mycolean-small">${currentAuditIdx} / ${totalSteps} questions</div>
+      </div>
+      <div id="step">
+      </div>
+      <div class="mycolean-actions">
+        <button class="mycolean-btn mycolean-btn-ghost" id="back" ${index===0?'disabled':''}>Back</button>
+        <div style="display:flex; gap:10px">
+          <button class="mycolean-btn mycolean-btn-primary" id="next"></button>
+        </div>
+      </div>
+      <div class="mycolean-notice mycolean-small">DISCLAIMER: This is a screening tool only, not medical advice. Your answers are completely private and confidential. Results vary by age and gender. For scores of 8+, consider reducing alcohol. For scores of 20+, seek professional help immediately. Developed by the World Health Organisation for healthcare professionals.</div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+  const stepEl = $("#step");
+
+  if(step.type === "gate"){
+    stepEl.innerHTML = `
+      <h2 class="mycolean-q-title">${step.title}</h2>
+      <div class="mycolean-options">
+        <label class="mycolean-option"><input type="checkbox" id="over18"> I confirm I am 18 or older</label>
+      </div>
+    `;
+    $("#next").textContent = "Start Quiz";
+  }
+  else if(step.type === "demographics"){
+    const ageBrackets = ["18–24","25–34","35–44","45–54","55–64","65+"];
+    stepEl.innerHTML = `
+      <h2 class="mycolean-q-title">${step.title}</h2>
+      
+      <!-- Email Field -->
+      <div style="margin-bottom: 20px;">
+        <div class="mycolean-meta">Email (optional - for follow-up support resources)</div>
+        <input type="email" 
+               id="userEmail" 
+               class="mycolean-form-control" 
+               placeholder="your.email@example.com" 
+               autocomplete="email">
+        <div class="mycolean-small" style="margin-top: 4px; opacity: 0.7;">
+          We'll only use this to send helpful resources. You can skip this field.
+        </div>
+      </div>
+      
+      <div class="mycolean-grid-2">
+        <div>
+          <div class="mycolean-meta">Sex at birth</div>
+          <div class="mycolean-options" id="sex">
+            <label class="mycolean-option"><input type="radio" name="sex" value="female"> Female</label>
+            <label class="mycolean-option"><input type="radio" name="sex" value="male"> Male</label>
+            <label class="mycolean-option"><input type="radio" name="sex" value="other"> Prefer not to say</label>
+          </div>
+        </div>
+        <div>
+          <div class="mycolean-meta">Age</div>
+          <div class="mycolean-options" id="age">
+            ${ageBrackets.map(b=>`<label class="mycolean-option"><input type="radio" name="age" value="${b}"> ${b}</label>`).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+    $("#next").textContent = "Continue";
+  }
+  else if(step.type === "audit"){
+    let unitGuide = '';
+    if(step.id === 2) {
+      unitGuide = `
+        <div class="mycolean-notice" style="margin-top:14px; background:#f0f9ff; border-color:#0ea5e9">
+          <div style="font-weight:600; margin-bottom:8px">UNIT GUIDE:</div>
+          <div style="margin-bottom:6px"><strong>Unit:</strong> A unit measures how much alcohol is in your drink.</div>
+          
+          <div style="margin-bottom:8px"><strong>Quick Guide:</strong></div>
+          <div style="margin-left:12px; margin-bottom:8px">
+            1 beer = 2 units<br>
+            1 glass of wine = 2-3 units<br>
+            1 shot = 1 unit<br>
+            1 cocktail = 1-3 units (depends on shots inside)
+          </div>
+          
+          <div style="margin-bottom:8px"><strong>Popular Drinks:</strong></div>
+          <div style="margin-left:12px; margin-bottom:8px">
+            Beer can = 2-3 units<br>
+            Wine bottle = 9 units<br>
+            Cocktail = count each shot (1 unit per shot)<br>
+            Mixed drink = count each shot (1 unit per shot)
+          </div>
+          
+          <div style="margin-bottom:8px"><strong>Easy Math:</strong></div>
+          <div style="margin-left:12px">
+            Had 2 beers? That's 4 units<br>
+            Had 1 wine + 1 beer? That's about 5 units<br>
+            Had 3 shots? That's 3 units<br>
+            Had 1 cocktail with 2 shots? That's 2 units
+          </div>
+        </div>
+      `;
+    }
+    
+    stepEl.innerHTML = `
+      <div class="mycolean-meta">Question ${step.id} of ${totalSteps}</div>
+      <h2 class="mycolean-q-title">${step.title}</h2>
+      <div class="mycolean-options">
+        ${step.options.map((opt,i)=>`<label class="mycolean-option">
+            <input type="radio" name="q${step.id}" value="${opt.score}"> ${opt.label}
+          </label>`).join('')}
+      </div>
+      ${unitGuide}
+    `;
+    $("#next").textContent = index === QUIZ.length-1 ? "See Results" : "Next";
+  }
+
+  $("#back").onclick = () => { if(index>0) index--; render(); };
+  $("#next").onclick = () => next();
+}
+
+async function next(){
+  const step = QUIZ[index];
+  
+  if(step.type === "gate"){
+    if(!document.getElementById("over18").checked){ 
+      alert("Please confirm you are 18+ to continue."); 
+      return; 
+    }
+    // Start quiz session when user confirms age
+    await startQuizSession();
+    await trackEvent('age_confirmed');
+  }
+  
+  if(step.type === "demographics"){
+    const sex = (document.querySelector('input[name="sex"]:checked')||{}).value;
+    const age = (document.querySelector('input[name="age"]:checked')||{}).value;
+    const email = document.getElementById('userEmail')?.value?.trim() || null;
+    
+    userMeta.sex = sex||null; 
+    userMeta.age = age||null;
+    userMeta.email = email;
+    
+    // Update session with email if provided
+    if (email && sessionUuid) {
+      try {
+        await apiCall('/update-email', 'POST', {
+          session_uuid: sessionUuid,
+          user_email: email
+        });
+      } catch (error) {
+        console.error('Failed to update email:', error);
+      }
+    }
+    
+    // Save demographics to API
+    await saveDemographics(userMeta);
+    await trackEvent('demographics_completed', null, {
+      ...userMeta,
+      email_provided: !!email
+    });
+  }
+  
+  if(step.type === "audit"){
+    const picked = document.querySelector(`input[name="q${step.id}"]:checked`);
+    if(!picked){ 
+      alert("Please choose an option to continue."); 
+      return; 
+    }
+    const score = Number(picked.value);
+    responses[step.id] = score;
+    
+    // Save individual response to API
+    await saveResponse(step.id, score);
+    await trackEvent('question_answered', `audit_q${step.id}`, {
+      question_id: step.id,
+      score: score,
+      option_selected: picked.parentElement.textContent.trim()
+    });
+  }
+  
+  if(index < QUIZ.length-1){ 
+    index++; 
+    questionStartTime = Date.now(); // Reset timer for next question
+    render(); 
+  } else { 
+    await showResults(); 
+  }
+}
+
+async function showResults(){
+  const sum = Object.values(responses).reduce((a,b)=>a+b,0);
+  let risk = riskFrom(sum, userMeta);
+  let serverResults = false;
+  let aiAnalysis = null;
+  
+  // Complete quiz via API and get server-side results with AI analysis
+  try {
+    const apiResult = await completeQuiz(responses);
+    if (apiResult && apiResult.risk_label) {
+      // Use server-calculated results if available
+      risk = {
+        label: apiResult.risk_label,
+        color: apiResult.risk_color,
+        text: apiResult.risk_message
+      };
+      aiAnalysis = apiResult.ai_analysis;
+      serverResults = true;
+      await trackEvent('quiz_completed', null, {
+        total_score: sum,
+        risk_level: apiResult.risk_level,
+        session_uuid: sessionUuid,
+        calculation_source: 'server',
+        conversion_probability: aiAnalysis?.conversion_probability?.probability
+      });
+    }
+  } catch (error) {
+    console.error('Failed to complete quiz via API, using local results:', error);
+  }
+  
+  // If server results weren't available, use local calculation
+  if (!serverResults) {
+    await trackEvent('quiz_completed_offline', null, {
+      total_score: sum,
+      risk_level: risk.label.toLowerCase().replace(/\s+/g, '_'),
+      calculation_source: 'client'
+    });
+  }
+  
+  const container = $("#app");
+  
+  // Generate AI analysis section HTML
+  let aiAnalysisHTML = '';
+  if (aiAnalysis) {
+    const mycoleanRec = aiAnalysis.mycolean_recommendation;
+    const conversionProb = aiAnalysis.conversion_probability;
+    
+    aiAnalysisHTML = `
+      <div class="mycolean-card" style="margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h3 style="margin: 0; color: white;">🤖 AI-Powered Personalized Analysis</h3>
+          <p style="margin: 8px 0; opacity: 0.9;">${aiAnalysis.personalized_message}</p>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <h4 style="margin: 0 0 10px 0; color: white;">🎯 Your Mycolean Match Score: ${Math.round(mycoleanRec.product_fit_score * 100)}%</h4>
+          <p style="margin: 0; opacity: 0.9;">${mycoleanRec.dosage_suggestion}</p>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <h4 style="margin: 0 0 10px 0; color: white;">💡 Recommended for You:</h4>
+          <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
+            ${mycoleanRec.usage_scenarios.map(scenario => `<li>${scenario}</li>`).join('')}
+          </ul>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <h4 style="margin: 0 0 10px 0; color: white;">✨ Expected Benefits:</h4>
+          <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
+            ${mycoleanRec.expected_benefits.map(benefit => `<li>${benefit}</li>`).join('')}
+          </ul>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <h4 style="margin: 0 0 10px 0; color: white;">📈 Your Success Plan:</h4>
+          <p style="margin: 0; opacity: 0.9;">${mycoleanRec.transition_plan}</p>
+          <p style="margin: 8px 0 0 0; opacity: 0.8; font-size: 14px;">Success Probability: ${Math.round(mycoleanRec.success_probability * 100)}%</p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+          <a href="https://mycolean.com/" target="_blank" style="display: inline-block; background: #ff6b6b; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(255,107,107,0.3); transition: all 0.3s ease;">
+            🚀 Try Mycolean Now - ${conversionProb.confidence_level} Match!
+          </a>
+          <p style="margin: 10px 0 0 0; opacity: 0.8; font-size: 12px;">
+            Based on your responses, you have a ${Math.round(conversionProb.probability * 100)}% likelihood of success with Mycolean
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Add OpenAI personalized insights if available
+    if (aiAnalysis.openai_insights) {
+      const openAIInsights = aiAnalysis.openai_insights;
+      aiAnalysisHTML += `
+        <div class="mycolean-card" style="margin-top: 20px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: white;">🧠 Personalized AI Insights</h3>
+            <p style="margin: 8px 0; opacity: 0.9;">${openAIInsights.personalized_message || 'Powered by advanced AI analysis'}</p>
+          </div>
+          
+          ${openAIInsights.key_insights ? `
+          <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin: 0 0 10px 0; color: white;">💡 Key Insights About You:</h4>
+            <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
+              ${openAIInsights.key_insights.map(insight => `<li>${insight}</li>`).join('')}
+            </ul>
+          </div>
+          ` : ''}
+          
+          ${openAIInsights.success_tips ? `
+          <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin: 0 0 10px 0; color: white;">🎯 Success Tips for You:</h4>
+            <ul style="margin: 0; padding-left: 20px; opacity: 0.9;">
+              ${openAIInsights.success_tips.map(tip => `<li>${tip}</li>`).join('')}
+            </ul>
+          </div>
+          ` : ''}
+          
+          ${openAIInsights.motivation_message ? `
+          <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center;">
+            <h4 style="margin: 0 0 10px 0; color: white;">💪 Your Motivation:</h4>
+            <p style="margin: 0; opacity: 0.9; font-style: italic;">"${openAIInsights.motivation_message}"</p>
+          </div>
+          ` : ''}
+          
+          ${openAIInsights.peer_comparison ? `
+          <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin: 0 0 10px 0; color: white;">👥 Compared to Similar Users:</h4>
+            <p style="margin: 0; opacity: 0.9;">${openAIInsights.peer_comparison}</p>
+          </div>
+          ` : ''}
+        </div>
+      `;
+    }
+  }
+  
+  container.innerHTML = `
+    <div class="mycolean-brand"><div class="mycolean-logo"></div><div>
+      <h1>Mycolean Self‑Check Results</h1>
+      <div class="mycolean-subtitle mycolean-small">AUDIT total score with AI-powered recommendations</div>
+    </div></div>
+    <div class="mycolean-card">
+      <div class="mycolean-result-badge" style="background:${risk.color}">
+        <span style="font-size:20px">Score: ${sum}</span> • <span>${risk.label}</span>
+      </div>
+      <p style="margin-top:16px">${risk.text}</p>
+      <div class="mycolean-notice mycolean-small">
+        Scoring bands: 0–7 low risk, 8–15 increasing risk, 16–19 higher risk, 20+ possible dependence.
+      </div>
+      <div class="mycolean-actions" style="margin-top:20px">
+        <button class="mycolean-btn mycolean-btn-ghost" onclick="location.reload()">Retake</button>
+        <button class="mycolean-btn mycolean-btn-primary" onclick="window.print()">Save / Print</button>
+      </div>
+      <div class="mycolean-notice mycolean-small" style="margin-top:14px">DISCLAIMER: This is a screening tool only, not medical advice. Your answers are completely private and confidential. Results vary by age and gender. For scores of 8+, consider reducing alcohol. For scores of 20+, seek professional help immediately. Developed by the World Health Organisation for healthcare professionals.</div>
+    </div>
+    ${aiAnalysisHTML}
+  `;
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  initShopifyIntegration();
+  render();
+});
+</script>
+
+<!-- End Mycolean Quiz -->

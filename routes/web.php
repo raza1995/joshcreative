@@ -196,3 +196,15 @@ Route::get('/analytics/aov', [AovReportController::class, 'index'])->name('analy
 Route::get('/analytics/aov/data', [AovReportController::class, 'data'])->name('analytics.aov.data');
 Route::get('/analytics/kpi', [KpiReportController::class, 'index'])->name('analytics.kpi');
 Route::get('/analytics/kpi/data', [KpiReportController::class, 'data'])->name('analytics.kpi.data');
+
+// Quiz Dashboard Routes
+use App\Http\Controllers\QuizDashboardController;
+
+Route::middleware(['auth'])->prefix('quiz')->name('quiz.')->group(function () {
+    Route::get('/dashboard', [QuizDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/sessions', [QuizDashboardController::class, 'sessions'])->name('sessions');
+    Route::get('/session/{sessionUuid}', [QuizDashboardController::class, 'sessionDetail'])->name('session-detail');
+    Route::get('/analytics', [QuizDashboardController::class, 'analytics'])->name('analytics');
+    Route::get('/ai-analytics', [\App\Http\Controllers\AIAnalyticsController::class, 'index'])->name('ai-analytics');
+    Route::get('/export', [QuizDashboardController::class, 'export'])->name('export');
+});

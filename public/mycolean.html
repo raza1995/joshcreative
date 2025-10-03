@@ -1,5 +1,5 @@
 <!-- Mycolean — Monthly Sober Tracker (Shopify-safe embed with email + API) -->
-<div id="mycolean" data-week-start="sun" data-api-base="https://joshcreative.test/api/mycolean">
+<div id="mycolean" data-week-start="sun" data-api-base="https://joshcreative.co/api/mycolean">
   <style>
     /* ---------- Mycolean Scoped Styles (no globals) ---------- */
     #mycolean {
@@ -84,37 +84,28 @@
     #mycolean .mc-input { width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: #0f1320; color: var(--text); padding: 12px 12px; }
     #mycolean .mc-help { color: var(--muted); font-size: 12px; margin-top: 6px; }
     #mycolean .mc-err { color: var(--err); font-size: 12px; margin-top: 6px; }
+    .only-mobile { display: block; }
+.only-desktop { display: none; }
+
+@media (min-width: 768px) {
+  .only-mobile { display: none; }
+  .only-desktop { display: block; }
+}
+
   </style>
 
-  <main class="mc-app" role="region" aria-label="Mycolean Sober Tracker">
+
+<main class="mc-app" role="region" aria-label="Mycolean Sober Tracker">
     <section class="mc-card mc-pad" aria-label="Bottle progress">
       <h2 class="mc-h1">Mycolean Sober Month</h2>
       <div class="mc-sub">Each sober day reveals more of the bottle.</div>
 
-      <div class="mc-bottle-wrap" aria-hidden="true">
+      <div class="mc-bottle-wrap only-desktop" aria-hidden="true">
         <div class="mc-bottle-outline"></div>
         <div class="mc-bottle-fill" data-el="bottleFill"></div>
       </div>
-
-      <div class="mc-meter">
-        <div data-el="percentLabel">0%</div>
-        <div class="mc-bar" data-el="meterBar"></div>
-      </div>
-
-      <div class="mc-controls">
-        <button class="mc-btn" data-el="markBtn" type="button">Mark Today Sober</button>
-        <button class="mc-btn mc-btn-ghost" data-el="undoBtn" type="button" disabled>Undo Today</button>
-      </div>
-
-      <div class="mc-stats">
-        <div class="mc-stat"><div class="mc-k" data-el="daysSober">0</div><div class="mc-l">Days Sober</div></div>
-        <div class="mc-stat"><div class="mc-k" data-el="currentStreak">0</div><div class="mc-l">Current Streak</div></div>
-        <div class="mc-stat"><div class="mc-k" data-el="bestStreak">0</div><div class="mc-l">Best Streak (month)</div></div>
-        <div class="mc-stat"><div class="mc-k" data-el="daysLeft">0</div><div class="mc-l">Days Left</div></div>
-      </div>
-    </section>
-
-    <section class="mc-card mc-pad mc-cal" aria-label="Calendar">
+      
+        <section class="mc-card mc-pad mc-cal only-mobile" aria-label="Calendar">
       <div class="mc-head">
         <div class="mc-month" data-el="monthLabel">Month YYYY</div>
         <div class="mc-nav" style="display:flex;gap:8px;align-items:center">
@@ -134,8 +125,51 @@
 
       <div class="mc-foot">Data syncs to your email via our API and is also cached locally on your device.</div>
     </section>
-  </main>
 
+      <div class="mc-meter">
+        <div data-el="percentLabel">0%</div>
+        <div class="mc-bar" data-el="meterBar"></div>
+      </div>
+
+      <div class="mc-controls">
+        <button class="mc-btn" data-el="markBtn" type="button">Mark Today Sober</button>
+        <button class="mc-btn mc-btn-ghost" data-el="undoBtn" type="button" disabled>Undo Today</button>
+      </div>
+
+      <div class="mc-stats">
+        <div class="mc-stat"><div class="mc-k" data-el="daysSober">0</div><div class="mc-l">Days Sober</div></div>
+        <div class="mc-stat"><div class="mc-k" data-el="currentStreak">0</div><div class="mc-l">Current Streak</div></div>
+        <div class="mc-stat"><div class="mc-k" data-el="bestStreak">0</div><div class="mc-l">Best Streak (month)</div></div>
+        <div class="mc-stat"><div class="mc-k" data-el="daysLeft">0</div><div class="mc-l">Days Left</div></div>
+      </div>
+    </section>
+    <div class="mc-bottle-wrap only-mobile" aria-hidden="true">
+        <div class="mc-bottle-outline"></div>
+        <div class="mc-bottle-fill" data-el="bottleFill"></div>
+      </div>
+    <section class="mc-card mc-pad mc-cal only-desktop" aria-label="Calendar">
+      <div class="mc-head">
+        <div class="mc-month" data-el="monthLabel">Month YYYY</div>
+        <div class="mc-nav" style="display:flex;gap:8px;align-items:center">
+          <button class="mc-btn mc-btn-ghost" data-el="prevBtn" type="button" aria-label="Previous month">‹</button>
+          <button class="mc-btn mc-btn-ghost" data-el="todayBtn" type="button">Today</button>
+          <button class="mc-btn mc-btn-ghost" data-el="nextBtn" type="button" aria-label="Next month">›</button>
+        </div>
+      </div>
+      <div class="mc-sub">Tap a past day to toggle. Today can be marked once.</div>
+
+      <div class="mc-grid" data-el="dowRow" aria-hidden="true"></div>
+      <div class="mc-grid" data-el="calendarGrid"></div>
+
+      <div class="mc-legend">
+        <span class="mc-key mc-mark"></span> Marked Sober | Click past days to toggle.
+      </div>
+
+      <div class="mc-foot">Data syncs to your email via our API and is also cached locally on your device.</div>
+    </section>
+    
+  </main>
+  <main>
   <!-- Email gate overlay -->
   <div class="mc-gate" data-el="gate" aria-modal="true" role="dialog" aria-labelledby="mcGateTitle">
     <div class="mc-gate-card">
@@ -149,7 +183,7 @@
       <div class="mc-err" data-el="gateErr" style="display:none"></div>
     </div>
   </div>
-
+</main>
   <script>
     (function initMycolean(rootId) {
       const root = document.getElementById(rootId);
@@ -169,14 +203,14 @@
 
       // Elements
       const els = {
-        bottleFill: root.querySelector('[data-el="bottleFill"]'),
+        bottleFills: Array.from(root.querySelectorAll('[data-el="bottleFill"]')),
         meterBar: root.querySelector('[data-el="meterBar"]'),
         percentLabel: root.querySelector('[data-el="percentLabel"]'),
         markBtn: root.querySelector('[data-el="markBtn"]'),
         undoBtn: root.querySelector('[data-el="undoBtn"]'),
-        monthLabel: root.querySelector('[data-el="monthLabel"]'),
-        dowRow: root.querySelector('[data-el="dowRow"]'),
-        grid: root.querySelector('[data-el="calendarGrid"]'),
+        monthLabels: Array.from(root.querySelectorAll('[data-el="monthLabel"]')),
+        dowRows: Array.from(root.querySelectorAll('[data-el="dowRow"]')),
+        grids: Array.from(root.querySelectorAll('[data-el="calendarGrid"]')),
         daysSober: root.querySelector('[data-el="daysSober"]'),
         currentStreak: root.querySelector('[data-el="currentStreak"]'),
         bestStreak: root.querySelector('[data-el="bestStreak"]'),
@@ -211,7 +245,8 @@
 
       // UI setup
       function setMonthLabel() {
-        els.monthLabel.textContent = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(viewYear, viewMonth-1, 1));
+        const txt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(viewYear, viewMonth-1, 1));
+        els.monthLabels.forEach(el => { el.textContent = txt; });
       }
       setMonthLabel();
       // DOW row
@@ -221,7 +256,15 @@
         dNames.push(name);
       }
       const order = SUNDAY_FIRST ? [0,1,2,3,4,5,6] : [1,2,3,4,5,6,0];
-      order.forEach(idx => { const el = document.createElement('div'); el.className = 'mc-dow'; el.textContent = dNames[idx]; els.dowRow.appendChild(el); });
+      els.dowRows.forEach(row => {
+        row.textContent = '';
+        order.forEach(idx => {
+          const el = document.createElement('div');
+          el.className = 'mc-dow';
+          el.textContent = dNames[idx];
+          row.appendChild(el);
+        });
+      });
 
       function saveLocal() { try { localStorage.setItem(localKeyFor(viewYear, viewMonth), JSON.stringify(state)); } catch(_) {} }
       function loadLocal() {
@@ -237,7 +280,7 @@
 
       function setBottleFill(pct) {
         const topInset = Math.max(0, 100 - Math.round(pct * 100));
-        els.bottleFill.style.setProperty('--inset-top', `${topInset}%`);
+        els.bottleFills.forEach(el => el.style.setProperty('--inset-top', `${topInset}%`));
         els.meterBar.style.setProperty('--w', `${Math.round(pct*100)}%`);
         els.percentLabel.textContent = `${Math.round(pct*100)}%`;
       }
@@ -275,38 +318,40 @@
       }
 
       function buildCalendar() {
-        els.grid.textContent = '';
         const today = new Date();
         const dim = daysInMonth(viewYear, viewMonth);
         const firstDow = (new Date(viewYear, viewMonth-1, 1).getDay()); // 0=Sun
         const startOffset = SUNDAY_FIRST ? firstDow : (firstDow === 0 ? 6 : firstDow - 1);
         const totalCells = startOffset + dim;
-        for (let i = 0; i < totalCells; i++) {
-          const cell = document.createElement('div');
-          if (i < startOffset) { cell.className = 'mc-day mc-off'; cell.setAttribute('aria-hidden','true'); els.grid.appendChild(cell); continue; }
-          const dayNum = i - startOffset + 1;
-          const date = new Date(viewYear, viewMonth-1, dayNum);
-          let future = false;
-          if (viewYear > nowYear || (viewYear === nowYear && viewMonth > nowMonth)) future = true;
-          else if (isCurrentView() && dayNum > nowDay) future = true;
-          const isToday = (isCurrentView() && dayNum === nowDay);
+        els.grids.forEach(grid => {
+          grid.textContent = '';
+          for (let i = 0; i < totalCells; i++) {
+            const cell = document.createElement('div');
+            if (i < startOffset) { cell.className = 'mc-day mc-off'; cell.setAttribute('aria-hidden','true'); grid.appendChild(cell); continue; }
+            const dayNum = i - startOffset + 1;
+            const date = new Date(viewYear, viewMonth-1, dayNum);
+            let future = false;
+            if (viewYear > nowYear || (viewYear === nowYear && viewMonth > nowMonth)) future = true;
+            else if (isCurrentView() && dayNum > nowDay) future = true;
+            const isToday = (isCurrentView() && dayNum === nowDay);
 
-          cell.className = 'mc-day';
-          cell.textContent = dayNum;
-          if (state.days[dayNum-1]) cell.classList.add('mc-marked');
-          if (future) cell.classList.add('mc-off');
-          if (isToday) cell.classList.add('mc-today');
-          cell.tabIndex = future ? -1 : 0;
-          cell.setAttribute('role','button');
-          cell.setAttribute('aria-pressed', state.days[dayNum-1] ? 'true' : 'false');
-          cell.title = future ? 'Future days cannot be marked yet' : 'Toggle sober for this day';
+            cell.className = 'mc-day';
+            cell.textContent = dayNum;
+            if (state.days[dayNum-1]) cell.classList.add('mc-marked');
+            if (future) cell.classList.add('mc-off');
+            if (isToday) cell.classList.add('mc-today');
+            cell.tabIndex = future ? -1 : 0;
+            cell.setAttribute('role','button');
+            cell.setAttribute('aria-pressed', state.days[dayNum-1] ? 'true' : 'false');
+            cell.title = future ? 'Future days cannot be marked yet' : 'Toggle sober for this day';
 
-          if (!future) {
-            cell.addEventListener('click', () => toggleDay(dayNum));
-            cell.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleDay(dayNum); } });
+            if (!future) {
+              cell.addEventListener('click', () => toggleDay(dayNum));
+              cell.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleDay(dayNum); } });
+            }
+            grid.appendChild(cell);
           }
-          els.grid.appendChild(cell);
-        }
+        });
       }
 
       function updateUI() {
@@ -321,10 +366,8 @@
         setBottleFill(state.days.filter(Boolean).length / dim);
         renderCountdown();
         // Nav button states
-        const prevBtn = root.querySelector('[data-el="prevBtn"]');
-        const nextBtn = root.querySelector('[data-el="nextBtn"]');
-        if (prevBtn) prevBtn.disabled = false;
-        if (nextBtn) nextBtn.disabled = (viewYear === nowYear && viewMonth === nowMonth);
+        prevBtns.forEach(btn => btn.disabled = false);
+        nextBtns.forEach(btn => btn.disabled = (viewYear === nowYear && viewMonth === nowMonth));
         // Mark button enabled only on current view
         if (!isCurrentView()) { els.markBtn.disabled = true; els.markBtn.textContent = 'Mark Today Sober'; }
       }
@@ -409,9 +452,9 @@
       els.undoBtn.disabled = true;
 
       // Month navigation
-      const prevBtn = root.querySelector('[data-el="prevBtn"]');
-      const nextBtn = root.querySelector('[data-el="nextBtn"]');
-      const todayBtn = root.querySelector('[data-el="todayBtn"]');
+      const prevBtns = Array.from(root.querySelectorAll('[data-el="prevBtn"]'));
+      const nextBtns = Array.from(root.querySelectorAll('[data-el="nextBtn"]'));
+      const todayBtns = Array.from(root.querySelectorAll('[data-el="todayBtn"]'));
       async function goTo(y, m) {
         viewYear = y; viewMonth = m; state = loadLocal(); updateUI();
         if (email) {
@@ -430,9 +473,9 @@
         goTo(d.getFullYear(), d.getMonth() + 1);
       }
       function goToday() { goTo(nowYear, nowMonth); }
-      if (prevBtn) prevBtn.addEventListener('click', prevMonth);
-      if (nextBtn) nextBtn.addEventListener('click', nextMonth);
-      if (todayBtn) todayBtn.addEventListener('click', goToday);
+      prevBtns.forEach(btn => btn.addEventListener('click', prevMonth));
+      nextBtns.forEach(btn => btn.addEventListener('click', nextMonth));
+      todayBtns.forEach(btn => btn.addEventListener('click', goToday));
 
       // Email gate
       function showGate() { els.gate.style.display = 'grid'; els.emailInput.focus(); }

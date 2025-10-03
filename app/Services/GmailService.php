@@ -69,7 +69,7 @@ class GmailService
             
                 $this->client->setAccessToken($newAccessToken);
                 file_put_contents($this->tokenPath, json_encode($newAccessToken));
-                Log::info("✅ Google API token refreshed successfully.");
+                Log::info("");
             } catch (\Exception $e) {
                 Log::error("❌ Token refresh failed: " . $e->getMessage());
                 $this->generateNewToken();
