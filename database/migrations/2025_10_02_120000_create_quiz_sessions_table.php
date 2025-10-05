@@ -17,7 +17,7 @@ return new class extends Migration {
             $table->string('user_email')->nullable();
             $table->string('user_ip')->nullable();
             $table->string('user_agent')->nullable();
-            $table->string('referrer_url')->nullable();
+            $table->text('referrer_url')->nullable();
             $table->string('shopify_domain')->nullable(); // If embedded in Shopify
             
             // Demographics data (stored as JSON for flexibility)
