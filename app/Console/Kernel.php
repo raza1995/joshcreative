@@ -35,6 +35,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('facebook:export monthly')->monthlyOn(1, '08:00');
         $schedule->command('mp:ingest')->hourlyAt(3);
 
+        // ShipStation SKU Consolidation - Pull orders every 3 minutes
+        $schedule->command('shipstation:sync-from-api --minutes=60')
+                 ->everyThreeMinutes()
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->emailOutputOnFailure('razakkhanafridi@gmail.com');
+
         $schedule->command('facebook:aggregate-custom-metrics --days=60')->weeklyOn(0, '1:00'); // Sunday
         $schedule->command('facebook:aggregate-custom-metrics --days=90')->weeklyOn(0, '1:15');
         $schedule->command('facebook:aggregate-custom-metrics --days=15')->weeklyOn(0, '1:30');
