@@ -1,0 +1,103 @@
+# ============================================
+# ShipStation API Configuration
+# ============================================
+# Get your API credentials from: https://ss.shipstation.com/#/settings/api
+
+SHIPSTATION_API_KEY=your_api_key_here
+SHIPSTATION_API_SECRET=your_api_secret_here
+SHIPSTATION_BASE_URL=https://ssapi.shipstation.com
+
+# ============================================
+# Integration Settings
+# ============================================
+
+# Auto-push orders to ShipStation after consolidation
+# false = Manual push only (recommended for testing)
+# true = Automatic push on new orders
+SHIPSTATION_AUTO_PUSH=false
+
+# Enable SKU consolidation (merge duplicate SKUs)
+SHIPSTATION_CONSOLIDATE_SKUS=true
+
+# Test mode (consolidate but don't actually call ShipStation API)
+SHIPSTATION_TEST_MODE=false
+
+# ============================================
+# Sync Strategy
+# ============================================
+
+# How to handle orders that already exist in ShipStation:
+# - update_if_exists: Check if exists → Update if found, Create if not (RECOMMENDED)
+# - create_only: Only create new orders, skip if already exists
+# - always_create: Always create (may cause duplicates, NOT recommended)
+SHIPSTATION_SYNC_STRATEGY=update_if_exists
+
+# Update existing orders in ShipStation
+# true = Update orders that already exist (RECOMMENDED)
+# false = Skip orders that already exist
+SHIPSTATION_UPDATE_EXISTING=true
+
+# ============================================
+# Price Strategy
+# ============================================
+
+# How to handle prices when consolidating duplicate SKUs:
+# - weighted_average: (qty1*price1 + qty2*price2) / total_qty (RECOMMENDED)
+# - lowest: Use the lowest price
+# - highest: Use the highest price
+# - first: Use the first occurrence price
+SHIPSTATION_PRICE_STRATEGY=weighted_average
+
+# ============================================
+# Validation Rules
+# ============================================
+# These control which orders are pushed to ShipStation
+
+# Skip orders without shipping address (e.g., digital products)
+# Set to false if you want to push all orders regardless
+# SHIPSTATION_REQUIRE_SHIPPING_ADDRESS=true
+
+# Skip orders with no line items
+# SHIPSTATION_REQUIRE_LINE_ITEMS=true
+
+# Minimum order total (skip orders below this amount)
+# SHIPSTATION_MINIMUM_ORDER_TOTAL=0
+
+# ============================================
+# Rate Limiting
+# ============================================
+# ShipStation API allows 40 requests per minute
+
+SHIPSTATION_RATE_LIMIT=40
+SHIPSTATION_REQUEST_DELAY_MS=1500  # 1.5 seconds between requests
+
+# ============================================
+# Queue Configuration
+# ============================================
+
+SHIPSTATION_QUEUE_CONNECTION=default
+SHIPSTATION_QUEUE_NAME=shipstation
+SHIPSTATION_QUEUE_RETRY_AFTER=180  # seconds
+SHIPSTATION_QUEUE_MAX_TRIES=3
+
+# ============================================
+# Shipping Defaults
+# ============================================
+
+# Default carrier code (usps, ups, fedex, dhl_express)
+SHIPSTATION_DEFAULT_CARRIER=usps
+
+# Default service code
+SHIPSTATION_DEFAULT_SERVICE=usps_first_class_mail
+
+# Prefix for ShipStation order keys (e.g., SHOPIFY-123456)
+SHIPSTATION_ORDER_KEY_PREFIX=SHOPIFY
+
+# ============================================
+# Logging
+# ============================================
+
+SHIPSTATION_LOGGING_ENABLED=true
+SHIPSTATION_LOG_API_REQUESTS=true
+SHIPSTATION_LOG_API_RESPONSES=false  # Warning: Can be very verbose
+

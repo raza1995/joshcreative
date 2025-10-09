@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Services\MixpanelService;
 use App\Services\AttributionService;
+use App\Services\ShipStationOrderConsolidatorService;
+use App\Jobs\PushOrderToShipStationJob;
 
 class ShopifyWebhookController extends Controller
 {
@@ -170,10 +172,90 @@ class ShopifyWebhookController extends Controller
             ]);
         }
         
+        // ShipStation Integration: Consolidate and push order
+        $this->processShipStationOrder($orderData['id']);
     
         return response()->json(['message' => 'Webhook received, saved, and tracked.']);
     }
     
+
+    /**
+     * Process order for ShipStation (consolidate SKUs and queue push)
+     */
+    protected function processShipStationOrder($orderNumber)
+    {
+        // Check if ShipStation integration is enabled
+        if (!config('shipstation.consolidate_skus', false)) {
+            Log::info('ShipStation consolidation disabled', ['order_number' => $orderNumber]);
+            return;
+        }
+
+        try {
+            // Find the Shopify order
+            $shopifyOrder = ShopifyOrder::where('order_number', $orderNumber)->first();
+
+            if (!$shopifyOrder) {
+                Log::warning('ShopifyOrder not found for ShipStation processing', [
+                    'order_number' => $orderNumber,
+                ]);
+                return;
+            }
+
+            // Consolidate order
+            $consolidator = app(ShipStationOrderConsolidatorService::class);
+            $shipstationOrder = $consolidator->consolidateOrder($shopifyOrder);
+
+            if (!$shipstationOrder) {
+                Log::warning('Failed to consolidate order for ShipStation', [
+                    'order_number' => $orderNumber,
+                ]);
+                return;
+            }
+
+            Log::info('Order consolidated for ShipStation', [
+                'order_number' => $orderNumber,
+                'shipstation_order_id' => $shipstationOrder->id,
+            ]);
+
+            // Queue push to ShipStation if auto-push is enabled
+            if (config('shipstation.auto_push', false)) {
+                $delayMinutes = config('shipstation.webhook_delay_minutes', 0);
+                
+                if ($delayMinutes > 0) {
+                    // Delay push to let ShipStation auto-sync first
+                    PushOrderToShipStationJob::dispatch($shipstationOrder->id)
+                        ->delay(now()->addMinutes($delayMinutes));
+                    
+                    Log::info('Order queued for ShipStation push with delay', [
+                        'order_number' => $orderNumber,
+                        'shipstation_order_id' => $shipstationOrder->id,
+                        'delay_minutes' => $delayMinutes,
+                        'will_process_at' => now()->addMinutes($delayMinutes)->toDateTimeString(),
+                    ]);
+                } else {
+                    // Immediate push
+                    PushOrderToShipStationJob::dispatch($shipstationOrder->id);
+                    
+                    Log::info('Order queued for ShipStation push (immediate)', [
+                        'order_number' => $orderNumber,
+                        'shipstation_order_id' => $shipstationOrder->id,
+                    ]);
+                }
+            } else {
+                Log::info('Auto-push disabled, order consolidated but not queued', [
+                    'order_number' => $orderNumber,
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            // Log error but don't fail webhook
+            Log::error('Error processing order for ShipStation', [
+                'order_number' => $orderNumber,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
 
     public function handleFulfillmentUpdate(Request $request, MixpanelService $mixpanelService)
     {

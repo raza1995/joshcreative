@@ -1,0 +1,159 @@
+{
+  "id": 5234567890,
+  "email": "customer@example.com",
+  "created_at": "2025-10-09T15:30:00-04:00",
+  "updated_at": "2025-10-09T15:30:00-04:00",
+  "number": 1234,
+  "note": null,
+  "total_price": "234.00",
+  "subtotal_price": "234.00",
+  "total_weight": 0,
+  "total_tax": "0.00",
+  "taxes_included": false,
+  "currency": "USD",
+  "financial_status": "paid",
+  "confirmed": true,
+  "total_discounts": "5.00",
+  "total_line_items_price": "239.00",
+  "name": "#1234",
+  "discount_codes": [
+    {
+      "code": "SAVE5",
+      "amount": "5.00",
+      "type": "fixed_amount"
+    }
+  ],
+  "customer": {
+    "id": 1234567890,
+    "email": "customer@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone": "+1234567890"
+  },
+  "shipping_address": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "company": null,
+    "address1": "123 Main Street",
+    "address2": "Apt 4B",
+    "city": "Los Angeles",
+    "province": "California",
+    "province_code": "CA",
+    "country": "United States",
+    "country_code": "US",
+    "zip": "90001",
+    "phone": "+1234567890",
+    "name": "John Doe"
+  },
+  "line_items": [
+    {
+      "id": 111111111,
+      "variant_id": 44444444,
+      "title": "Mushroom Coffee - 30 Day Supply",
+      "quantity": 1,
+      "sku": "MUSHROOM-COFFEE-30",
+      "variant_title": "30-Day Supply",
+      "vendor": "MyColean",
+      "fulfillment_service": "manual",
+      "product_id": 7777777,
+      "requires_shipping": true,
+      "taxable": true,
+      "gift_card": false,
+      "name": "Mushroom Coffee - 30 Day Supply",
+      "price": "50.00",
+      "grams": 900,
+      "total_discount": "5.00",
+      "fulfillment_status": null,
+      "properties": [],
+      "product_exists": true
+    },
+    {
+      "id": 222222222,
+      "variant_id": 44444444,
+      "title": "Mushroom Coffee - 30 Day Supply",
+      "quantity": 2,
+      "sku": "MUSHROOM-COFFEE-30",
+      "variant_title": "30-Day Supply",
+      "vendor": "MyColean",
+      "fulfillment_service": "manual",
+      "product_id": 7777777,
+      "requires_shipping": true,
+      "taxable": true,
+      "gift_card": false,
+      "name": "Mushroom Coffee - 30 Day Supply",
+      "price": "48.00",
+      "grams": 900,
+      "total_discount": "0.00",
+      "fulfillment_status": null,
+      "properties": [],
+      "product_exists": true
+    },
+    {
+      "id": 333333333,
+      "variant_id": 55555555,
+      "title": "Immunity Blend - Lion's Mane",
+      "quantity": 1,
+      "sku": "IMMUNITY-LIONS-MANE",
+      "variant_title": "60 Capsules",
+      "vendor": "MyColean",
+      "fulfillment_service": "manual",
+      "product_id": 8888888,
+      "requires_shipping": true,
+      "taxable": true,
+      "gift_card": false,
+      "name": "Immunity Blend - Lion's Mane",
+      "price": "35.00",
+      "grams": 200,
+      "total_discount": "0.00",
+      "fulfillment_status": null,
+      "properties": [],
+      "product_exists": true
+    },
+    {
+      "id": 444444444,
+      "variant_id": 44444444,
+      "title": "Mushroom Coffee - 30 Day Supply",
+      "quantity": 1,
+      "sku": "MUSHROOM-COFFEE-30",
+      "variant_title": "30-Day Supply",
+      "vendor": "MyColean",
+      "fulfillment_service": "manual",
+      "product_id": 7777777,
+      "requires_shipping": true,
+      "taxable": true,
+      "gift_card": false,
+      "name": "Mushroom Coffee - 30 Day Supply",
+      "price": "50.00",
+      "grams": 900,
+      "total_discount": "0.00",
+      "fulfillment_status": null,
+      "properties": [],
+      "product_exists": true
+    }
+  ],
+  "shipping_lines": [
+    {
+      "id": 9999999,
+      "title": "Standard Shipping",
+      "price": "0.00",
+      "code": "Standard",
+      "source": "shopify"
+    }
+  ],
+  "note_attributes": [
+    {
+      "name": "_anon_id",
+      "value": "anon_123456789"
+    },
+    {
+      "name": "utm_source",
+      "value": "facebook"
+    },
+    {
+      "name": "utm_campaign",
+      "value": "fall_sale"
+    }
+  ],
+  "tags": "first-time-customer, vip"
+}
+
