@@ -346,14 +346,27 @@ class ShipStationApiService
      */
     protected function buildOrderPayload(ShipStationOrder $order): array
     {
-        $lineItems = $order->lineItems->map(function ($item) {
+        $imageOverrides = config('shipstation.sku_image_overrides', []);
+        
+        $lineItems = $order->lineItems->map(function ($item) use ($imageOverrides) {
+            // Check for image URL override
+            $imageUrl = $item->image_url;
+            if (isset($imageOverrides[$item->sku])) {
+                $imageUrl = $imageOverrides[$item->sku];
+                
+                Log::info('Applied image URL override for SKU in payload build', [
+                    'sku' => $item->sku,
+                    'image_url' => $imageUrl,
+                ]);
+            }
+            
             $itemData = [
                 'lineItemKey' => null, // Optional, can be used for order modifications
                 'sku' => $item->sku,
                 'name' => $item->name,
                 'quantity' => (int)$item->quantity,
                 'unitPrice' => (float)$item->unit_price,
-                'imageUrl' => $item->image_url,
+                'imageUrl' => $imageUrl,
                 'taxAmount' => null,
                 'shippingAmount' => null,
                 'warehouseLocation' => null,

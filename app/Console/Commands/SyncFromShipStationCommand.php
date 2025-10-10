@@ -98,8 +98,10 @@ class SyncFromShipStationCommand extends Command
                     continue;
                 }
 
-                // Check if has duplicate SKUs
-                if (!$this->pullService->hasDuplicateSKUs($order)) {
+                // Check if has duplicate SKUs or needs image URL updates
+                $needsImageUpdate = $this->needsImageUpdate($order);
+                
+                if (!$this->pullService->hasDuplicateSKUs($order) && !$needsImageUpdate) {
                     if (!$dryRun) {
                         ShipStationProcessedOrder::markAsProcessed(
                             $shipstationOrderId,
@@ -108,7 +110,7 @@ class SyncFromShipStationCommand extends Command
                             'skipped_no_duplicates',
                             count($order['items'] ?? []),
                             count($order['items'] ?? []),
-                            'No duplicate SKUs found'
+                            'No duplicate SKUs or image updates needed'
                         );
                     }
                     $stats['skipped_no_duplicates']++;
@@ -195,6 +197,29 @@ class SyncFromShipStationCommand extends Command
         );
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Check if order has items that need image URL updates
+     */
+    protected function needsImageUpdate(array $order): bool
+    {
+        $imageOverrides = config('shipstation.sku_image_overrides', []);
+        
+        if (empty($imageOverrides)) {
+            return false;
+        }
+
+        $items = $order['items'] ?? [];
+        
+        foreach ($items as $item) {
+            $sku = $item['sku'] ?? null;
+            if ($sku && isset($imageOverrides[$sku])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function updateOrderInShipStation(array $order): array

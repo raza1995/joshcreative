@@ -122,7 +122,12 @@ class ShipStationPullService
         foreach ($grouped as $sku => $itemGroup) {
             if (count($itemGroup) === 1) {
                 // No consolidation needed
-                $consolidated[] = $itemGroup[0];
+                $item = $itemGroup[0];
+                
+                // Apply image URL override if configured
+                $item = $this->applyImageUrlOverride($item);
+                
+                $consolidated[] = $item;
             } else {
                 // Multiple items with same SKU - consolidate
                 $totalQuantity = 0;
@@ -140,7 +145,7 @@ class ShipStationPullService
                 $avgPrice = $totalQuantity > 0 ? $totalValue / $totalQuantity : 0;
 
                 // Use first item as template, update quantity and price
-                $consolidated[] = array_merge($first, [
+                $consolidatedItem = array_merge($first, [
                     'quantity' => $totalQuantity,
                     'unitPrice' => round($avgPrice, 2),
                     'options' => array_merge($first['options'] ?? [], [
@@ -150,10 +155,40 @@ class ShipStationPullService
                         ]
                     ]),
                 ]);
+                
+                // Apply image URL override if configured
+                $consolidatedItem = $this->applyImageUrlOverride($consolidatedItem);
+                
+                $consolidated[] = $consolidatedItem;
             }
         }
 
         return $consolidated;
+    }
+
+    /**
+     * Apply image URL override for specific SKUs
+     */
+    protected function applyImageUrlOverride(array $item): array
+    {
+        $sku = $item['sku'] ?? null;
+        
+        if (!$sku) {
+            return $item;
+        }
+
+        $imageOverrides = config('shipstation.sku_image_overrides', []);
+        
+        if (isset($imageOverrides[$sku])) {
+            $item['imageUrl'] = $imageOverrides[$sku];
+            
+            Log::info('Applied image URL override for SKU', [
+                'sku' => $sku,
+                'image_url' => $imageOverrides[$sku],
+            ]);
+        }
+
+        return $item;
     }
 
     /**

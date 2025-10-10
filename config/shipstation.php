@@ -208,5 +208,22 @@ return [
 
     'only_update_existing' => env('SHIPSTATION_ONLY_UPDATE_EXISTING', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | SKU Image URL Overrides
+    |--------------------------------------------------------------------------
+    |
+    | Override image URLs for specific SKUs when syncing to ShipStation.
+    | Useful for bundle products or when you want to display a different
+    | image in the warehouse than what's shown on the storefront.
+    |
+    | Format: ['SKU' => 'https://full-image-url.com/image.png']
+    |
+    */
+
+    'sku_image_overrides' => [
+        'REG-BCHRY-1' => 'https://cdn.shopify.com/s/files/1/0871/0501/2022/files/Kaching-Bundles-gempages_512970537769632904-9ed795db-06d2-4bbf-8d6c-f6ab67fe6205_54928ecc-0874-40a0-a843-6244cc1f16f1.png?v=1758266356',
+    ],
+
 ];
 
