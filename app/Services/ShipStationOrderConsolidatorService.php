@@ -45,12 +45,7 @@ class ShipStationOrderConsolidatorService
                 return null;
             }
 
-            // Check if already consolidated
-            $existingOrder = ShipStationOrder::where('order_number', $orderData['order_number'])->first();
-            if ($existingOrder) {
-                Log::info('Order already consolidated', ['order_number' => $orderData['order_number']]);
-                return $existingOrder;
-            }
+            // Note: Duplicate handling is now done by updateOrCreate in createShipStationOrder
 
             // Create ShipStation order record
             $shipstationOrder = $this->createShipStationOrder($shopifyOrder, $orderData);
@@ -204,29 +199,41 @@ class ShipStationOrderConsolidatorService
         
         $orderKey = config('shipstation.order_key_prefix', 'SHOPIFY') . '-' . $orderData['id'];
 
-        return ShipStationOrder::create([
-            'shopify_order_id' => $shopifyOrder->id,
-            'order_number' => $orderData['id'],
+        $shipstationOrder = ShipStationOrder::updateOrCreate(
+            ['order_key' => $orderKey],
+            [
+                'shopify_order_id' => $shopifyOrder->id,
+                'order_number' => $orderData['id'],
+                'customer_name' => trim(($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? '')),
+                'customer_email' => $orderData['email'] ?? $customer['email'] ?? null,
+                'order_total' => $orderData['total_price'] ?? 0,
+                'shipping_amount' => $orderData['total_shipping_price_set']['shop_money']['amount'] ?? $orderData['shipping_lines'][0]['price'] ?? 0,
+                'tax_amount' => $orderData['total_tax'] ?? 0,
+                'discount_amount' => $orderData['total_discounts'] ?? 0,
+                'ship_name' => $shipping['name'] ?? trim(($shipping['first_name'] ?? '') . ' ' . ($shipping['last_name'] ?? '')),
+                'ship_company' => $shipping['company'] ?? null,
+                'ship_street1' => $shipping['address1'] ?? null,
+                'ship_street2' => $shipping['address2'] ?? null,
+                'ship_city' => $shipping['city'] ?? null,
+                'ship_state' => $shipping['province_code'] ?? $shipping['province'] ?? null,
+                'ship_postal_code' => $shipping['zip'] ?? null,
+                'ship_country' => $shipping['country_code'] ?? $shipping['country'] ?? 'US',
+                'ship_phone' => $shipping['phone'] ?? $customer['phone'] ?? null,
+                'consolidation_status' => 'pending',
+                'original_line_items' => $orderData['line_items'] ?? [],
+                'shopify_raw' => $orderData,
+            ]
+        );
+
+        // Log whether we created or updated
+        $wasRecentlyCreated = $shipstationOrder->wasRecentlyCreated;
+        Log::info('ShipStation order ' . ($wasRecentlyCreated ? 'created' : 'updated'), [
             'order_key' => $orderKey,
-            'customer_name' => trim(($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? '')),
-            'customer_email' => $orderData['email'] ?? $customer['email'] ?? null,
-            'order_total' => $orderData['total_price'] ?? 0,
-            'shipping_amount' => $orderData['total_shipping_price_set']['shop_money']['amount'] ?? $orderData['shipping_lines'][0]['price'] ?? 0,
-            'tax_amount' => $orderData['total_tax'] ?? 0,
-            'discount_amount' => $orderData['total_discounts'] ?? 0,
-            'ship_name' => $shipping['name'] ?? trim(($shipping['first_name'] ?? '') . ' ' . ($shipping['last_name'] ?? '')),
-            'ship_company' => $shipping['company'] ?? null,
-            'ship_street1' => $shipping['address1'] ?? null,
-            'ship_street2' => $shipping['address2'] ?? null,
-            'ship_city' => $shipping['city'] ?? null,
-            'ship_state' => $shipping['province_code'] ?? $shipping['province'] ?? null,
-            'ship_postal_code' => $shipping['zip'] ?? null,
-            'ship_country' => $shipping['country_code'] ?? $shipping['country'] ?? 'US',
-            'ship_phone' => $shipping['phone'] ?? $customer['phone'] ?? null,
-            'consolidation_status' => 'pending',
-            'original_line_items' => $orderData['line_items'] ?? [],
-            'shopify_raw' => $orderData,
+            'order_number' => $orderData['id'],
+            'action' => $wasRecentlyCreated ? 'created' : 'updated',
         ]);
+
+        return $shipstationOrder;
     }
 
     /**
