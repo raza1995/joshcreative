@@ -22,6 +22,68 @@ class ShipStationPullService
     }
 
     /**
+     * Pull a specific order from ShipStation by order ID
+     * 
+     * @param string $orderId ShipStation order ID
+     * @return array Array containing the single order
+     */
+    public function pullSpecificOrder(string $orderIdentifier): array
+    {
+        try {
+            Log::info('Pulling specific order from ShipStation', [
+                'order_identifier' => $orderIdentifier,
+            ]);
+
+            // Try to search by order number first
+            $response = Http::withHeaders([
+                'Authorization' => $this->authHeader,
+            ])
+            ->timeout(30)
+            ->get($this->baseUrl . '/orders', [
+                'orderNumber' => $orderIdentifier,
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Failed to fetch specific order from ShipStation', [
+                    'order_identifier' => $orderIdentifier,
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                ]);
+                return [];
+            }
+
+            $data = $response->json();
+            $orders = $data['orders'] ?? [];
+            
+            if (empty($orders)) {
+                Log::warning('Specific order not found in ShipStation', [
+                    'order_identifier' => $orderIdentifier,
+                    'search_method' => 'orderNumber',
+                ]);
+                return [];
+            }
+
+            $order = $orders[0]; // Get first matching order
+            
+            Log::info('Successfully fetched specific order from ShipStation', [
+                'order_identifier' => $orderIdentifier,
+                'order_number' => $order['orderNumber'] ?? 'Unknown',
+                'shipstation_order_id' => $order['orderId'] ?? 'Unknown',
+                'order_status' => $order['orderStatus'] ?? 'Unknown',
+            ]);
+
+            return [$order]; // Return as array to match pullNewOrders format
+
+        } catch (\Exception $e) {
+            Log::error('Exception while pulling specific order from ShipStation', [
+                'order_identifier' => $orderIdentifier,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Pull new orders from ShipStation that haven't been processed yet
      * 
      * @param int $minutes Look back this many minutes for new orders

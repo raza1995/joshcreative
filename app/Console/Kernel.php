@@ -22,6 +22,13 @@ class Kernel extends ConsoleKernel
                  ->runInBackground()
                  ->emailOutputOnFailure('razakkhanafridi@gmail.com');
 
+        // Shopify Product Sync - Every hour to keep pricing up to date
+        $schedule->command('shopify:sync-products')
+                 ->hourly()
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->emailOutputOnFailure('razakkhanafridi@gmail.com');
+
         // $schedule->command('shopify:fetch-orders-mycolean')->everySixHours();
         // $schedule->command('inspire')->hourly();
         // $schedule->command('cache:refresh-analytics')->everyThreeHours();

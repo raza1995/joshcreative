@@ -225,5 +225,40 @@ return [
         'REG-BCHRY-1' => 'https://cdn.shopify.com/s/files/1/0871/0501/2022/files/Kaching-Bundles-gempages_512970537769632904-9ed795db-06d2-4bbf-8d6c-f6ab67fe6205_54928ecc-0874-40a0-a843-6244cc1f16f1.png?v=1758266356',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Bundle Component Mappings
+    |--------------------------------------------------------------------------
+    |
+    | Maps bundle SKUs to their component SKUs for pricing calculations.
+    | When bundle components have $0 price, this is used to calculate
+    | proper pricing based on the bundle price divided by component count.
+    |
+    | Format: ['BUNDLE-SKU' => ['COMPONENT-1', 'COMPONENT-2', ...]]
+    |
+    */
+
+    'bundle_components' => [
+        'BUND-REG-TROP-4' => [
+            'REG-BCHRY-1',  // Black Cherry Lemonade
+            'REG-WATER-1',  // Watermelon Wave
+            'REG-STRAW-1',  // Strawberry Lemonade
+            'REG-MANGO-1',  // Tropical Mango
+        ],
+        'BUND-REG-CLASSIC-4' => [
+            'REG-BCHRY-1',  // Black Cherry Lemonade
+            'REG-WATER-1',  // Watermelon Wave
+            'REG-STRAW-1',  // Strawberry Lemonade
+            'REG-MANGO-1',  // Tropical Mango
+        ],
+        'BUND-REG-BERRY-4' => [
+            'REG-BLUE-1',   // Blue Razz
+            'REG-CITR-1',   // Citrus Blast
+            'REG-GRAP-1',   // Grape Gusher
+            'REG-RUBY-1',   // Ruby Punch
+        ],
+        // Add more bundles here as needed
+    ],
+
 ];
 

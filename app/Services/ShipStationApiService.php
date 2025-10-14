@@ -339,6 +339,166 @@ class ShipStationApiService
     }
 
     /**
+     * Calculate proper price for bundle components by backtracking to original subscription
+     * 
+     * @param ShipStationOrder $order
+     * @param string $componentSku
+     * @return float
+     */
+    protected function calculateBundleComponentPrice(ShipStationOrder $order, string $componentSku): float
+    {
+        // Get bundle component mappings from config
+        $bundleMappings = config('shipstation.bundle_components', []);
+        
+        // Find which bundle this component belongs to
+        $parentBundle = null;
+        foreach ($bundleMappings as $bundleSku => $components) {
+            if (in_array($componentSku, $components)) {
+                $parentBundle = $bundleSku;
+                break;
+            }
+        }
+        
+        if (!$parentBundle) {
+            return 0.0;
+        }
+        
+        // Find the bundle item in this order
+        $bundleItem = $order->lineItems->firstWhere('sku', $parentBundle);
+        
+        if (!$bundleItem) {
+            return 0.0;
+        }
+        
+        // Get the number of components in this bundle
+        $componentCount = count($bundleMappings[$parentBundle]);
+        
+        if ($componentCount <= 0) {
+            return 0.0;
+        }
+        
+        // Check if this is a SKIO subscription order (no unit price)
+        $isSubscriptionOrder = $bundleItem->unit_price <= 0;
+        
+        if ($isSubscriptionOrder) {
+            // Backtrack to find the original subscription order
+            $originalPrice = $this->findOriginalSubscriptionPrice($order, $parentBundle);
+            
+            if ($originalPrice > 0) {
+                $pricePerComponent = $originalPrice / $componentCount;
+                
+                Log::info('Found original subscription price for bundle component', [
+                    'component_sku' => $componentSku,
+                    'bundle_sku' => $parentBundle,
+                    'current_order' => $order->order_number,
+                    'customer_email' => $order->customer_email,
+                    'original_bundle_price' => $originalPrice,
+                    'component_price' => $pricePerComponent,
+                    'source' => 'backtracked_from_subscription',
+                ]);
+                
+                return round($pricePerComponent, 2);
+            }
+        }
+        
+        // Fallback: Use current bundle price (for non-subscription orders)
+        $bundleOriginalPrice = $bundleItem->unit_price;
+        $pricePerComponent = $bundleOriginalPrice / $componentCount;
+        
+        Log::info('Using current bundle price for component', [
+            'component_sku' => $componentSku,
+            'bundle_sku' => $parentBundle,
+            'bundle_price' => $bundleOriginalPrice,
+            'component_price' => $pricePerComponent,
+            'source' => 'current_order',
+        ]);
+        
+        return round($pricePerComponent, 2);
+    }
+
+    /**
+     * Find the original subscription price by backtracking customer order history
+     * 
+     * @param ShipStationOrder $currentOrder
+     * @param string $bundleSku
+     * @return float
+     */
+    protected function findOriginalSubscriptionPrice(ShipStationOrder $currentOrder, string $bundleSku): float
+    {
+        $customerEmail = $currentOrder->customer_email;
+        
+        if (!$customerEmail) {
+            Log::warning('No customer email found for subscription price lookup', [
+                'order_number' => $currentOrder->order_number,
+                'bundle_sku' => $bundleSku,
+            ]);
+            return 0.0;
+        }
+        
+        // Look for previous orders from the same customer with this bundle SKU
+        $previousOrders = \App\Models\ShipStationOrder::where('customer_email', $customerEmail)
+            ->where('order_number', '!=', $currentOrder->order_number) // Exclude current order
+            ->where('created_at', '<', $currentOrder->created_at) // Only older orders
+            ->orderBy('created_at', 'desc') // Most recent first
+            ->get();
+        
+        foreach ($previousOrders as $previousOrder) {
+            // Check if this order has the bundle with a proper price
+            $bundleItem = $previousOrder->lineItems->firstWhere('sku', $bundleSku);
+            
+            if ($bundleItem && $bundleItem->unit_price > 0) {
+                Log::info('Found original subscription order with bundle price', [
+                    'current_order' => $currentOrder->order_number,
+                    'original_order' => $previousOrder->order_number,
+                    'customer_email' => $customerEmail,
+                    'bundle_sku' => $bundleSku,
+                    'original_price' => $bundleItem->unit_price,
+                    'order_date' => $previousOrder->created_at,
+                ]);
+                
+                return (float)$bundleItem->unit_price;
+            }
+        }
+        
+        // If no previous ShipStation orders found, check Shopify orders
+        $shopifyOrders = \App\Models\ShopifyOrder::where('email_address', $customerEmail)
+            ->orderBy('order_date', 'desc')
+            ->get();
+        
+        foreach ($shopifyOrders as $shopifyOrder) {
+            // Parse the raw JSON to find bundle pricing
+            $rawJson = $shopifyOrder->raw_json ?? null;
+            
+            if ($rawJson && isset($rawJson['line_items'])) {
+                foreach ($rawJson['line_items'] as $lineItem) {
+                    if (($lineItem['sku'] ?? '') === $bundleSku && ($lineItem['price'] ?? 0) > 0) {
+                        $price = (float)$lineItem['price'];
+                        
+                        Log::info('Found original subscription price from Shopify order', [
+                            'current_order' => $currentOrder->order_number,
+                            'shopify_order' => $shopifyOrder->order_number,
+                            'customer_email' => $customerEmail,
+                            'bundle_sku' => $bundleSku,
+                            'original_price' => $price,
+                            'order_date' => $shopifyOrder->order_date,
+                        ]);
+                        
+                        return $price;
+                    }
+                }
+            }
+        }
+        
+        Log::warning('No original subscription price found', [
+            'current_order' => $currentOrder->order_number,
+            'customer_email' => $customerEmail,
+            'bundle_sku' => $bundleSku,
+        ]);
+        
+        return 0.0;
+    }
+
+    /**
      * Build ShipStation order payload
      * 
      * @param ShipStationOrder $order
@@ -348,7 +508,7 @@ class ShipStationApiService
     {
         $imageOverrides = config('shipstation.sku_image_overrides', []);
         
-        $lineItems = $order->lineItems->map(function ($item) use ($imageOverrides) {
+        $lineItems = $order->lineItems->map(function ($item) use ($imageOverrides, $order) {
             // Check for image URL override
             $imageUrl = $item->image_url;
             if (isset($imageOverrides[$item->sku])) {
@@ -360,12 +520,50 @@ class ShipStationApiService
                 ]);
             }
             
+            // Calculate proper unit price for bundle components
+            $originalPrice = (float)$item->unit_price;
+            $unitPrice = $originalPrice;
+            
+            // If this is a bundle component (not a bundle itself) and has $0 price,
+            // calculate the price based on bundle pricing
+            if ($unitPrice == 0 && !str_starts_with($item->sku, 'BUND-')) {
+                $calculatedPrice = $this->calculateBundleComponentPrice($order, $item->sku);
+                
+                if ($calculatedPrice > 0) {
+                    $unitPrice = $calculatedPrice;
+                    
+                    // Log to both main log and pricing log
+                    $pricingLogData = [
+                        'timestamp' => now()->toDateTimeString(),
+                        'order_number' => $order->order_number,
+                        'sku' => $item->sku,
+                        'item_name' => $item->name,
+                        'quantity' => $item->quantity,
+                        'original_unit_price' => $originalPrice,
+                        'calculated_unit_price' => $unitPrice,
+                        'price_change' => $unitPrice - $originalPrice,
+                        'total_value_change' => ($unitPrice - $originalPrice) * $item->quantity,
+                        'pricing_method' => 'bundle_component_backtracking',
+                        'customer_email' => $order->customer_email,
+                    ];
+                    
+                    Log::channel('pricing')->info('PRICING UPDATE', $pricingLogData);
+                    
+                    Log::info('Applied bundle component pricing', [
+                        'sku' => $item->sku,
+                        'original_price' => $originalPrice,
+                        'calculated_price' => $unitPrice,
+                        'change' => '+$' . number_format($unitPrice - $originalPrice, 2),
+                    ]);
+                }
+            }
+            
             $itemData = [
                 'lineItemKey' => null, // Optional, can be used for order modifications
                 'sku' => $item->sku,
                 'name' => $item->name,
                 'quantity' => (int)$item->quantity,
-                'unitPrice' => (float)$item->unit_price,
+                'unitPrice' => $unitPrice,
                 'imageUrl' => $imageUrl,
                 'taxAmount' => null,
                 'shippingAmount' => null,
