@@ -86,7 +86,16 @@ class ShipStationPullService
             return false;
         }
 
+        // Extract SKUs and filter out non-string/non-integer values
         $skus = array_column($items, 'sku');
+        $skus = array_filter($skus, function($sku) {
+            return is_string($sku) || is_int($sku);
+        });
+        
+        if (empty($skus)) {
+            return false;
+        }
+        
         $skuCounts = array_count_values($skus);
         
         // Check if any SKU appears more than once
@@ -102,8 +111,33 @@ class ShipStationPullService
     /**
      * Consolidate duplicate SKUs in an order's items
      */
-    public function consolidateItems(array $items): array
+    public function consolidateItems(array $items, ?string $orderId = null, ?string $orderNumber = null): array
     {
+        // Step 1: Remove bundle SKUs (anything starting with BUND-)
+        $items = array_filter($items, function($item) use ($orderId, $orderNumber) {
+            $sku = $item['sku'] ?? '';
+            $isBundle = str_starts_with($sku, 'BUND-');
+            
+            if ($isBundle) {
+                $logData = [
+                    'bundle_sku' => $sku,
+                    'item_name' => $item['name'] ?? 'Unknown',
+                ];
+                
+                if ($orderId) {
+                    $logData['order_id'] = $orderId;
+                }
+                
+                if ($orderNumber) {
+                    $logData['order_number'] = $orderNumber;
+                }
+                
+                Log::info('Removed bundle SKU from order', $logData);
+            }
+            
+            return !$isBundle; // Keep only non-bundle items
+        });
+
         $grouped = [];
 
         // Group by SKU

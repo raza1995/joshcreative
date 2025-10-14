@@ -119,7 +119,11 @@ class SyncFromShipStationCommand extends Command
 
                 // Consolidate items
                 $originalItems = $order['items'] ?? [];
-                $consolidatedItems = $this->pullService->consolidateItems($originalItems);
+                $consolidatedItems = $this->pullService->consolidateItems(
+                    $originalItems,
+                    $shipstationOrderId,
+                    $orderNumber
+                );
 
                 Log::info('Consolidating order from ShipStation', [
                     'order_id' => $shipstationOrderId,
