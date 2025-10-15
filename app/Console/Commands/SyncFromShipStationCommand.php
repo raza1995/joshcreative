@@ -155,12 +155,14 @@ class SyncFromShipStationCommand extends Command
                 // Apply pricing calculations to consolidated items
                 $itemsWithPricing = $this->applyPricingToItems($consolidatedItems, $order);
                 
-                // Update order in ShipStation with consolidated items and pricing
-                $updatedOrder = array_merge($order, [
-                    'items' => $itemsWithPricing,
-                ]);
+                // Build minimal update payload - ONLY send what's needed to update items
+                $updatePayload = [
+                    'orderId' => $order['orderId'],  // Required to identify the order
+                    'orderKey' => $order['orderKey'], // Required for ShipStation to match
+                    'items' => $itemsWithPricing,    // The only thing we're actually updating
+                ];
 
-                $response = $this->updateOrderInShipStation($updatedOrder);
+                $response = $this->updateOrderInShipStation($updatePayload, $order);
 
                 if ($response['success']) {
                     ShipStationProcessedOrder::markAsProcessed(
@@ -279,12 +281,12 @@ class SyncFromShipStationCommand extends Command
         return false;
     }
 
-    protected function updateOrderInShipStation(array $order): array
+    protected function updateOrderInShipStation(array $updatePayload, array $originalOrder = []): array
     {
         try {
             // Log the items being sent with pricing details
             $itemsSummary = [];
-            foreach ($order['items'] ?? [] as $item) {
+            foreach ($updatePayload['items'] ?? [] as $item) {
                 $itemsSummary[] = [
                     'sku' => $item['sku'] ?? 'N/A',
                     'name' => $item['name'] ?? 'N/A',
@@ -294,16 +296,17 @@ class SyncFromShipStationCommand extends Command
                 ];
             }
             
-            Log::channel('pricing')->info('SHIPSTATION API REQUEST', [
+            Log::channel('pricing')->info('SHIPSTATION API REQUEST - MINIMAL UPDATE', [
                 'timestamp' => now()->toDateTimeString(),
-                'order_id' => $order['orderId'] ?? 'MISSING',
-                'order_number' => $order['orderNumber'] ?? 'Unknown',
-                'order_key' => $order['orderKey'] ?? 'Unknown',
-                'order_status' => $order['orderStatus'] ?? 'Unknown',
-                'items_count' => count($order['items'] ?? []),
+                'order_id' => $updatePayload['orderId'] ?? 'MISSING',
+                'order_number' => $originalOrder['orderNumber'] ?? 'Unknown',
+                'order_key' => $updatePayload['orderKey'] ?? 'Unknown',
+                'order_status' => $originalOrder['orderStatus'] ?? 'Unknown',
+                'items_count' => count($updatePayload['items'] ?? []),
                 'items_detail' => $itemsSummary,
                 'endpoint' => config('shipstation.base_url') . '/orders/createorder',
-                'note' => 'orderId field is REQUIRED to update existing orders',
+                'payload_keys' => array_keys($updatePayload),
+                'note' => 'ONLY sending orderId, orderKey, and items - minimal update to avoid overwriting other data',
             ]);
             
             $response = \Illuminate\Support\Facades\Http::withHeaders([
@@ -311,12 +314,12 @@ class SyncFromShipStationCommand extends Command
                 'Content-Type' => 'application/json',
             ])
             ->timeout(30)
-            ->post(config('shipstation.base_url') . '/orders/createorder', $order);
+            ->post(config('shipstation.base_url') . '/orders/createorder', $updatePayload);
 
             if ($response->successful()) {
                 Log::channel('pricing')->info('SHIPSTATION API SUCCESS', [
                     'timestamp' => now()->toDateTimeString(),
-                    'order_number' => $order['orderNumber'] ?? 'Unknown',
+                    'order_number' => $originalOrder['orderNumber'] ?? 'Unknown',
                     'status' => 'success',
                 ]);
                 
@@ -325,7 +328,7 @@ class SyncFromShipStationCommand extends Command
 
             Log::channel('pricing')->error('SHIPSTATION API FAILED', [
                 'timestamp' => now()->toDateTimeString(),
-                'order_number' => $order['orderNumber'] ?? 'Unknown',
+                'order_number' => $originalOrder['orderNumber'] ?? 'Unknown',
                 'status' => 'failed',
                 'error' => $response->body(),
             ]);
@@ -337,7 +340,7 @@ class SyncFromShipStationCommand extends Command
         } catch (\Exception $e) {
             Log::channel('pricing')->error('SHIPSTATION API EXCEPTION', [
                 'timestamp' => now()->toDateTimeString(),
-                'order_number' => $order['orderNumber'] ?? 'Unknown',
+                'order_number' => $originalOrder['orderNumber'] ?? 'Unknown',
                 'error' => $e->getMessage(),
             ]);
             
