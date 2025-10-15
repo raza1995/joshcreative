@@ -197,6 +197,11 @@ Route::get('/analytics/aov/data', [AovReportController::class, 'data'])->name('a
 Route::get('/analytics/kpi', [KpiReportController::class, 'index'])->name('analytics.kpi');
 Route::get('/analytics/kpi/data', [KpiReportController::class, 'data'])->name('analytics.kpi.data');
 
+// ShipStation Webhook Routes
+use App\Http\Controllers\ShipStationWebhookController;
+
+Route::post('/shipstation/webhook', [ShipStationWebhookController::class, 'handleWebhook'])->name('shipstation.webhook');
+
 // Quiz Dashboard Routes
 use App\Http\Controllers\QuizDashboardController;
 

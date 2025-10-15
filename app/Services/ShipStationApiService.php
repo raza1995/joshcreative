@@ -690,6 +690,95 @@ class ShipStationApiService
     }
 
     /**
+     * Get order from ShipStation by order ID
+     */
+    public function getOrder(string $orderId): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => $this->authHeader,
+            ])
+            ->timeout(30)
+            ->get($this->baseUrl . '/orders/' . $orderId);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error('Failed to get order from ShipStation', [
+                'order_id' => $orderId,
+                'status' => $response->status(),
+                'response' => $response->body(),
+            ]);
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Error getting order from ShipStation', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Update order items in ShipStation
+     */
+    public function updateOrderItems(string $orderId, array $items): array
+    {
+        try {
+            $payload = [
+                'items' => $items,
+            ];
+
+            $response = Http::withHeaders([
+                'Authorization' => $this->authHeader,
+                'Content-Type' => 'application/json',
+            ])
+            ->timeout(30)
+            ->put($this->baseUrl . '/orders/' . $orderId, $payload);
+
+            if ($response->successful()) {
+                Log::info('Successfully updated order items in ShipStation', [
+                    'order_id' => $orderId,
+                    'items_count' => count($items),
+                ]);
+
+                return [
+                    'success' => true,
+                    'data' => $response->json(),
+                ];
+            }
+
+            Log::error('Failed to update order items in ShipStation', [
+                'order_id' => $orderId,
+                'status' => $response->status(),
+                'response' => $response->body(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Failed to update order items',
+                'status' => $response->status(),
+                'response' => $response->body(),
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error updating order items in ShipStation', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Get order from ShipStation by order key
      */
     public function getOrderByKey(string $orderKey): ?array

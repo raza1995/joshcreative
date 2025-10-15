@@ -124,6 +124,19 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 30,
         ],
+
+        'shipstation_webhook' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/shipstation-webhook.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+        ],
+        'shipstation_data' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/shipstation-data.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+        ],
     ],
 
 ];
