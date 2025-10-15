@@ -16,7 +16,7 @@ class Kernel extends ConsoleKernel
     {
 
 
-        $schedule->command('shipstation:sync-from-api --minutes=60')
+        $schedule->command('shipstation:sync-from-api --minutes=2440')
                  ->everyThreeMinutes()
                  ->withoutOverlapping()
                  ->runInBackground()

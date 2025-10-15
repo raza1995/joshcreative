@@ -8,6 +8,7 @@ use App\Services\ShipStationApiService;
 use App\Services\ShipStationOrderConsolidatorService;
 use App\Models\ShopifyOrder;
 use App\Models\ShipStationOrder;
+use App\Models\ShipStationWebhookLog;
 
 class ShipStationWebhookController extends Controller
 {
@@ -25,7 +26,24 @@ class ShipStationWebhookController extends Controller
      */
     public function handleWebhook(Request $request)
     {
+        $startTime = microtime(true);
+        
+        // Create database log entry immediately
+        $webhookLog = ShipStationWebhookLog::create([
+            'event_type' => $request->input('resource_type') ?? $request->input('event'),
+            'resource_url' => $request->input('resource_url'),
+            'resource_type' => $request->input('resource_type'),
+            'order_id' => $request->input('orderId'),
+            'order_number' => $request->input('orderNumber'),
+            'raw_request' => $request->all(),
+            'headers' => $request->headers->all(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'status' => 'pending',
+        ]);
+        
         Log::channel('shipstation_webhook')->info('ShipStation webhook received', [
+            'webhook_log_id' => $webhookLog->id,
             'headers' => $request->headers->all(),
             'body' => $request->all(),
             'ip' => $request->ip(),
@@ -34,6 +52,7 @@ class ShipStationWebhookController extends Controller
         
         // Log detailed data to separate file
         Log::channel('shipstation_data')->info('Webhook Data Details', [
+            'webhook_log_id' => $webhookLog->id,
             'timestamp' => now()->toISOString(),
             'full_payload' => $request->all(),
             'headers' => $request->headers->all(),
@@ -42,9 +61,16 @@ class ShipStationWebhookController extends Controller
         try {
             $webhookData = $request->all();
             
+            // Mark as processing
+            $webhookLog->markAsProcessing();
+            
             // Validate webhook data
             if (!$this->validateWebhookData($webhookData)) {
+                $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+                $webhookLog->markAsFailed('Invalid webhook data', null, $processingTime);
+                
                 Log::channel('shipstation_webhook')->warning('Invalid webhook data received', [
+                    'webhook_log_id' => $webhookLog->id,
                     'data' => $webhookData,
                 ]);
                 return response()->json(['error' => 'Invalid webhook data'], 400);
@@ -59,32 +85,43 @@ class ShipStationWebhookController extends Controller
             ]);
 
             // Process based on event type
+            $result = null;
             switch ($eventType) {
                 case 'ORDER_NOTIFY':
                 case 'ITEM_ORDER_NOTIFY':
-                    $this->processOrderNotification($orderId);
+                    $result = $this->processOrderNotification($orderId, $webhookLog);
                     break;
                 
                 case 'SHIP_NOTIFY':
                 case 'ITEM_SHIP_NOTIFY':
-                    $this->processShipNotification($orderId);
+                    $result = $this->processShipNotification($orderId);
                     break;
                 
                 case 'FULFILLMENT_SHIPPED':
                 case 'FULFILLMENT_REJECTED':
-                    $this->processFulfillmentNotification($orderId);
+                    $result = $this->processFulfillmentNotification($orderId);
                     break;
                 
                 default:
                     Log::channel('shipstation_webhook')->info('Unhandled webhook event type', [
                         'event_type' => $eventType,
                     ]);
+                    $result = ['status' => 'unhandled', 'event_type' => $eventType];
             }
+
+            // Mark as success
+            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+            $webhookLog->markAsSuccess($result, $processingTime);
 
             return response()->json(['status' => 'success', 'message' => 'Webhook processed']);
 
         } catch (\Exception $e) {
+            // Mark as failed
+            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+            $webhookLog->markAsFailed($e->getMessage(), $e->getTraceAsString(), $processingTime);
+            
             Log::channel('shipstation_webhook')->error('Error processing ShipStation webhook', [
+                'webhook_log_id' => $webhookLog->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request_data' => $request->all(),
@@ -97,7 +134,7 @@ class ShipStationWebhookController extends Controller
     /**
      * Process order notification - update order with consolidation and pricing
      */
-    protected function processOrderNotification($orderId)
+    protected function processOrderNotification($orderId, $webhookLog = null)
     {
         Log::channel('shipstation_webhook')->info('Processing order notification', [
             'order_id' => $orderId,
@@ -125,7 +162,7 @@ class ShipStationWebhookController extends Controller
                 Log::channel('shipstation_webhook')->warning('Order not found in ShipStation', [
                     'order_id' => $orderId,
                 ]);
-                return;
+                return ['status' => 'failed', 'reason' => 'Order not found in ShipStation'];
             }
 
             $orderNumber = $shipstationOrder['orderNumber'] ?? null;
@@ -135,7 +172,7 @@ class ShipStationWebhookController extends Controller
                     'order_id' => $orderId,
                     'order_data' => $shipstationOrder,
                 ]);
-                return;
+                return ['status' => 'failed', 'reason' => 'No order number found'];
             }
 
             Log::channel('shipstation_webhook')->info('Found ShipStation order', [
@@ -152,7 +189,7 @@ class ShipStationWebhookController extends Controller
                     'order_id' => $orderId,
                     'order_number' => $orderNumber,
                 ]);
-                return;
+                return ['status' => 'failed', 'reason' => 'Shopify order not found'];
             }
 
             Log::channel('shipstation_webhook')->info('Found Shopify order', [
@@ -167,8 +204,20 @@ class ShipStationWebhookController extends Controller
                 'shopify_order' => $shopifyOrder->toArray(),
             ]);
             
+            // Update webhook log with order number
+            if ($webhookLog) {
+                $webhookLog->update(['order_number' => $orderNumber]);
+            }
+            
             // Apply consolidation and pricing (same logic as sync-from-api)
             $this->applyConsolidationAndPricing($shopifyOrder, $shipstationOrder);
+            
+            return [
+                'status' => 'success',
+                'order_id' => $orderId,
+                'order_number' => $orderNumber,
+                'shopify_order_id' => $shopifyOrder->id,
+            ];
 
         } catch (\Exception $e) {
             Log::channel('shipstation_webhook')->error('Error processing order notification', [
@@ -176,6 +225,11 @@ class ShipStationWebhookController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            
+            return [
+                'status' => 'error',
+                'error' => $e->getMessage(),
+            ];
         }
     }
 
