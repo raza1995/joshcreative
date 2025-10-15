@@ -284,6 +284,16 @@ class SyncFromShipStationCommand extends Command
     protected function updateOrderInShipStation(array $updatePayload, array $originalOrder = []): array
     {
         try {
+            // ShipStation requires the ENTIRE resource for updates, not partial updates
+            // We need to send the complete order data with updated items
+            $completeOrderData = $originalOrder;
+            
+            // Update only the items array with our consolidated and priced items
+            $completeOrderData['items'] = $updatePayload['items'];
+            
+            // Ensure we have the orderId for update (not creation)
+            $completeOrderData['orderId'] = $updatePayload['orderId'];
+            
             // Log the items being sent with pricing details
             $itemsSummary = [];
             foreach ($updatePayload['items'] ?? [] as $item) {
@@ -296,7 +306,7 @@ class SyncFromShipStationCommand extends Command
                 ];
             }
             
-            Log::channel('pricing')->info('SHIPSTATION API REQUEST - MINIMAL UPDATE', [
+            Log::channel('pricing')->info('SHIPSTATION API REQUEST - COMPLETE UPDATE', [
                 'timestamp' => now()->toDateTimeString(),
                 'order_id' => $updatePayload['orderId'] ?? 'MISSING',
                 'order_number' => $originalOrder['orderNumber'] ?? 'Unknown',
@@ -305,8 +315,8 @@ class SyncFromShipStationCommand extends Command
                 'items_count' => count($updatePayload['items'] ?? []),
                 'items_detail' => $itemsSummary,
                 'endpoint' => config('shipstation.base_url') . '/orders/createorder',
-                'payload_keys' => array_keys($updatePayload),
-                'note' => 'ONLY sending orderId, orderKey, and items - minimal update to avoid overwriting other data',
+                'payload_keys' => array_keys($completeOrderData),
+                'note' => 'Sending COMPLETE order data with updated items - ShipStation requires entire resource for updates',
             ]);
             
             $response = \Illuminate\Support\Facades\Http::withHeaders([
@@ -314,7 +324,7 @@ class SyncFromShipStationCommand extends Command
                 'Content-Type' => 'application/json',
             ])
             ->timeout(30)
-            ->post(config('shipstation.base_url') . '/orders/createorder', $updatePayload);
+            ->post(config('shipstation.base_url') . '/orders/createorder', $completeOrderData);
 
             if ($response->successful()) {
                 Log::channel('pricing')->info('SHIPSTATION API SUCCESS', [
