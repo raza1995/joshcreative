@@ -77,7 +77,7 @@ class ShipStationWebhookController extends Controller
             }
 
             $eventType = $webhookData['event'] ?? 'unknown';
-            $orderId = $webhookData['resource_url'] ?? null;
+            $orderId = $webhookData['orderId'] ?? null;
 
             Log::channel('shipstation_webhook')->info('Processing webhook event', [
                 'event_type' => $eventType,
@@ -109,11 +109,23 @@ class ShipStationWebhookController extends Controller
                     $result = ['status' => 'unhandled', 'event_type' => $eventType];
             }
 
-            // Mark as success
+            // Mark as success or failed based on result
             $processingTime = round((microtime(true) - $startTime) * 1000, 2);
-            $webhookLog->markAsSuccess($result, $processingTime);
-
-            return response()->json(['status' => 'success', 'message' => 'Webhook processed']);
+            
+            // Check if processing actually failed
+            if (isset($result['status']) && in_array($result['status'], ['failed', 'error'])) {
+                $errorMessage = $result['reason'] ?? $result['error'] ?? 'Processing failed';
+                $webhookLog->markAsFailed($errorMessage, null, $processingTime);
+                
+                return response()->json([
+                    'status' => 'processed',
+                    'message' => 'Webhook received but processing failed',
+                    'result' => $result
+                ], 200); // Still return 200 so ShipStation doesn't retry
+            } else {
+                $webhookLog->markAsSuccess($result, $processingTime);
+                return response()->json(['status' => 'success', 'message' => 'Webhook processed']);
+            }
 
         } catch (\Exception $e) {
             // Mark as failed
@@ -209,14 +221,29 @@ class ShipStationWebhookController extends Controller
                 $webhookLog->update(['order_number' => $orderNumber]);
             }
             
-            // Apply consolidation and pricing (same logic as sync-from-api)
-            $this->applyConsolidationAndPricing($shopifyOrder, $shipstationOrder);
+            // Apply consolidation and pricing using the same service as sync-from-api
+            $consolidatedOrder = $this->consolidator->consolidateOrder($shopifyOrder);
+            
+            if (!$consolidatedOrder) {
+                Log::channel('shipstation_webhook')->warning('Failed to consolidate order', [
+                    'order_number' => $orderNumber,
+                ]);
+                return ['status' => 'failed', 'reason' => 'Failed to consolidate order'];
+            }
+            
+            Log::channel('shipstation_webhook')->info('Order consolidated successfully', [
+                'shipstation_order_id' => $consolidatedOrder->id,
+                'order_key' => $consolidatedOrder->order_key,
+                'status' => $consolidatedOrder->consolidation_status,
+            ]);
             
             return [
                 'status' => 'success',
                 'order_id' => $orderId,
                 'order_number' => $orderNumber,
                 'shopify_order_id' => $shopifyOrder->id,
+                'shipstation_order_id' => $consolidatedOrder->id,
+                'consolidation_status' => $consolidatedOrder->consolidation_status,
             ];
 
         } catch (\Exception $e) {

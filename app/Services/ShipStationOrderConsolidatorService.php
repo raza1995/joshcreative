@@ -13,11 +13,13 @@ class ShipStationOrderConsolidatorService
 {
     protected $priceStrategy;
     protected $consolidateEnabled;
+    protected $shipStationApi;
 
-    public function __construct()
+    public function __construct(ShipStationApiService $shipStationApi)
     {
         $this->priceStrategy = config('shipstation.price_strategy', 'weighted_average');
         $this->consolidateEnabled = config('shipstation.consolidate_skus', true);
+        $this->shipStationApi = $shipStationApi;
     }
 
     /**
@@ -45,9 +47,26 @@ class ShipStationOrderConsolidatorService
                 return null;
             }
 
-            // Note: Duplicate handling is now done by updateOrCreate in createShipStationOrder
+            // Check if order exists in ShipStation first
+            $orderNumber = $orderData['order_number'];
+            $existingOrder = ShipStationOrder::where('order_number', $orderNumber)->first();
+            
+            if (!$existingOrder) {
+                Log::info('Order not found in local database - checking ShipStation API', [
+                    'order_number' => $orderNumber
+                ]);
+                
+                // Check if order exists in ShipStation via API
+                if (!$this->orderExistsInShipStation($orderNumber)) {
+                    Log::warning('Order does not exist in ShipStation - skipping consolidation', [
+                        'order_number' => $orderNumber
+                    ]);
+                    DB::rollback();
+                    return null;
+                }
+            }
 
-            // Create ShipStation order record
+            // Create or update ShipStation order record
             $shipstationOrder = $this->createShipStationOrder($shopifyOrder, $orderData);
 
             // Consolidate line items
@@ -58,6 +77,9 @@ class ShipStationOrderConsolidatorService
                 ? $this->consolidateLineItems($lineItemsData)
                 : $this->mapLineItemsWithoutConsolidation($lineItemsData);
 
+            // Clear existing line items to prevent duplicates
+            ShipStationLineItem::where('shipstation_order_id', $shipstationOrder->id)->delete();
+            
             // Create line items
             foreach ($consolidatedItems as $itemData) {
                 ShipStationLineItem::create(array_merge($itemData, [
@@ -114,7 +136,7 @@ class ShipStationOrderConsolidatorService
     /**
      * Parse Shopify order raw JSON
      */
-    protected function parseShopifyOrder(ShopifyOrder $shopifyOrder): ?array
+    public function parseShopifyOrder(ShopifyOrder $shopifyOrder): ?array
     {
         $rawJson = $shopifyOrder->raw_json;
         
@@ -132,7 +154,7 @@ class ShipStationOrderConsolidatorService
     /**
      * Validate order meets requirements
      */
-    protected function validateOrder(array $orderData): bool
+    public function validateOrder(array $orderData): bool
     {
         $config = config('shipstation.validation');
         $orderNumber = $orderData['id'] ?? 'unknown';
@@ -190,7 +212,7 @@ class ShipStationOrderConsolidatorService
     }
 
     /**
-     * Create ShipStation order record
+     * Create or update ShipStation order record (only updates existing orders)
      */
     protected function createShipStationOrder(ShopifyOrder $shopifyOrder, array $orderData): ShipStationOrder
     {
@@ -203,7 +225,7 @@ class ShipStationOrderConsolidatorService
             ['order_key' => $orderKey],
             [
                 'shopify_order_id' => $shopifyOrder->id,
-                'order_number' => $orderData['id'],
+                'order_number' => $orderData['order_number'],
                 'customer_name' => trim(($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? '')),
                 'customer_email' => $orderData['email'] ?? $customer['email'] ?? null,
                 'order_total' => $orderData['total_price'] ?? 0,
@@ -229,11 +251,45 @@ class ShipStationOrderConsolidatorService
         $wasRecentlyCreated = $shipstationOrder->wasRecentlyCreated;
         Log::info('ShipStation order ' . ($wasRecentlyCreated ? 'created' : 'updated'), [
             'order_key' => $orderKey,
-            'order_number' => $orderData['id'],
+            'order_number' => $orderData['order_number'],
             'action' => $wasRecentlyCreated ? 'created' : 'updated',
         ]);
 
         return $shipstationOrder;
+    }
+
+    /**
+     * Check if order exists in ShipStation via API
+     */
+    protected function orderExistsInShipStation(string $orderNumber): bool
+    {
+        try {
+            // Use the pull service to search for the order
+            $pullService = app(ShipStationPullService::class);
+            $orders = $pullService->pullSpecificOrder($orderNumber);
+            
+            if (!empty($orders) && is_array($orders)) {
+                Log::info('Order found in ShipStation API', [
+                    'order_number' => $orderNumber,
+                    'shipstation_order_id' => $orders[0]['orderId'] ?? 'unknown'
+                ]);
+                return true;
+            }
+            
+            Log::info('Order not found in ShipStation API', [
+                'order_number' => $orderNumber
+            ]);
+            return false;
+            
+        } catch (\Exception $e) {
+            Log::error('Error checking if order exists in ShipStation', [
+                'order_number' => $orderNumber,
+                'error' => $e->getMessage()
+            ]);
+            
+            // If we can't check, assume it doesn't exist to be safe
+            return false;
+        }
     }
 
     /**
