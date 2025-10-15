@@ -222,23 +222,27 @@ class ShopifyWebhookController extends Controller
                 $delayMinutes = config('shipstation.webhook_delay_minutes', 0);
                 
                 if ($delayMinutes > 0) {
-                    // Delay push to let ShipStation auto-sync first
+                    // Delay push to let ShipStation auto-sync first - HIGH PRIORITY
                     PushOrderToShipStationJob::dispatch($shipstationOrder->id)
-                        ->delay(now()->addMinutes($delayMinutes));
+                        ->delay(now()->addMinutes($delayMinutes))
+                        ->onQueue('high');
                     
-                    Log::info('Order queued for ShipStation push with delay', [
+                    Log::info('Order queued for ShipStation push with delay [HIGH PRIORITY]', [
                         'order_number' => $orderNumber,
                         'shipstation_order_id' => $shipstationOrder->id,
                         'delay_minutes' => $delayMinutes,
+                        'priority' => 'HIGH',
                         'will_process_at' => now()->addMinutes($delayMinutes)->toDateTimeString(),
                     ]);
                 } else {
-                    // Immediate push
-                    PushOrderToShipStationJob::dispatch($shipstationOrder->id);
+                    // Immediate push - HIGHEST PRIORITY
+                    PushOrderToShipStationJob::dispatch($shipstationOrder->id)
+                        ->onQueue('high');
                     
-                    Log::info('Order queued for ShipStation push (immediate)', [
+                    Log::info('Order queued for ShipStation push (immediate) [HIGHEST PRIORITY]', [
                         'order_number' => $orderNumber,
                         'shipstation_order_id' => $shipstationOrder->id,
+                        'priority' => 'HIGHEST',
                     ]);
                 }
             } else {

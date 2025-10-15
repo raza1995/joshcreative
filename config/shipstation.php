@@ -81,7 +81,7 @@ return [
     */
 
     'queue' => [
-        'connection' => env('SHIPSTATION_QUEUE_CONNECTION', 'default'),
+        'connection' => env('SHIPSTATION_QUEUE_CONNECTION', 'sync'), // 'sync' = immediate processing
         'name' => env('SHIPSTATION_QUEUE_NAME', 'shipstation'),
         'retry_after' => env('SHIPSTATION_QUEUE_RETRY_AFTER', 180), // seconds
         'max_tries' => env('SHIPSTATION_QUEUE_MAX_TRIES', 3),

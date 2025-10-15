@@ -1,0 +1,106 @@
+================================================================
+SHIPSTATION INSTANT PROCESSING SETUP FOR CPANEL
+================================================================
+
+🚀 FOR IMMEDIATE, REAL-TIME PROCESSING (RECOMMENDED FOR CPANEL)
+================================================================
+
+Add these lines to your .env file to make ShipStation process orders 
+INSTANTLY when webhooks arrive (no queues, no delays):
+
+----------------------------------------------------------------
+# ShipStation Instant Processing Configuration
+SHIPSTATION_QUEUE_CONNECTION=sync
+SHIPSTATION_AUTO_PUSH=true
+SHIPSTATION_WEBHOOK_DELAY_MINUTES=0
+----------------------------------------------------------------
+
+✅ WHAT THIS DOES:
+==================
+
+1. SHIPSTATION_QUEUE_CONNECTION=sync
+   → Jobs execute IMMEDIATELY in the same process
+   → No queue worker needed
+   → No delays
+   → Perfect for cPanel where queue workers are hard to manage
+
+2. SHIPSTATION_AUTO_PUSH=true
+   → Orders are automatically pushed to ShipStation
+   → No manual intervention needed
+
+3. SHIPSTATION_WEBHOOK_DELAY_MINUTES=0
+   → Zero delay before processing
+   → Orders update the moment webhook arrives
+
+
+🎯 PROCESSING FLOW WITH THESE SETTINGS:
+========================================
+
+1. Shopify order comes in
+2. Webhook hits your server IMMEDIATELY
+3. Order is consolidated (bundles removed, SKUs fixed)
+4. Pricing is updated from Shopify products
+5. Order is pushed to ShipStation IMMEDIATELY
+6. Done! (usually within 1-2 seconds)
+
+
+⚡ SPEED COMPARISON:
+====================
+
+WITHOUT these settings (Queued):
+- Webhook arrives → Order queued → Wait for worker → Process (5-30 minutes)
+
+WITH these settings (Sync):
+- Webhook arrives → Process IMMEDIATELY → Done (1-2 seconds) ✅
+
+
+📋 INSTALLATION STEPS:
+======================
+
+1. Open your .env file on cPanel (in File Manager or via SSH)
+
+2. Add these three lines anywhere in the file:
+   
+   SHIPSTATION_QUEUE_CONNECTION=sync
+   SHIPSTATION_AUTO_PUSH=true
+   SHIPSTATION_WEBHOOK_DELAY_MINUTES=0
+
+3. Clear the config cache:
+   
+   php artisan config:clear
+
+4. Test with a new order!
+
+
+🔧 TESTING:
+===========
+
+Run this command to verify your configuration:
+
+php test_sync_processing.php
+
+You should see:
+✅ SYNC MODE: Jobs will process IMMEDIATELY
+✅ Auto Push: ENABLED
+✅ No delay - immediate processing!
+✅ SYNC QUEUE: Jobs execute immediately in the same process!
+🎉 PERFECT SETUP FOR INSTANT PROCESSING!
+
+
+⚠️  IMPORTANT FOR CPANEL:
+==========================
+
+- NO need to run queue workers (php artisan queue:work)
+- NO need to set up cron jobs for queues
+- NO need to worry about supervisor or process managers
+- Just set SHIPSTATION_QUEUE_CONNECTION=sync and you're done!
+
+
+🎉 RESULT:
+==========
+
+Orders will be processed INSTANTLY when they come in from Shopify.
+No waiting, no delays, no queue management needed.
+
+Perfect for cPanel hosting! 🚀
+
