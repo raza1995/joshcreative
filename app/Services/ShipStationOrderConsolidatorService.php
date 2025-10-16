@@ -219,13 +219,37 @@ class ShipStationOrderConsolidatorService
         $shipping = $orderData['shipping_address'] ?? [];
         $customer = $orderData['customer'] ?? [];
         
-        $orderKey = config('shipstation.order_key_prefix', 'SHOPIFY') . '-' . $orderData['id'];
+        // CRITICAL FIX: Search for existing ShipStation order by order number
+        // and use its actual orderKey instead of generating our own
+        $existingShipStationOrder = $this->findExistingShipStationOrder($orderData['order_number']);
+        
+        if ($existingShipStationOrder) {
+            // Use the existing ShipStation order's key and ID
+            $orderKey = $existingShipStationOrder['orderKey'];
+            $shipstationOrderId = $existingShipStationOrder['orderId'];
+            
+            Log::info('Found existing ShipStation order, using its orderKey', [
+                'order_number' => $orderData['order_number'],
+                'shipstation_order_id' => $shipstationOrderId,
+                'shipstation_order_key' => $orderKey,
+            ]);
+        } else {
+            // Generate our own key only if no existing order found
+            $orderKey = config('shipstation.order_key_prefix', 'SHOPIFY') . '-' . $orderData['id'];
+            $shipstationOrderId = null;
+            
+            Log::info('No existing ShipStation order found, generating new orderKey', [
+                'order_number' => $orderData['order_number'],
+                'generated_order_key' => $orderKey,
+            ]);
+        }
 
         $shipstationOrder = ShipStationOrder::updateOrCreate(
             ['order_key' => $orderKey],
             [
                 'shopify_order_id' => $shopifyOrder->id,
                 'order_number' => $orderData['order_number'],
+                'shipstation_order_id' => $shipstationOrderId, // Store the actual ShipStation order ID
                 'customer_name' => trim(($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? '')),
                 'customer_email' => $orderData['email'] ?? $customer['email'] ?? null,
                 'order_total' => $orderData['total_price'] ?? 0,
@@ -494,6 +518,40 @@ class ShipStationOrderConsolidatorService
     {
         $prices = array_map(fn($item) => floatval($item['price'] ?? 0), $items);
         return !empty($prices) ? max($prices) : 0;
+    }
+
+    /**
+     * Find existing ShipStation order by order number and return its details
+     */
+    protected function findExistingShipStationOrder(string $orderNumber): ?array
+    {
+        try {
+            $pullService = new ShipStationPullService();
+            $result = $pullService->pullSpecificOrder($orderNumber);
+            
+            // pullSpecificOrder returns array with numeric keys, not 'orders' key
+            if (!empty($result) && is_array($result)) {
+                // Return the first (oldest) order to avoid duplicates
+                $existingOrder = $result[0];
+                
+                Log::info('Found existing ShipStation order', [
+                    'order_number' => $orderNumber,
+                    'shipstation_order_id' => $existingOrder['orderId'],
+                    'shipstation_order_key' => $existingOrder['orderKey'],
+                    'order_status' => $existingOrder['orderStatus'],
+                ]);
+                
+                return $existingOrder;
+            }
+            
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Error finding existing ShipStation order', [
+                'order_number' => $orderNumber,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 }
 
